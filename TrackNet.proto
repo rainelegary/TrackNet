@@ -54,7 +54,7 @@ message ClientState {
 		GOOD = 1;
 	}
 
-    optional string train_id= 1;
+    optional string train_id = 1;
     optional float speed = 2;
     optional Location location = 3;
     optional TrackCondition condition = 4;
