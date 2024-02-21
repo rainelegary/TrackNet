@@ -1,11 +1,22 @@
-syntax = "proto2";
+syntax = "proto3";
 
 package TrackNet;
 
+/* Message fields can be one of the following:
+ *  optional: An optional field is in one of two possible states:
+ *      the field is set, and contains a value that was explicitly set or parsed from the wire. It will be serialized to the wire.
+ *      the field is unset, and will return the default value. It will not be serialized to the wire.
+ *
+ *  repeated: this field type can be repeated zero or more times in a well-formed message. The order of the repeated values will be preserved.
+ *
+ *  map: this is a paired key/value field type. See Maps for more on this field type.
+*/
+
 message Route {
     repeated Track tracks = 1;
-    optional string destination = 2;
-    optional string origin = 3;
+    repeated string nodes = 2;
+    optional string destination = 3;
+    optional string origin = 4;
 }
 
 message Track {
@@ -29,7 +40,7 @@ message Location {
 
 message ServerResponse {
 	
-	enum Status {
+	enum UpdateStatus {
 	    REDUCE_SPEED = 0;
 		INCREASE_SPEED = 1;
 		REROUTE = 2;
@@ -37,14 +48,16 @@ message ServerResponse {
 		CLEAR = 4; 
 	}	
 
-	optional Status status = 1;
-	optional Route new_route = 2;
-    optional float speed_change = 3;
+    optional string train_id = 1;
+	optional Status status = 2;
+	optional Route new_route = 3;
+    optional float speed_change = 4;
 }
 
 message ClientState {
 
-    optional float speed = 1;
-    optional Location location = 2;
-    optional Route route = 3;
+    optional string train_id= 1;
+    optional float speed = 2;
+    optional Location location = 3;
+    optional Route route = 4;
 }
