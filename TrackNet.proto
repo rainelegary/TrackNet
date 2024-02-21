@@ -1,0 +1,50 @@
+syntax = "proto2";
+
+package TrackNet;
+
+message Route {
+    repeated Track tracks = 1;
+    optional string destination = 2;
+    optional string origin = 3;
+}
+
+message Track {
+    optioanl string name = 1;
+    optional float length = 2;
+    optional string to_node = 3; 
+    optional string from_node = 4;
+}
+
+message Location {
+
+    enum TrackCondition {
+	    BAD = 0;
+		GOOD = 1;
+	}	
+
+    optional Track track = 1;
+    optional float distance = 2;
+    optional TrackCondition condition= 3;
+}
+
+message ServerResponse {
+	
+	enum Status {
+	    REDUCE_SPEED = 0;
+		INCREASE_SPEED = 1;
+		REROUTE = 2;
+		STOP = 3;
+		CLEAR = 4; 
+	}	
+
+	optional Status status = 1;
+	optional Route new_route = 2;
+    optional float speed_change = 3;
+}
+
+message ClientState {
+
+    optional float speed = 1;
+    optional Location location = 2;
+    optional Route route = 3;
+}
