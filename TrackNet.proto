@@ -2,7 +2,8 @@ syntax = "proto3";
 
 package TrackNet;
 
-/* Message fields can be one of the following:
+/* https://protobuf.dev/programming-guides/proto3/
+ * Message fields can be one of the following:
  *  optional: An optional field is in one of two possible states:
  *      the field is set, and contains a value that was explicitly set or parsed from the wire. It will be serialized to the wire.
  *      the field is unset, and will return the default value. It will not be serialized to the wire.
@@ -27,15 +28,8 @@ message Track {
 }
 
 message Location {
-
-    enum TrackCondition {
-	    BAD = 0;
-		GOOD = 1;
-	}	
-
     optional Track track = 1;
     optional float distance = 2;
-    optional TrackCondition condition= 3;
 }
 
 message ServerResponse {
@@ -49,15 +43,21 @@ message ServerResponse {
 	}	
 
     optional string train_id = 1;
-	optional Status status = 2;
+	optional UpdateStatus status = 2;
 	optional Route new_route = 3;
     optional float speed_change = 4;
 }
 
 message ClientState {
 
+    enum TrackCondition {
+	    BAD = 0;
+		GOOD = 1;
+	}
+
     optional string train_id= 1;
     optional float speed = 2;
     optional Location location = 3;
-    optional Route route = 4;
+    optional TrackCondition condition = 4;
+    optional Route route = 5;
 }
