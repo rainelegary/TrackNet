@@ -1,0 +1,13 @@
+SetUp:
+	1. Download protobuf compiler for your operating system: https://github.com/protocolbuffers/protobuf/releases/tag/v25.3
+	2. Place extracted files in preferd location and add path to environment variables (i.e. C:\proto3\bin)
+
+	3. Install protobuf for python 
+		> pip install protobuf
+
+Compiling Protocol Buffers:
+After modifying the TrackNet.proto file you need to compile it for the changes to take effect
+ > protoc -I=$SRC_DIR --python_out=$DST_DIR $SRC_DIR/TrackNet.proto
+
+
+Basics of Using Protocol Buffers in Python: https://protobuf.dev/getting-started/pythontutorial/

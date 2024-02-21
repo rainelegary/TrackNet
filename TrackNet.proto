@@ -2,29 +2,28 @@ syntax = "proto3";
 
 package TrackNet;
 
-/* https://protobuf.dev/programming-guides/proto3/
- * Message fields can be one of the following:
- *  optional: An optional field is in one of two possible states:
- *      the field is set, and contains a value that was explicitly set or parsed from the wire. It will be serialized to the wire.
- *      the field is unset, and will return the default value. It will not be serialized to the wire.
- *
- *  repeated: this field type can be repeated zero or more times in a well-formed message. The order of the repeated values will be preserved.
- *
- *  map: this is a paired key/value field type. See Maps for more on this field type.
-*/
+// https://protobuf.dev/programming-guides/proto3/
+// Message fields can be one of the following:
+//  optional: An optional field is in one of two possible states:
+//      the field is set, and contains a value that was explicitly set or parsed from the wire. It will be serialized to the wire.
+//      the field is unset, and will return the default value. It will not be serialized to the wire.
+//
+//  repeated: this field type can be repeated zero or more times in a well-formed message. The order of the repeated values will be preserved.
+//
+//  map: this is a paired key/value field type. See Maps for more on this field type.
+
+message Track {
+    optional string name = 1;
+    optional float length = 2;
+    optional string to_node = 3; 
+    optional string from_node = 4;
+}
 
 message Route {
     repeated Track tracks = 1;
     repeated string nodes = 2;
     optional string destination = 3;
     optional string origin = 4;
-}
-
-message Track {
-    optioanl string name = 1;
-    optional float length = 2;
-    optional string to_node = 3; 
-    optional string from_node = 4;
 }
 
 message Location {
