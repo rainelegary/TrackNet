@@ -67,17 +67,55 @@ class Train:
         current_speed (float): The current speed of the train in units per time (e.g., km/h).
         last_time_updated (datetime): The last time the train's position or speed was updated.
     """
-    def __init__(self, name, length):
+    def __init__(
+        self, 
+        name, 
+        length,
+        current_junction_front: int, # junction ID. client decides where on map it starts out
+        current_junction_back: int, # ditto
+        destination,
+    ):
+        """
+        Server constructor
+        """
         self.name = name
         self.length = length
-        self.front_position = 0.0 
-        self.back_position = 0.0
-        self.current_track = None
-        self.current_junction = None 
+        self.track_distance_front = length
+        self.track_distance_back = 0
+        self.current_track_front = None
+        self.current_track_back = None
+        self.current_junction_front = current_junction_front
+        self.current_junction_back = current_junction_back
         self.current_junction_index = 0
+        self.destination = destination
         self.route = []
-        self.current_speed = 0.0  
-        self.last_time_updated = datetime.now()  
+        self.current_speed = 0 
+        self.last_time_updated = datetime.now()
+
+    def __init__(
+        self,
+        length,
+        current_junction_front: int, # junction ID. client decides where on map it starts out
+        current_junction_back: int, # ditto
+        destination,
+    ):
+        """
+        Client constructor. Seems to not need much difference from Server constructor aside from name attribute.
+        Will keep for future use though just in case.
+        """
+        self.name = None # assigned a value once designated name is received from server.
+        self.length = length
+        self.track_distance_front = length
+        self.track_distance_back = 0
+        self.current_track_front = None
+        self.current_track_back = None
+        self.current_junction_front = current_junction_front
+        self.current_junction_back = current_junction_back
+        self.current_junction_index = 0
+        self.destination = destination
+        self.route = []
+        self.current_speed = 0 
+        self.last_time_updated = datetime.now()
 
     def update_position(self, front_position, track_length):
         """Updates the train's position on the track, recalculates back position"""
