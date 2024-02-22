@@ -1,11 +1,11 @@
-from classes import Track
+from classes import Junction
 
 class Route:
     """
     This class is used for defining a train's planned route.
 
     Attributes:
-        tracks (List[Track]): An ordered list of junctions the train plans on visiting.
+        tracks (List[Junction]): An ordered list of junctions the train plans on visiting.
 
 
     Attributes to add in future versions (TODO):
@@ -20,6 +20,6 @@ class Route:
     """
     def __init__(
         self,
-        tracks: "list[Track]"
+        tracks: "list[Junction]"
     ):
         self.tracks = tracks
