@@ -74,6 +74,8 @@ class Train:
         self.back_position = 0.0
         self.current_track = None
         self.current_junction = None 
+        self.current_junction_index = 0
+        self.route = []
         self.current_speed = 0.0  
         self.last_time_updated = datetime.now()  
 
@@ -96,10 +98,56 @@ class Train:
         self.current_junction = None # Clear the current junction since the train is now moving
         self.current_speed = 50 # Set speed to a speed on the track (need to create universal constants for this or base it off of the track)
         self.last_time_updated = datetime.now() 
+    
+    def set_speed(self, new_speed):
+        self.speed = new_speed
 
     def __repr__(self):
         location = self.current_junction.name if self.current_junction else self.current_track.name
         return f"Train({self.name}, Location: {location}, Speed: {self.current_speed} km/h, Last Updated: {self.last_time_updated})"
+    
+    def set_route(self, route):
+        self.route = route
+        self.current_position = 0
+        self.distance_covered = 0
+
+    def move_along_route(self):
+        # Check if there's a next track in the route
+        if self.current_junction_index < len(self.route) - 1:
+            if self.current_track:
+                # Calculate elapsed time since the last update
+                now = datetime.now()
+                elapsed_time = (now - self.last_time_updated).total_seconds()
+
+                # Adjust the speed to achieve desired movement
+                speed_factor = 10  # Adjust this factor as needed
+                effective_speed = self.current_speed * speed_factor
+                # Update the distance covered based on adjusted speed and elapsed time
+                distance_moved = (effective_speed * elapsed_time) / 3600  # Convert speed to km/h
+                self.distance_covered += distance_moved
+
+                # Check if the train has reached the end of the current track
+                if self.distance_covered >= self.current_track.length:
+                    # Reset distance covered for the next track
+                    self.distance_covered = 0
+                    # Move to the next track in the route
+                    self.current_junction_index += 1
+                    if self.current_junction_index < len(self.route) - 1:
+                        self.current_track = self.route[self.current_junction_index].neighbors[self.route[self.current_junction_index + 1].name]
+                        print(f"Train {self.name} has moved to the next track: {self.current_track.name}")
+                    else:
+                        print(f"Train {self.name} has completed its route.")
+                else:
+                   print(f"Train {self.name} is moving on {self.current_track.name}, distance covered: {self.distance_covered:.2f} km")
+                
+                # Update the last time the train's position was updated
+                self.last_time_updated = now
+            else:
+                # If the train is not on a track, it should be placed on the first track of its route
+                # This part is simplified; you'd need logic to select the correct track based on the train's current position in the route
+                pass
+        else:
+            print(f"Train {self.name} has no more tracks to move along its route.")    
     
 
 class Map:

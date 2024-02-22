@@ -1,4 +1,5 @@
 from classes import *
+import time
 
 
 # Create a  map
@@ -42,8 +43,8 @@ for name in junction_names:
 
 # Add tracks between junctions
 tracks_info = [
-    ('A', 'B', 100),  # Track from Junction A to B with length 100 
-    ('B', 'C', 150),  # Track from Junction B to C with length 150 
+    ('A', 'B', 3),  # Track from Junction A to B with length 100 
+    ('B', 'C', 7),  # Track from Junction B to C with length 150 
     ('C', 'D', 120),  # Track from Junction C to D with length 120 
     ('D', 'E', 130),  # Track from Junction D to E with length 120 
     ('E', 'F', 80),   # Track from Junction E to F with length 120 
@@ -66,3 +67,13 @@ railway_map.park_train_at_junction("Train_1", "B")
 
 # Print the current map state
 railway_map.print_map()
+
+railway_map.add_train("Express", 0.1)
+# Define a route using junction objects from the map
+route = [railway_map.junctions["A"], railway_map.junctions["B"], railway_map.junctions["C"]]
+railway_map.trains["Express"].set_route(route)
+railway_map.trains["Express"].set_speed(100)
+railway_map.add_train_to_track("Express", "A->B") 
+while (railway_map.trains["Express"].current_junction_index < len(route) - 1):
+    railway_map.trains["Express"].move_along_route()
+    time.sleep(2)
