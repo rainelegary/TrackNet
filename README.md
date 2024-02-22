@@ -9,6 +9,15 @@ Each location is represented solely as a track id and progress along track.
 
 Each track's ID is a tuple (nodeA_id, nodeB_id) in ascending order by id.
 
+## Todo
+
+Talk about proof of concept in project document
+Add proxies
+Add replication
+Add server-to-server, proxy-to-proxy, and client-to-proxy communication
+Conflict analyzer
+Scheduler
+Time synchronization
 
 
 
