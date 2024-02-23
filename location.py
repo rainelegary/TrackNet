@@ -6,12 +6,17 @@ class Location:
     """
     def __init__(
         self, 
-        start_node:int, # the node it's coming from
-        end_node:int, # the node it's heading towards
+        start_junction:int, # the node it's coming from
+        end_junction:int, # the node it's heading towards
         distance_covered:int, # kilometers along track
     ):
-        self.start_node = start_node
-        self.end_node = end_node
-        self.track_id = tuple(sorted([start_node, end_node])) # track id's have smaller node id listed first
+        self.start_junction = start_junction
+        self.end_junction = end_junction
+        self.track_id = tuple(sorted([start_junction, end_junction])) # track id's have smaller node id listed first
         self.distance_covered: distance_covered
 
+    def get_track_id(self):
+        return self.track_id
+    
+    def get_distance(self):
+        return self.distance_covered

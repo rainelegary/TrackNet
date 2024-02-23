@@ -2,7 +2,7 @@ import TrackNet_pb2
 import logging
 import socket
 import signal 
-from Utils import *
+from utils import *
 
 setup_logging() ## only need to call at main entry point of application
 LOGGER = logging.getLogger(__name__)

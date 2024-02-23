@@ -1,5 +1,10 @@
 from datetime import datetime
+import logging
 import time
+from location import Location
+from route import Route
+
+LOGGER = logging.getLogger(__name__)
 
 class Junction:
     """Represents a railway junction where tracks start or end.
@@ -42,7 +47,7 @@ class Track:
         self.length = length
         self.name = f"{start_junction.name}->{end_junction.name}"
         self.trains = [] 
-
+    
     def add_train(self, train):
         """Adds a train to the track."""
         self.trains.append(train)
@@ -81,6 +86,11 @@ class Train:
     ):
         self.name = name
         self.length = length
+        self.track = None
+        self.location = Location(current_junction_front, current_junction_back, 0)
+        ## (TODO) properly set route
+        self.route = Route()
+        
         self.track_distance_front = length
         self.track_distance_back = 0
         self.current_track_front = None
@@ -140,7 +150,8 @@ class Train:
         self.is_parked = True
         self.current_junction_front = junction  
         self.current_junction_back  = junction
-        #Clear the current track since the train is now parked
+        
+        # Clear the current track since the train is now parked
         self.current_track_front = None  
         self.current_track_back  = None 
         self.current_speed = 0  # Reset speed when parked
@@ -154,7 +165,10 @@ class Train:
         self.last_time_updated = datetime.now() 
     
     def set_speed(self, new_speed):
-        self.speed = new_speed
+        self.current_speed = new_speed
+
+    def get_speed(self):
+        return self.current_speed
 
     def __repr__(self):
         location = self.current_junction.name if self.current_junction else self.current_track.name
