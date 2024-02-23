@@ -72,29 +72,26 @@ class Train:
         route (str []): A list of strings denoting the junctions in a train's route
     """
     def __init__(
-        self, 
-        name, 
-        length
-        #current_junction_front: int, # junction ID. client decides where on map it starts out
-        #current_junction_back: int, # ditto
-        #destination
+        self,
+        name = None, # Name will be assigned later if this is a client's train class
+        length = 1000, # in meters
+        current_junction_front:int = None, # junction ID
+        current_junction_back:int = None,
+        destination:Junction = None,
     ):
-        """
-        Server constructor
-        """
         self.name = name
         self.length = length
         self.track_distance_front = length
         self.track_distance_back = 0
         self.current_track_front = None
         self.current_track_back = None
-        self.current_junction_front = None
-        self.current_junction_back = None
+        self.current_junction_front = current_junction_front
+        self.current_junction_back = current_junction_back
         self.current_junction_index = 0
         self.distance_covered = 0
         self.destination = None
         self.railway_map = None
-        #self.destination = destination
+        self.destination = destination
         self.route = []
         self.current_speed = 0 
         self.last_time_updated = datetime.now()
