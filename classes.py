@@ -90,6 +90,7 @@ class Train:
         self.location = Location(current_junction_front, current_junction_back, 0)
         ## (TODO) properly set route
         self.route = Route()
+        #self.route = []
         
         self.track_distance_front = length
         self.track_distance_back = 0
@@ -102,38 +103,10 @@ class Train:
         self.destination = None
         self.railway_map = None
         self.destination = destination
-        self.route = []
+        
         self.current_speed = 0 
         self.last_time_updated = datetime.now()
         self.is_parked = False
-
-#python does not support multiple constructors so the second one overwrites the first
-#    def __init__(
-#        self,
-#        length,
-#        #same as parking at junction
-#        #current_junction_front: int, # junction ID. client decides where on map it starts out
-#        #current_junction_back: int, # ditto
-#        destination
-#    ):
-#        """
-#        Client constructor. Seems to not need much difference from Server constructor aside from name attribute.
-#        Will keep for future use though just in case.
-#        """
-#        self.name = None # assigned a value once designated name is received from server.
-#        self.length = length
-#       self.track_distance_front = length
-#        self.track_distance_back = 0
-#        self.current_track_front = None
-#        self.current_track_back = None
-#        self.current_junction_front = None
-#        self.current_junction_back = None
-#        self.distance_covered = 0
-#        self.current_junction_index = 0
-#        self.destination = destination
-#        self.route = []
-#       self.current_speed = 0 
-#        self.last_time_updated = datetime.now()
 
     def set_railway_map (self, railway_map):
         self.railway_map = railway_map
@@ -237,8 +210,8 @@ class Train:
     def move_to_next_track_or_park(self):
         # Advance the train onto the next track or mark it as parked if at the end of the route
         self.current_junction_index += 1
-        if self.current_junction_index < len(self.route):
-            next_track = self.current_junction_front.neighbors[self.route[self.current_junction_index].name]
+        if self.current_junction_index < len(self.route.tracks):
+            next_track = self.current_junction_front.neighbors[self.route.tracks[self.current_junction_index].name]
             self.current_track_front = next_track
             self.current_track_back  = next_track
             self.is_parked = False
