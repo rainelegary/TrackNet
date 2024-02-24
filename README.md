@@ -18,6 +18,9 @@ Add server-to-server, proxy-to-proxy, and client-to-proxy communication
 Conflict analyzer
 Scheduler
 Time synchronization
+Allow for train reversal
+Refactor so Route's ist of junctions is named to "junctions" instead of "tracks"
+Updated Reroute function in ConflictAnalyzer
 
 
 
