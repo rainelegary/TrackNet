@@ -16,7 +16,28 @@ class Railway:
         self.junctions = {}  # Stores junctions by name
         self.tracks = []  # List of tracks 
         self.trains = {} # store trains by name 
+        self.train_counter = 0
+
+    def create_new_train(self, len : int):
+        """
+        Creates a new Train object with the specified length and adds it to the list of trains.
+
+        :param len: The length of the new train.
+        :return: The newly created Train object.
+        """
+        new_name = str(self.train_counter)
+        self.train_counter += 1
+        new_train = Train(new_name, len)
+        self.trains[new_name] = new_train
+        return new_name
         
+    def create_route(self, destination, origin): 
+        ## needs to return list of nodes in route
+        pass
+
+    def check_track_condition(self, track_id):
+        ## is it good or bad?
+        pass 
     
     def add_junction(self, name):
         """Adds a junction to the map."""
