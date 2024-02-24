@@ -40,8 +40,8 @@ class Train:
     def set_route(self, junctions):
         self.route = Route(junctions)
     
-    def update_location(self, position):
-        self.location.set_position(position)
+    def update_location(self, distance_moved):
+        self.location.set_position(distance_moved)
         
         if self.location.check_front_junction_reached():
             LOGGER.debug(f"Train {self.name}'s front has reached {self.location.front_cart["junction"].name} junction.")

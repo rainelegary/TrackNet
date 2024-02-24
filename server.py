@@ -2,6 +2,7 @@ import TrackNet_pb2
 import logging
 import socket
 import signal 
+import threading
 from utils import *
 from classes import Train
 
@@ -46,7 +47,32 @@ class Server():
                 
             LOGGER.error(f"Train {train.id} does not exits in list of trains.")
 
-    
+    def handle_connection(self, conn):
+        client_state = TrackNet_pb2.ClientState()
+        data = receive(conn)
+        
+        if data is not None:
+            client_state.ParseFromString(data)
+            resp = TrackNet_pb2.SercerResponse()
+            
+            train = self.get_train(client_state.train)
+            resp.train.id = train.name
+            resp.train.length = train.length
+            
+            if client_state.TrackCondition == TrackNet_pb2.ClientState.TrackCondition.BAD:
+                ## (TODO) set track to bad condition
+                pass
+            
+            ## TODO update trains position
+            ## TODO check if current track has bad condition ->check_track_condition() & set status to change speed to a reduced speed
+
+            ## (TODO) use speed, location & route data to detect possible conflicts.
+            
+            resp.status = TrackNet_pb2.ServerResponse.UpdateStatus.CLEAR
+            
+            if not send(conn, resp.SerializeToString()):
+                LOGGER.error("response did not send.")
+                                           
 
     def listen_on_socket(self):
         """Listens for incoming connections on the server's socket. Handles incoming data, parses it, and responds according to the server logic.
@@ -61,31 +87,7 @@ class Server():
         while not exit_flag and self.sock:
             try:
                 conn, addr = self.sock.accept()
-                
-                client_state = TrackNet_pb2.ClientState()
-                data = receive(conn)
-                
-                if data is not None:
-                    client_state.ParseFromString(data)
-                    resp = TrackNet_pb2.SercerResponse()
-                    
-                    train = self.get_train(client_state.train)
-                    resp.train.id = train.name
-                    resp.train.length = train.length
-                    
-                    if client_state.TrackCondition == TrackNet_pb2.ClientState.TrackCondition.BAD:
-                        ## (TODO) set track to bad condition
-                        pass
-                    
-                    ## TODO update trains position
-                    ## TODO check if current track has bad condition ->check_track_condition() & set status to change speed to a reduced speed
-
-                    ## (TODO) use speed, location & route data to detect possible conflicts.
-                    
-                    resp.status = TrackNet_pb2.ServerResponse.UpdateStatus.CLEAR
-                    
-                    if not send(conn, resp.SerializeToString()):
-                        LOGGER.error("response did not send.")
+                threading.Thread(target=self.handle_connection, args=(conn), daemon=True).start() 
                         
             except socket.timeout:
                 pass 

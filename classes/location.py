@@ -22,9 +22,9 @@ class Location:
     def get_distance(self):
         return self.distance_covered
     
-    def set_position(self, front_cart_pos):
-        self.front_cart["position"] = front_cart_pos
-        self.back_cart["position"] = min(0, front_cart_pos - self.length)
+    def set_position(self, distance_moved):
+        self.front_cart["position"] += distance_moved
+        self.back_cart["position"] = min(0, self.front_cart["position"] - self.length)
 
     def is_unparked(self):
         if self.front_cart["position"] > 0:

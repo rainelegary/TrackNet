@@ -49,41 +49,8 @@ class Client():
         speed_factor = 10  # Adjust this factor as needed
         effective_speed = self.train.get_speed() * speed_factor        
         distance_moved = effective_speed * (elapsed_time / 3600)  # Assuming speed is in km/h
-
-        # Advance the front of the train
-        self.train.front_cart["position"] += distance_moved
-        
-        if self.train.front_cart["track"] is not None:
-            if self.train.front_cart["position"] >= self.train.front_cart["track"].length:
-                # The front reaches the end junction, mark this but don't move onto the next track yet
-                self.train.front_cart["junction"] = self.train.front_cart["track"].end_junction
-                LOGGER.debug(f"Train {self.train.name}'s front has reached {self.train.front_cart["track"].name} junction.")
-                
-                # Clear the front track as it has reached the junction
-                self.train.front_cart["track"] = None  
-                
-            else:
-                LOGGER.debug(f"Train {self.name} is moving on track {self.train.front_cart["track"].name} ({self.train.front_cart["track"].length} km), distance covered front: {self.distance_covered:.2f} km, back: {self.distance_covered - self.length:.2f}")
-
-        # Calculate if the back of the train has reached the end of its track
-        self.train.back_cart["position"] = self.train.front_cart["position"] - self.length
-        if self.train.back_cart["position"] >= 0 and self.train.back_cart["track"]:
-            
-            if self.train.back_cart["position"] >= self.train.back_cart["track"].length:
-                # The back reaches the junction, now handle the train's arrival
-                self.train.back_cart["junction"] = self.train.back_cart["track"].end_junction
-                LOGGER.debug(f"Train {self.train.name}'s back has reached {self.train.back_cart["junction"].name} junction.")
-                self.train.back_cart["track"] = None  # Clear the back track as it has reached the junction
-                self.handle_train_arrival_at_junction()
-                
-            elif self.train.front_cart["track"] is None:
-                LOGGER.debug(f"Train {self.train.name}'s back is still on the track, distance covered: ({self.train.back_cart["position"]:.2f}) moving towards {self.train.front_cart["junction"].name} junction.")
-        
-        elif self.train.back_cart["track"] is None:
-            # If there's no current track for the back, it means it's already at a junction or hasn't started moving yet
-            self.handle_train_arrival_at_junction()
-        
-            
+    
+        self.train.update_location(distance_moved)
         self.last_time_updated = datetime.now()
 
 
