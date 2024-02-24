@@ -17,3 +17,10 @@ class ServerResponse_Status(Enum): # this is the status the server sends to clie
     REROUTE = 2
     STOP = 3
     CLEAR = 4
+
+
+class TrainState(Enum):
+    RUNNING = 0
+    STOPPED = 1
+    PARKED = 2
+    PARKING = 3
