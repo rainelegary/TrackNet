@@ -25,20 +25,23 @@ class Railway:
         :param len: The length of the new train.
         :return: The newly created Train object.
         """
-        new_name = str(self.train_counter)
+        new_name = "Train" + str(self.train_counter)
         self.train_counter += 1
         new_train = Train(new_name, len)
         self.trains[new_name] = new_train
         return new_name
-        
-    def create_route(self, destination, origin): 
-        ## needs to return list of nodes in route
-        pass
 
-    def check_track_condition(self, track_id):
-        ## is it good or bad?
-        pass 
-    
+    def set_track_condition(self, track_id: str, condition: TrackCondition):
+        for track in self.tracks:
+            if track.name == track_id:
+                track.condition = condition
+                
+    def has_bad_track_condition(self, track_id: str):
+        for track in self.tracks:
+            if track.name == track_id and track.condition == TrackCondition.BAD:
+                return True  
+        return False
+                
     def add_junction(self, name):
         """Adds a junction to the map."""
         if name not in self.junctions:

@@ -1,5 +1,8 @@
 import datetime
+import TrackNet_pb2
 import logging 
+from classes.junction import Junction
+from classes.track import Track
 
 LOGGER = logging.getLogger(__name__)
 
@@ -7,24 +10,24 @@ class Location:
     """ Used to store a train's location on a track.
     :param start_junction: the node it's coming from
     :param end_junction: the node it's heading towards
-    :param distance_covered: kilometers along track
     """
-    def __init__(self, start_junction: int, end_junction: int, distance_covered: int):
-        self.front_cart = {"track": None, "junction": start_junction, "position": None}
-        self.back_cart = {"track": None, "junction": start_junction, "position": None}
-
-        self.track_id = tuple(sorted([start_junction, end_junction])) # track id's have smaller node id listed first
-        self.distance_covered: distance_covered
-
-    def get_track_id(self):
-        return self.track_id
+    def __init__(self, start_junction: Junction, end_junction: Junction):
+        self.front_cart = {"track": None, "junction": start_junction, "position": 0}
+        self.back_cart = {"track": None, "junction": end_junction, "position": 0}
     
-    def get_distance(self):
-        return self.distance_covered
-    
-    def set_position(self, distance_moved):
-        self.front_cart["position"] += distance_moved
-        self.back_cart["position"] = min(0, self.front_cart["position"] - self.length)
+    def set_position(self, front_cart_position):
+        self.front_cart["position"] = front_cart_position
+        self.back_cart["position"] = min(0, front_cart_position - self.length)
+
+    def set_location_message(self, msg: TrackNet_pb2.Location):
+        if self.front_cart["track"] is not None:
+            msg.track = self.front_cart["track"].name
+            
+        if self.front_cart["junction"] is not None:
+            msg.junction = self.front_cart["junction"].name
+            
+        msg.position = self.front_cart["position"]
+        
 
     def is_unparked(self):
         if self.front_cart["position"] > 0:
@@ -46,7 +49,7 @@ class Location:
             return True
         return False
       
-    def set_track(self, track):
+    def set_track(self, track: Track):
         self.front_cart["track"] = track
         self.back_cart["track"] = track
         

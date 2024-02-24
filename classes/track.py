@@ -1,3 +1,6 @@
+import logging
+from classes.enums import TrackCondition 
+
 class Track:
     """Represents a track connecting two junctions.
     
@@ -14,6 +17,7 @@ class Track:
         self.length = length
         self.name = f"{start_junction.name}->{end_junction.name}"
         self.trains = [] 
+        self.condition = TrackCondition.GOOD
     
     def add_train(self, train):
         """Adds a train to the track."""

@@ -4,7 +4,8 @@ import socket
 import signal 
 import threading
 from utils import *
-from classes import Train
+from classes.railway import Railway
+from classes.train import Train
 
 setup_logging() ## only need to call at main entry point of application
 LOGGER = logging.getLogger(__name__)
@@ -29,7 +30,6 @@ class Server():
         self.port = port
         self.sock = None
         self.railway = Railway()
-        self.train_counter = 0
         
     def get_train(self, train: TrackNet_pb2.Train):
         """Retrieves a Train object based on its ID. If the train does not exist, it creates a new Train object.
@@ -39,13 +39,13 @@ class Server():
         :raises Exception: Logs an error if the train ID does not exist in the list of trains.
         """
         if not train.HasField("id"):
-            return self.create_new_train(train.length)
+            return self.railway.create_new_train(train.length)
         else:
-            for t in self.trains:
-                if t.name == train.id:
-                    return t
-                
-            LOGGER.error(f"Train {train.id} does not exits in list of trains.")
+            train = self.railway.trains[train.id]
+            if train is None:
+                LOGGER.error(f"Train {train.id} does not exits in list of trains. Creating new train...")
+                return self.railway.create_new_train(train.length)
+            return train
 
     def handle_connection(self, conn):
         client_state = TrackNet_pb2.ClientState()
@@ -59,10 +59,10 @@ class Server():
             resp.train.id = train.name
             resp.train.length = train.length
             
-            if client_state.TrackCondition == TrackNet_pb2.ClientState.TrackCondition.BAD:
-                ## (TODO) set track to bad condition
-                pass
-            
+            if client_state.location.HasField("track"):
+                self.railway.set_track_condition(client_state.location.track.name)
+                
+            self.railway.trains[client_state.train.id].update_position(client_state.location.distance)
             ## TODO update trains position
             ## TODO check if current track has bad condition ->check_track_condition() & set status to change speed to a reduced speed
 

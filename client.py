@@ -50,7 +50,7 @@ class Client():
         effective_speed = self.train.get_speed() * speed_factor        
         distance_moved = effective_speed * (elapsed_time / 3600)  # Assuming speed is in km/h
     
-        self.train.update_location(distance_moved)
+        self.train.update_location(self.train.location.front_cart["position"] + distance_moved)
         self.last_time_updated = datetime.now()
 
 
@@ -63,14 +63,13 @@ class Client():
             state.train.id = self.train.name
         state.train.length = self.train.length
         state.speed = self.train.get_speed()
-        state.location.track_id = self.train.location.get_track_id()
-        state.location.distance = self.train.location.get_distance()
+        self.train.location.set_location_message(state.location)
         state.condition = self.get_track_condition()
         
         ## (TODO) make sure route has been set correctly
         for track in self.train.route.tracks:
             track = state.route.tracks.add() 
-            track.name = track.name
+            track.id = track.name
             track.length = track.length
             track.to_node = track.start_junction
             track.from_node = track.end_junction
@@ -100,10 +99,7 @@ class Client():
                     if self.train.name is None:
                         self.train.name = server_resp.train_id
                         
-                    if server_resp.status == TrackNet_pb2.ServerResponse.UpdateStatus.REDUCE_SPEED:
-                        self.train.set_speed(server_resp.speed_change)
-                        
-                    elif server_resp.status == TrackNet_pb2.ServerResponse.UpdateStatus.INCREASE_SPEED:
+                    if server_resp.status == TrackNet_pb2.ServerResponse.UpdateStatus.CHANGE_SPEED:
                         self.train.set_speed(server_resp.speed_change)
                         
                     elif  server_resp.status == TrackNet_pb2.ServerResponse.UpdateStatus.REROUTE:

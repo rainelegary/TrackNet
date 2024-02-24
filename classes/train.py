@@ -22,9 +22,9 @@ class Train:
         self,
         name = None, # Name will be assigned later if this is a client's train class
         length = 1000, # in meters
-        current_junction_front:int = None, # junction ID
-        current_junction_back:int = None,
-        destination:Junction = None,
+        current_junction_front: Junction = None, # junction ID
+        current_junction_back: Junction = None,
+        destination: Junction = None,
     ):
         self.name = name
         self.length = length
@@ -40,9 +40,9 @@ class Train:
     def set_route(self, junctions):
         self.route = Route(junctions)
     
-    def update_location(self, distance_moved):
-        self.location.set_position(distance_moved)
-        
+    def update_location(self, front_cart_position):   
+        self.location.set_position(front_cart_position)
+
         if self.location.check_front_junction_reached():
             LOGGER.debug(f"Train {self.name}'s front has reached {self.location.front_cart["junction"].name} junction.")
             self.state = TrainState.PARKING         
