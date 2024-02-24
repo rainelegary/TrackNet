@@ -18,8 +18,17 @@ class Route:
             If train goes straight through the junction without stopping, 
             that junction is not included in this list.
     """
-    def __init__(
-        self,
-        tracks: "list[Junction]"
-    ):
+    def __init__(self, tracks: "list[Junction]"):
         self.tracks = tracks
+        self.current_junction_index = 0
+        
+    def get_next_track(self):
+        self.tracks[self.current_junction_index].neighbors[self.tracks[self.current_junction_index + 1].name]
+        
+    def increment_junction_index(self):
+        self.current_junction_index += 1
+        
+    def destination_reached(self):
+        if self.current_junction_index > len(self.tracks):
+            return True
+        return False
