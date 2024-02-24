@@ -322,7 +322,7 @@ class Map:
         else:
             print(f"No alternative route found for Train {train_name}.")
 
-    
+    # example usage = map_instance.find_shortest_path(start_junction_name="A", destination_junction_name="D", avoid_track_name="AB")
     def find_shortest_path(self, start_junction_name, destination_junction_name, avoid_track_name=None):
         distances = {junction: float('infinity') for junction in self.junctions}
         previous_junctions = {junction: None for junction in self.junctions}
