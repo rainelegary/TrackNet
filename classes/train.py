@@ -1,3 +1,5 @@
+import datetime
+
 class Train:
     """Represents a train running on the tracks or parked at a junction.
     
