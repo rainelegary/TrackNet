@@ -7,7 +7,7 @@ They are the same mappings as the Protobuf enumerated types, and are
 used within the python classes.
 """
 
-class ClientState_TrackCondition(Enum):
+class TrackCondition(Enum):
     BAD = 0
     GOOD = 1
 
@@ -21,6 +21,8 @@ class ServerResponse_Status(Enum): # this is the status the server sends to clie
 
 class TrainState(Enum):
     RUNNING = 0
-    STOPPED = 1
-    PARKED = 2
-    PARKING = 3
+    SLOW = 1
+    STOPPED = 2
+    PARKED = 3
+    PARKING = 4
+    UNPARKING = 5
