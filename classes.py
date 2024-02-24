@@ -111,12 +111,6 @@ class Train:
     def set_railway_map (self, railway_map):
         self.railway_map = railway_map
 
-    def update_position(self, front_position, track_length):
-        """Updates the train's position on the track, recalculates back position"""
-        self.front_position = front_position
-        self.back_position = max(0.0, front_position - (self.length / track_length) * 100) # Calculates percentage of the train length on the track and subtracts it fromt he frnt position
-        self.last_time_updated = datetime.now()
-
     def park_at_junction(self, junction):
         """Parks the train at a specified junction and resets speed to 0."""
         # Set the current junction to the specified junction

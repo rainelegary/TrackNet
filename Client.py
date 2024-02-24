@@ -40,6 +40,12 @@ class Client():
         """
         return TrackNet_pb2.ClientState.TrackCondition.GOOD if random.random() < self.probabilty_of_good_track else TrackNet_pb2.ClientState.TrackCondition.BAD
     
+
+    def update_position(self):
+        ## increment position of train
+        pass 
+
+
     def set_client_state_msg(self, state: TrackNet_pb2.ClientState):
         """ Populates a `ClientState` message with the current state of the train, including its id, length, speed, location, track condition, and route.
 
