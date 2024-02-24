@@ -17,9 +17,9 @@ my_map.add_track("B", "C", 15)
 my_map.add_track("C", "B", 15)  
 
 # Create trains and park them at junctions
-my_map.add_train("1",5)
-my_map.add_train("2",5)
-my_map.add_train("3",8)
+my_map.add_train("1", 5)
+my_map.add_train("2", 5)
+my_map.add_train("3", 8)
 my_map.park_train_at_junction("1","A")
 my_map.park_train_at_junction("2", "B")
 
@@ -68,12 +68,19 @@ railway_map.park_train_at_junction("Train_1", "B")
 # Print the current map state
 railway_map.print_map()
 
+
 railway_map.add_train("Express", 0.1)
-# Define a route using junction objects from the map
+express_train = railway_map.trains.get("Express")
 route = [railway_map.junctions["A"], railway_map.junctions["B"], railway_map.junctions["C"]]
-railway_map.trains["Express"].set_route(route)
-railway_map.trains["Express"].set_speed(100)
-railway_map.add_train_to_track("Express", "A->B") 
-while (railway_map.trains["Express"].current_junction_index < len(route) - 1):
-    railway_map.trains["Express"].move_along_route()
+
+express_train.set_railway_map (railway_map)
+express_train.set_route(route)
+express_train.set_speed(100)
+
+# Add the "Express" train to the track
+#railway_map.add_train_to_track("Express", "A->B")
+railway_map.park_train_at_junction("Express", "A")
+
+while express_train.current_junction_index < len(route):
+    express_train.move_along_route()
     time.sleep(2)
