@@ -5,7 +5,7 @@ import time
 import random
 from utils import *
 from classes import *
-from enums import *
+from classes.enums import *
 
 setup_logging() ## only need to call at main entry point of application
 LOGGER = logging.getLogger(__name__)
@@ -29,6 +29,7 @@ class Client():
         self.host = host
         self.port = port
         self.sock = None
+        self.dest = None ## TODO random set
         self.train = Train(5)
         self.probabilty_of_good_track = 95
     
@@ -40,6 +41,48 @@ class Client():
         """
         return TrackNet_pb2.ClientState.TrackCondition.GOOD if random.random() < self.probabilty_of_good_track else TrackNet_pb2.ClientState.TrackCondition.BAD
     
+
+    def update_position(self):
+        ## increment position of train
+
+        now = datetime.now()
+        elapsed_time = (now - self.last_time_updated).total_seconds()
+
+        # Adjust the speed to achieve desired movement
+        speed_factor = 10  # Adjust this factor as needed
+        effective_speed = self.train.get_speed() * speed_factor        
+        distance_moved = effective_speed * (elapsed_time / 3600)  # Assuming speed is in km/h
+        self.train.front_cart["position"] += distance_moved
+        # Update the last update time
+        self.last_time_updated = now
+
+        # Advance the front of the train
+        if self.train.front_cart["track"] is not None:
+            #self.distance_covered += distance_moved
+            if self.train.front_cart["position"] >= self.train.front_cart["track"].length:
+                # The front reaches the end junction, mark this but don't move onto the next track yet
+                self.train.front_cart["junction"] = self.train.front_cart["track"].end_junction
+                print(f"Train {self.name}'s front has reached {self.train.front_cart["track"].name} junction.")
+                self.train.front_cart["track"] = None  # Clear the front track as it has reached the junction
+            else:
+                print(f"Train {self.name} is moving on track {self.train.front_cart["track"].name} ({self.train.front_cart["track"].length} km), distance covered front: {self.distance_covered:.2f} km, back: {self.distance_covered - self.length:.2f}")
+
+        # Calculate if the back of the train has reached the end of its track
+        self.train.back_cart["position"] = self.train.front_cart["position"] - self.length
+        if self.train.back_cart["position"]>= 0 and self.current_track_back:
+            if self.train.back_cart["position"] >= self.current_track_back.length:
+                # The back reaches the junction, now handle the train's arrival
+                self.current_junction_back = self.current_track_back.end_junction
+                print(f"Train {self.name}'s back has reached {self.current_junction_back.name} junction.")
+                self.current_track_back = None  # Clear the back track as it has reached the junction
+                self.handle_train_arrival_at_junction()
+            elif (not self.current_track_front):
+                print(f"Train {self.name}'s back is still on the track, distance covered: ({distance_back_covered:.2f}) moving towards {self.current_junction_front.name} junction.")
+        elif not self.current_track_back:
+            # If there's no current track for the back, it means it's already at a junction or hasn't started moving yet
+            self.handle_train_arrival_at_junction()
+
+
     def set_client_state_msg(self, state: TrackNet_pb2.ClientState):
         """ Populates a `ClientState` message with the current state of the train, including its id, length, speed, location, track condition, and route.
 

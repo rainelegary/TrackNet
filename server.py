@@ -27,7 +27,7 @@ class Server():
         self.host = host
         self.port = port
         self.sock = None
-        self.trains = []
+        self.railway = Railway()
         self.train_counter = 0
         
     def get_train(self, train: TrackNet_pb2.Train):
@@ -46,19 +46,8 @@ class Server():
                 
             LOGGER.error(f"Train {train.id} does not exits in list of trains.")
 
-    def create_new_train(self, len : int):
-        """
-        Creates a new Train object with the specified length and adds it to the list of trains.
+    
 
-        :param len: The length of the new train.
-        :return: The newly created Train object.
-        """
-        new_name = str(self.train_counter)
-        self.train_counter += 1
-        new_train = Train(new_name, len)
-        self.trains.append(new_train)
-        return new_train
-        
     def listen_on_socket(self):
         """Listens for incoming connections on the server's socket. Handles incoming data, parses it, and responds according to the server logic.
 
@@ -85,9 +74,12 @@ class Server():
                     resp.train.length = train.length
                     
                     if client_state.TrackCondition == TrackNet_pb2.ClientState.TrackCondition.BAD:
-                        ## (TODO) handle bad track condition
+                        ## (TODO) set track to bad condition
                         pass
                     
+                    ## TODO update trains position
+                    ## TODO check if current track has bad condition ->check_track_condition() & set status to change speed to a reduced speed
+
                     ## (TODO) use speed, location & route data to detect possible conflicts.
                     
                     resp.status = TrackNet_pb2.ServerResponse.UpdateStatus.CLEAR
