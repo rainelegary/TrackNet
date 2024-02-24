@@ -5,7 +5,7 @@ class Route:
     This class is used for defining a train's planned route.
 
     Attributes:
-        tracks (List[Junction]): An ordered list of junctions the train plans on visiting.
+        junctions (List[Junction]): An ordered list of junctions the train plans on visiting.
 
 
     Attributes to add in future versions (TODO):
@@ -18,17 +18,18 @@ class Route:
             If train goes straight through the junction without stopping, 
             that junction is not included in this list.
     """
-    def __init__(self, tracks: "list[Junction]"):
-        self.tracks = tracks
+    def __init__(self, junctions: "list[Junction]"):
+        self.junctions = junctions
         self.current_junction_index = 0
+        self.destination = junctions[len(junctions) - 1]
         
     def get_next_track(self):
-        self.tracks[self.current_junction_index].neighbors[self.tracks[self.current_junction_index + 1].name]
+        self.junctions[self.current_junction_index].neighbors[self.junctions[self.current_junction_index + 1].name]
         
     def increment_junction_index(self):
         self.current_junction_index += 1
         
     def destination_reached(self):
-        if self.current_junction_index > len(self.tracks):
+        if self.current_junction_index > len(self.junctions):
             return True
         return False

@@ -12,15 +12,12 @@ package TrackNet;
 //
 //  map: this is a paired key/value field type. See Maps for more on this field type.
 
-message Track {
+message Junction {
     optional string id = 1;
-    optional float length = 2;
-    optional string to_node = 3; 
-    optional string from_node = 4;
 }
 
 message Route {
-    repeated string junctions = 2;
+    repeated Junction junctions = 2;
     optional string destination = 3;
 }
 

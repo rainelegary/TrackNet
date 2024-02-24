@@ -6,6 +6,7 @@ import random
 from utils import *
 from classes import *
 from classes.enums import *
+from classes.railmap import RailMap
 
 setup_logging() ## only need to call at main entry point of application
 LOGGER = logging.getLogger(__name__)
@@ -29,10 +30,15 @@ class Client():
         self.host = host
         self.port = port
         self.sock = None
-        self.dest = None ## TODO random set
-        self.train = Train(5)
         self.probabilty_of_good_track = 95
-    
+        self.railmap = RailMap()
+        
+        origin = self.railmap.get_random_origin_junction()
+        self.train = Train(self.generate_random_train_length(), origin, origin)
+        
+    def generate_random_train_length(self):
+        pass
+        
     def get_track_condition(self):
         """ Determines the track condition based on a predefined probability.
 
@@ -66,16 +72,13 @@ class Client():
         self.train.location.set_location_message(state.location)
         state.condition = self.get_track_condition()
         
-        ## (TODO) make sure route has been set correctly
-        for track in self.train.route.tracks:
-            track = state.route.tracks.add() 
-            track.id = track.name
-            track.length = track.length
-            track.to_node = track.start_junction
-            track.from_node = track.end_junction
+        if self.train.route is not None:
+            for junction_obj in self.train.route.junctions:
+                junction_msg = state.route.junctions.add() 
+                junction_msg.id = junction_obj
             
-        state.route.destination = None
-        state.route.origin = None   
+            state.route.destination = self.train.route.destination
+
     
     def run(self):
         """Initiates the client's main loop, continuously sending its state to the server and processing the server's response. It handles connection management, state serialization, and response deserialization. Based on the server's response, it adjusts the train's speed, reroutes, or stops as necessary.

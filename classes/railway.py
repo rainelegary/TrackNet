@@ -1,8 +1,9 @@
-from junction import*
+import logging
+from queue import PriorityQueue
+from junction import *
 from route import *
 from train import *
 from track import *
-
 
 class Railway:
     """Represents the entire railway map, containing junctions and tracks.
