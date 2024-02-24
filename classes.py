@@ -2,7 +2,8 @@ from datetime import datetime
 import logging
 import time
 from location import Location
-from route import Route
+from queue import PriorityQueue
+
 
 LOGGER = logging.getLogger(__name__)
 
@@ -295,6 +296,70 @@ class Map:
             print(f"Train {train_name} parked at junction {junction_name}.")
         else:
             print(f"Train {train_name} not found or junction {junction_name} does not exist.")
+
+    def reroute_train(self, train_name, avoid_track_name):
+        """
+        Reroutes a train to avoid a specified track.
+
+        :param train_name: The name of the train to reroute.
+        :param avoid_track_name: The name of the track to avoid.
+        """
+        train = self.trains.get(train_name)
+        if not train:
+            print(f"No train found with the name {train_name}.")
+            return
+
+        # Destination is the last junction in the train's current route
+        destination_junction = train.route.tracks[-1]
+
+        # Find a new route from the train's current junction to the destination
+        new_route = self.find_alternative_route(train.current_junction, destination_junction, avoid_track_name)
+
+        if new_route:
+            # Update the train's route
+            train.set_route(new_route)
+            print(f"Train {train_name} rerouted successfully.")
+        else:
+            print(f"No alternative route found for Train {train_name}.")
+
+    
+    def find_shortest_path(self, start_junction_name, destination_junction_name, avoid_track_name=None):
+        distances = {junction: float('infinity') for junction in self.junctions}
+        previous_junctions = {junction: None for junction in self.junctions}
+        distances[start_junction_name] = 0
+
+        pq = PriorityQueue()
+        pq.put((0, start_junction_name))
+
+        while not pq.empty():
+            current_distance, current_junction_name = pq.get()
+            current_junction = self.junctions[current_junction_name]
+
+            if current_junction_name == destination_junction_name:
+                break
+
+            for neighbor_name, track in current_junction.neighbors.items():
+                if track.name == avoid_track_name:
+                    continue
+
+                distance = current_distance + track.length
+                if distance < distances[neighbor_name]:
+                    distances[neighbor_name] = distance
+                    previous_junctions[neighbor_name] = current_junction_name
+                    pq.put((distance, neighbor_name))
+
+        return self.reconstruct_path(previous_junctions, start_junction_name, destination_junction_name)
+
+    def reconstruct_path(self, previous_junctions, start, end):
+        path = []
+        current = end
+        while current != start:
+            if current is None:
+                return None  # Path not found
+            path.insert(0, current)
+            current = previous_junctions[current]
+        path.insert(0, start)
+        return path
 
     def print_map(self):
         """Prints an overview of the map, including junctions, tracks, and parked or running trains."""
