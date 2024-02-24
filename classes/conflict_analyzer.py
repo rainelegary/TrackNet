@@ -36,12 +36,16 @@ class ConflictAnalyzer:
         # commands dictionary. maps: train id -> list of commands to give to that train.
         commands = {}
 
+
+
+
+
         # returns a dictionary containing the commands to give to each train.
         return commands
     
 
     @staticmethod
-    def reroute(railway, train_id, junction_blacklist, track_blacklist): # throws CannotRerouteException
+    def reroute(railway, commands, train_id, junction_blacklist, track_blacklist): # throws CannotRerouteException
         pass
     
 
@@ -54,9 +58,10 @@ class ConflictAnalyzer:
         3. Reverse (TODO later potentially) 
     """
     @staticmethod
-    def resolve_current_track_conflict(railway, track_id):
+    def resolve_current_track_conflict(railway, commands, track_id):
         track = railway
-
+        trains = []
+        
     
     """
     Resolve a conflict that may occur once trains enter the junction the are heading towards
@@ -67,7 +72,7 @@ class ConflictAnalyzer:
         3. Reverse (TODO later potentially)
     """
     @staticmethod
-    def resolve_immediate_junction_conflict(railway, junction_id):
+    def resolve_immediate_junction_conflict(railway, commands, junction_id):
         pass
 
 
@@ -80,7 +85,7 @@ class ConflictAnalyzer:
         3. Stop
     """
     @staticmethod
-    def resolve_next_track_conflict(railway, train_id, junction_blacklist, track_blacklist): 
+    def resolve_next_track_conflict(railway, commands, train_id, junction_blacklist, track_blacklist): 
         # TODO later
         pass
         
@@ -94,7 +99,7 @@ class ConflictAnalyzer:
         3. Stop
     """
     @staticmethod
-    def resolve_later_junction_conflict(railway, train_id, junction_blacklist, track_blacklist): 
+    def resolve_later_junction_conflict(railway, commands, train_id, junction_blacklist, track_blacklist): 
         # TODO later
         
         # try parking

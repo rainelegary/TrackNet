@@ -10,7 +10,7 @@ class Railway:
     
     Attributes:
         junctions (dict): Stores junctions by their names.
-        tracks (list): A list of all tracks in the map.
+        tracks (list): Stores all tracks in the railway.
         trains (dict): Stores trains by their name 
     """
     def __init__(self):
