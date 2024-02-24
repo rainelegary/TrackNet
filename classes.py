@@ -313,7 +313,7 @@ class Map:
         destination_junction = train.route.tracks[-1]
 
         # Find a new route from the train's current junction to the destination
-        new_route = self.find_alternative_route(train.current_junction, destination_junction, avoid_track_name)
+        new_route = self.find_shortest_path(train.current_junction, destination_junction, avoid_track_name)
 
         if new_route:
             # Update the train's route
