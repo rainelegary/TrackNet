@@ -70,6 +70,63 @@ class Railway:
         else:
             print(f"Train {name} already exists.")
 
+    def update_train(self, train, state: TrainState, location_msg: TrackNet_pb2.Location):
+        train.state = state
+        if location_msg.HasField("front_track_id"):
+            # check if need to remove from previous junction 
+            if train.location.front_cart["junction"] is not None:
+                track.depart_train(location_msg.front_junction_id)  
+                
+            # check if new track
+            if train.location.front_cart["track"].name != location_msg.front_track_id:
+                # add to new track
+                for track in self.tracks:
+                    if track.name == location_msg.front_track_id:
+                        track.add_train(train)      
+                # update location of train
+                train.location.front_cart["track"] = self.tracks[location_msg.front_track_id]
+            
+        if location_msg.HasField("front_junction_id"):
+            # check if need to remove from previous track
+            if train.location.front_cart["track"] is not None:
+                track.remove_train(location_msg.front_track_id)
+                
+            # check if new junction
+            if train.location.front_cart["junction"].name != location_msg.front_junction_id:
+                # add to new junction
+                self.junctions[location_msg.front_junction_id].park_train(train)
+                # update location of train
+                train.location.front_cart["junction"] = self.junctions[location_msg.front_junction_id]
+
+        if location_msg.HasField("back_track_id"):
+            # check if need to remove from previous junction 
+            if train.location.back_cart["junction"] is not None:
+                track.depart_train(location_msg.back_junction_id)  
+                
+            # check if new track
+            if train.location.back_cart["track"].name != location_msg.back_track_id:
+                # add to new track
+                for track in self.tracks:
+                    if track.name == location_msg.back_track_id:
+                        track.add_train(train)      
+                # update location of train
+                train.location.back_cart["track"] = self.tracks[location_msg.back_track_id]
+            
+        if location_msg.HasField("back_junction_id"):
+            # check if need to remove from previous track
+            if train.location.back_cart["track"] is not None:
+                track.remove_train(location_msg.back_track_id)
+                
+            # check if new junction
+            if train.location.back_cart["junction"].name != location_msg.back_junction_id:
+                # add to new junction
+                self.junctions[location_msg.back_junction_id].park_train(train)
+                # update location of train
+                train.location.back_cart["junction"] = self.junctions[location_msg.back_junction_id]
+
+        train.location.front_cart["position"] = location_msg.front_position
+        train.location.back_cart["position"] = location_msg.back_position
+
     def add_train_to_track(self, train_name, track_name):
         """Places an existing train on a specified track by name."""
         #*Modify to remove train from parked junction if on one*

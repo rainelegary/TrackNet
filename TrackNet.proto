@@ -22,14 +22,26 @@ message Route {
 }
 
 message Location {
-    optional string junction_id = 1;
-    optional string track_id = 2;
-    optional float position = 3;
+    optional string front_junction_id = 1;
+    optional string front_track_id = 2;
+    optional float front_position = 3;
+    optional string back_junction_id = 4;
+    optional string back_track_id = 5;
+    optional float back_position = 6;
 }
 
 message Train {
+    enum TrainState {
+        RUNNING = 0
+        SLOW = 1
+        STOPPED = 2
+        PARKED = 3
+        PARKING = 4
+        UNPARKING = 5
+    }
     optional string id = 1;
     optional float length = 2;
+    optional TrainState state = 3;
 }
 
 message ServerResponse {

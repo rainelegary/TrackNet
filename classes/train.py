@@ -1,12 +1,15 @@
 import datetime
 import logging
 import time
+import TrackNet_pb2
 from classes.location import Location
 from classes.route import Route
 from classes.junction import Junction
 from classes.enums import TrainState
+from classes.railmap import RailMap
 
 LOGGER = logging.getLogger(__name__)
+    
 
 class Train:
     """Represents a train running on the tracks or parked at a junction.
@@ -22,26 +25,25 @@ class Train:
         self,
         name = None, # Name will be assigned later if this is a client's train class
         length = 1000, # in meters
-        current_junction_front: Junction = None, # junction ID
-        current_junction_back: Junction = None,
+        junction_front: Junction = None, # junction ID
+        junction_back: Junction = None,
+        railmap: RailMap = None,
         destination: Junction = None,
     ):
         self.name = name
         self.length = length
-        self.location = Location(current_junction_front, current_junction_back, 0)
+        self.location = Location(junction_front, junction_back, 0)
         self.route = None
         self.state = TrainState.PARKED
         self.junction_delay = 5
-        self.railway_map = None
+        self.railmap = railmap
+        self.railway = None
         self.destination = destination
         self.current_speed = 0 
         self.last_time_updated = datetime.now()
-        
-    def set_route(self, junctions):
-        self.route = Route(junctions)
     
-    def update_location(self, front_cart_position):   
-        self.location.set_position(front_cart_position)
+    def update_location(self, distance_moved):   
+        self.location.set_position(distance_moved)
 
         if self.location.check_front_junction_reached():
             LOGGER.debug(f"Train {self.name}'s front has reached {self.location.front_cart["junction"].name} junction.")
@@ -80,17 +82,22 @@ class Train:
         else:
             LOGGER.debug(f"Train {self.name} has completed its route and is parked.")
 
-    def set_railway_map (self, railway_map):
-        self.railway_map = railway_map
-    
-    def set_speed(self, new_speed):
-        self.current_speed = new_speed
-
-    def get_speed(self):
-        return self.current_speed
-
     def stop(self):
         self.current_speed = 0
+        self.state = TrainState.STOPPED
+        
+    def unpark(self, speed):
+        self.current_speed = speed
+        self.state = TrainState.UNPARKING
 
+    def set_speed(self, new_speed):
+        self.current_speed = new_speed
+        
+    def get_speed(self):
+        return self.current_speed
+    
+    def set_railway (self, railway):
+        self.railway = railway
+        
     def __repr__(self):
         return f"Train({self.name}, Location: {self.location}, Speed: {self.current_speed} km/h, Last Updated: {self.last_time_updated})"

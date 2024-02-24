@@ -22,6 +22,12 @@ class Track:
     def add_train(self, train):
         """Adds a train to the track."""
         self.trains.append(train)
+        
+    def remove_train(self, train_id):
+        for train in self.trains:
+            if train.name == train_id:
+                self.trains.remove(train)
+                return
 
     def update_train_position(self, train_name, front_position):
         """Updates the position of a specific train on the track."""

@@ -48,6 +48,8 @@ class Server():
             return train
 
     def handle_connection(self, conn):
+        ## assumes that ClientSate.Location is always set
+        
         client_state = TrackNet_pb2.ClientState()
         data = receive(conn)
         
@@ -56,16 +58,23 @@ class Server():
             resp = TrackNet_pb2.SercerResponse()
             
             train = self.get_train(client_state.train)
+            ## set train info in response message
             resp.train.id = train.name
             resp.train.length = train.length
             
-            if client_state.location.HasField("track"):
-                self.railway.set_track_condition(client_state.location.track.name)
+            # update train location
+            self.railway.trains[client_state.train.id].update_position(client_state.location.position)
+            
+            # check train condition
+            if client_state.location.HasField("front_track_id"):
+                self.railway.set_track_condition(client_state.location.front_track_id)
                 
-            self.railway.trains[client_state.train.id].update_position(client_state.location.distance)
-            ## TODO update trains position
-            ## TODO check if current track has bad condition ->check_track_condition() & set status to change speed to a reduced speed
-
+                if self.railway.has_bad_track_condition(client_state.location.front_track_id):
+                    resp.status = TrackNet_pb2.ServerResponse.UpdateStatus.CHANGE_SPEED
+                    resp.speed_change = 20     ## TODO set slow speed
+                    
+            self.railway.update_train(train, client_state.train.state, client_state.location)
+                
             ## (TODO) use speed, location & route data to detect possible conflicts.
             
             resp.status = TrackNet_pb2.ServerResponse.UpdateStatus.CLEAR

@@ -15,19 +15,26 @@ class Location:
         self.front_cart = {"track": None, "junction": start_junction, "position": 0}
         self.back_cart = {"track": None, "junction": end_junction, "position": 0}
     
-    def set_position(self, front_cart_position):
-        self.front_cart["position"] = front_cart_position
-        self.back_cart["position"] = min(0, front_cart_position - self.length)
+    def set_position(self, distance_moved):
+        self.front_cart["position"] = distance_moved
+        self.back_cart["position"] = min(0, distance_moved - self.length)
 
     def set_location_message(self, msg: TrackNet_pb2.Location):
         if self.front_cart["track"] is not None:
-            msg.track = self.front_cart["track"].name
+            msg.front_track_id = self.front_cart["track"].name
             
         if self.front_cart["junction"] is not None:
-            msg.junction = self.front_cart["junction"].name
+            msg.front_junction_id = self.front_cart["junction"].name
             
-        msg.position = self.front_cart["position"]
+        msg.front_position = self.front_cart["position"]
         
+        if self.back_cart["track"] is not None:
+            msg.back_track_id = self.back_cart["track"].name
+            
+        if self.back_cart["junction"] is not None:
+            msg.back_junction_id = self.back_cart["junction"].name
+            
+        msg.back_position = self.back_cart["position"]
 
     def is_unparked(self):
         if self.front_cart["position"] > 0:
