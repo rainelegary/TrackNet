@@ -15,7 +15,7 @@ class Railway:
     """
     def __init__(self):
         self.junctions = {}  # Stores junctions by name
-        self.tracks = []  # List of tracks 
+        self.tracks = {}  # List of tracks 
         self.trains = {} # store trains by name 
         self.train_counter = 0
 
