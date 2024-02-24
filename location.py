@@ -22,7 +22,7 @@ class Location:
     def get_distance(self):
         return self.distance_covered
     
-    def update_position(self, pos):
+    def set_position(self, pos):
         pass
 
     def set_to_park(self, junction):

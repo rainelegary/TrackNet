@@ -138,6 +138,9 @@ class Train:
     def get_speed(self):
         return self.current_speed
 
+    def stop(self):
+        pass
+
     def __repr__(self):
         location = self.current_junction.name if self.current_junction else self.current_track.name
         return f"Train({self.name}, Location: {location}, Speed: {self.current_speed} km/h, Last Updated: {self.last_time_updated})"
@@ -147,6 +150,7 @@ class Train:
         self.current_position = 0
         self.distance_covered = 0
 
+    ## moved to client
     def move_along_route(self):
         now = datetime.now()
         elapsed_time = (now - self.last_time_updated).total_seconds()
@@ -185,6 +189,7 @@ class Train:
             # If there's no current track for the back, it means it's already at a junction or hasn't started moving yet
             self.handle_train_arrival_at_junction()
 
+    ## switch tracks 
     def handle_train_arrival_at_junction(self):
         # Handle the train's full arrival at the junction and transition to the next track if applicable
         if not self.is_parked and self.current_junction_front and self.current_junction_front == self.current_junction_back:
@@ -202,6 +207,7 @@ class Train:
         elif not self.is_parked:
             print(f"Waiting for the back of the train to reach the junction...")
 
+    ## stop 
     def move_to_next_track_or_park(self):
         # Advance the train onto the next track or mark it as parked if at the end of the route
         self.current_junction_index += 1
@@ -231,6 +237,7 @@ class Map:
         self.junctions = {}  # Stores junctions by name
         self.tracks = []  # List of tracks 
         self.trains = {} # store trains by name 
+        
     
     def add_junction(self, name):
         """Adds a junction to the map."""

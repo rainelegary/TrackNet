@@ -59,6 +59,8 @@ class Server():
         self.trains.append(new_train)
         return new_train
         
+    def create_route(self, train_id, )
+
     def listen_on_socket(self):
         """Listens for incoming connections on the server's socket. Handles incoming data, parses it, and responds according to the server logic.
 
