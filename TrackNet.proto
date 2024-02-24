@@ -12,26 +12,36 @@ package TrackNet;
 //
 //  map: this is a paired key/value field type. See Maps for more on this field type.
 
-message Track {
-    optional string name = 1;
-    optional float length = 2;
-    optional string to_node = 3; 
-    optional string from_node = 4;
+message Junction {
+    optional string id = 1;
 }
 
 message Route {
-    repeated string nodes = 2;
+    repeated Junction junctions = 2;
     optional string destination = 3;
 }
 
 message Location {
-    optional Track track = 1;
-    optional float distance = 2;
+    optional string front_junction_id = 1;
+    optional string front_track_id = 2;
+    optional float front_position = 3;
+    optional string back_junction_id = 4;
+    optional string back_track_id = 5;
+    optional float back_position = 6;
 }
 
 message Train {
-    optional string train_id = 1;
+    enum TrainState {
+        RUNNING = 0
+        SLOW = 1
+        STOPPED = 2
+        PARKED = 3
+        PARKING = 4
+        UNPARKING = 5
+    }
+    optional string id = 1;
     optional float length = 2;
+    optional TrainState state = 3;
 }
 
 message ServerResponse {
