@@ -5,7 +5,7 @@ import time
 import random
 from utils import *
 from classes import *
-from enums import *
+from classes.enums import *
 
 setup_logging() ## only need to call at main entry point of application
 LOGGER = logging.getLogger(__name__)

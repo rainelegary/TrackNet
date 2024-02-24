@@ -1,7 +1,7 @@
 from datetime import datetime
 import logging
 import time
-from location import Location
+from classes.location import Location
 from queue import PriorityQueue
 
 
