@@ -47,11 +47,11 @@ class Train:
         self.location.set_position(distance_moved)
 
         if self.location.check_front_junction_reached():
-            LOGGER.debug(f"Train {self.name}'s front has reached {self.location.front_cart["junction"].name} junction.")
+            LOGGER.debug(f"Train {self.name}'s front has reached {self.location.front_cart['junction'].name} junction.")
             self.state = TrainState.PARKING         
         
         if self.location.check_back_junction_reached() and self.state == TrainState.PARKING:
-            LOGGER.debug(f"Train {self.name}'s back has reached {self.location.back_cart["junction"].name} junction.")
+            LOGGER.debug(f"Train {self.name}'s back has reached {self.location.back_cart['junction'].name} junction.")
             self.handle_arrival_at_junction()
             
         if self.state == TrainState.UNPARKING and self.location.is_unparked():

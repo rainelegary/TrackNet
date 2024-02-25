@@ -1,4 +1,4 @@
-from junction import *
+from classes.junction import Junction
 
 class Route:
     """
