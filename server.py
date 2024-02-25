@@ -25,7 +25,7 @@ initial_config = {
 
 class Server():
     
-    def __init__(self, host: str ="10.13.171.182", port: int =5555):
+    def __init__(self, host: str ="localhost", port: int =5555):
         """A server class that manages train objects and handles network connections.
 
         :param host: The hostname or IP address to listen on.
