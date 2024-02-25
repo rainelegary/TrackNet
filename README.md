@@ -13,17 +13,27 @@ Each track's ID is a tuple (nodeA_id, nodeB_id) in ascending order by id.
 
 ### Short term todo
 
+### Short term todo
+
 Refactor so Route's ist of junctions is named to "junctions" instead of "tracks"
 Updated Reroute function in ConflictAnalyzer
 Change "self.tracks" variable in railway to a dictionary
 Talk about proof of concept in project document
-Conflict analyzer
+
+
+### Medium term todo
+
+Add more details to Route class
+Upgrade conflict analyzer
+
 
 ### Long term todo
 
 Add proxies
 Add replication
 Add server-to-server, proxy-to-proxy, and client-to-proxy communication
+Conflict analyzer
+Make pre-determined track conditions that everyone has immediate access to without communication
 Scheduler
 Time synchronization
 Allow for train reversal
