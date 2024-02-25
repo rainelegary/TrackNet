@@ -32,7 +32,7 @@ def setup_logging():
     handler.setLevel(logging.DEBUG)
     handler.setFormatter(formatter)
     
-    logging.root.setLevel(logging.INFO)
+    logging.root.setLevel(logging.DEBUG)
     logging.root.addHandler(handler)
 
 
@@ -90,7 +90,7 @@ def create_client_socket(ip: str, port: int):
     assert type(ip) == str
     assert type(port) == int
 
-    socket.setdefaulttimeout(0.5)
+    #socket.setdefaulttimeout(0.5)
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     try:

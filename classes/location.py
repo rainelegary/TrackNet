@@ -29,7 +29,7 @@ class Location:
         self.back_cart = {"track": None, "junction": prev_junction, "position": 0}
     
     def set_position(self, distance_moved, train_length):
-        self.front_cart["position"] = distance_moved
+        self.front_cart["position"] += distance_moved
         self.back_cart["position"] = max(0, self.front_cart["position"] - train_length)
 
     def set_location_message(self, msg: TrackNet_pb2.Location):
@@ -79,8 +79,6 @@ class Location:
             self.back_cart["track"] = self.front_cart["track"] 
             return True
         return False
-        
-
     
     def set_track(self, track: Track):
         self.front_cart["track"] = track

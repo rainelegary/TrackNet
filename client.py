@@ -58,11 +58,12 @@ class Client():
         
     def generate_random_train_length(self):
         ## TODO 
-        return 30
+        return 5
     
     def generate_route(self):
         self.train.route = Route(self.railmap.find_shortest_path(self.origin.name, self.destination.name))
-        
+        LOGGER.debug("Route created")
+
     def get_track_condition(self):
         """ Determines the track condition based on a predefined probability.
 
@@ -114,6 +115,7 @@ class Client():
         for junc in route.junctions:
             new_route.append(self.railmap.junctions[junc])
         self.train.route = Route(new_route)
+        self.train.location.set_track(self.train.route.get_next_track())
     
     def run(self):
         """Initiates the client's main loop, continuously sending its state to the server and processing the server's response. It handles connection management, state serialization, and response deserialization. Based on the server's response, it adjusts the train's speed, reroutes, or stops as necessary.
@@ -124,9 +126,11 @@ class Client():
             self.sock = create_client_socket(self.host, self.port)
             
             if self.sock is not None:
+                LOGGER.debug("Connected")
                 state = TrackNet_pb2.ClientState()
                 
                 self.set_client_state_msg(state)
+                LOGGER.debug(f"state={state}")
                 
                 if send(self.sock, state.SerializeToString()):
                     data = receive(self.sock)
@@ -163,8 +167,9 @@ class Client():
                                 self.train.unpark(server_resp.speed_change)
                         
                     self.sock.close()
-                
-            time.sleep(5)
+            else:
+                LOGGER.debug(f"no connection")
+            time.sleep(8)
             
             
     

@@ -89,13 +89,13 @@ class Server():
                 
                 if self.railway.has_bad_track_condition(client_state.location.front_track_id):
                     resp.status = TrackNet_pb2.ServerResponse.UpdateStatus.CHANGE_SPEED
-                    resp.speed_change = 20     ## TODO set slow speed
+                    resp.speed_change = 200     ## TODO set slow speed
                     
             self.railway.update_train(train, client_state.train.state, client_state.location)
                 
 
             ## (TODO) use speed, location & route data to detect possible conflicts.
-            
+            resp.speed_change = 200
             resp.status = TrackNet_pb2.ServerResponse.UpdateStatus.CLEAR
             
             if not send(conn, resp.SerializeToString()):
