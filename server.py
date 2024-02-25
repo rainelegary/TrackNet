@@ -10,12 +10,12 @@ from classes.train import Train
 setup_logging() ## only need to call at main entry point of application
 LOGGER = logging.getLogger(__name__)
 
-signal.signal(signal.SIGTERM, exit_gracefully)
-signal.signal(signal.SIGINT, exit_gracefully)
+#signal.signal(signal.SIGTERM, exit_gracefully)
+#signal.signal(signal.SIGINT, exit_gracefully)
 
 class Server():
     
-    def __init__(self, host: str, port: int):
+    def __init__(self, host: str ="10.13.171.182", port: int =5555):
         """A server class that manages train objects and handles network connections.
 
         :param host: The hostname or IP address to listen on.
@@ -30,6 +30,8 @@ class Server():
         self.port = port
         self.sock = None
         self.railway = Railway()
+        self.listen_on_socket()
+
         
     def get_train(self, train: TrackNet_pb2.Train):
         """Retrieves a Train object based on its ID. If the train does not exist, it creates a new Train object.
@@ -55,7 +57,7 @@ class Server():
         
         if data is not None:
             client_state.ParseFromString(data)
-            resp = TrackNet_pb2.SercerResponse()
+            resp = TrackNet_pb2.ServerResponse()
             
             train = self.get_train(client_state.train)
             ## set train info in response message
@@ -67,7 +69,7 @@ class Server():
                 pass
             
             # update train location
-            self.railway.trains[client_state.train.id].update_position(client_state.location.position)
+            self.railway.trains[client_state.train.id].update_train(train, resp.train.state, client_state.location.position)
             
             # check train condition
             if client_state.location.HasField("front_track_id"):
@@ -99,7 +101,7 @@ class Server():
         while not exit_flag and self.sock:
             try:
                 conn, addr = self.sock.accept()
-                threading.Thread(target=self.handle_connection, args=(conn), daemon=True).start() 
+                threading.Thread(target=self.handle_connection, args=(conn,), daemon=True).start() 
                         
             except socket.timeout:
                 pass 
@@ -111,3 +113,5 @@ class Server():
                 self.sock = create_server_socket(self.host, self.port)
             
     
+if __name__ == '__main__':
+    Server()

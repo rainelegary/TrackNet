@@ -32,7 +32,7 @@ class Train:
     ):
         self.name = name
         self.length = length
-        self.location = Location(junction_front, junction_back, 0)
+        self.location = Location(junction_front, junction_back)
         self.route = None
         self.state = TrainState.PARKED
         self.junction_delay = 5
@@ -40,11 +40,10 @@ class Train:
         self.railway = None
         self.destination = destination
         self.current_speed = 0 
-        self.last_time_updated = datetime.now()
         self.stay_parked = True
     
     def update_location(self, distance_moved):   
-        self.location.set_position(distance_moved)
+        self.location.set_position(distance_moved, self.length)
 
         if self.location.check_back_has_left_junction():
             LOGGER.debug(f"Train {self.name}'s back has left {self.location.back_cart['junction'].name} junction.")
@@ -59,6 +58,7 @@ class Train:
             self.handle_arrival_at_junction()
             
         if self.state == TrainState.UNPARKING and self.location.is_unparked():
+            self.location.back_from_junction_to_track()
             self.state = TrainState.RUNNING
             
     def handle_arrival_at_junction(self):

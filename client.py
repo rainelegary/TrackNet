@@ -15,12 +15,12 @@ from datetime import datetime
 setup_logging() ## only need to call at main entry point of application
 LOGGER = logging.getLogger(__name__)
 
-signal.signal(signal.SIGTERM, exit_gracefully)
-signal.signal(signal.SIGINT, exit_gracefully)
+#signal.signal(signal.SIGTERM, exit_gracefully)
+#signal.signal(signal.SIGINT, exit_gracefully)
 
 class Client():
     
-    def __init__(self, host: str, port: int):
+    def __init__(self, host: str ="10.13.171.182", port: int =5555):
         """ A client class responsible for simulating a train's interaction with a server, including sending its state and receiving updates.
 
         :param host: The hostname or IP address of the server to connect to.
@@ -36,11 +36,14 @@ class Client():
         self.sock = None
         self.probabilty_of_good_track = 95
         self.railmap = RailMap()
+        self.last_time_updated = datetime.now()
         
         origin = self.railmap.get_random_origin_junction()
         self.train = Train(length=self.generate_random_train_length(), junction_front=origin, junction_back=origin)
         
         threading.Thread(target=self.update_position, args=(), daemon=True).start() 
+        self.run()
+        
         
     def generate_random_train_length(self):
         ## TODO 
@@ -80,7 +83,7 @@ class Client():
         if self.train.name is not None:
             state.train.id = self.train.name
         state.train.length = self.train.length
-        state.train.state = self.train.state
+        state.train.state = self.train.state.value
         state.speed = self.train.get_speed()
         self.train.location.set_location_message(state.location)
         state.condition = self.get_track_condition()
@@ -106,50 +109,53 @@ class Client():
         while not exit_flag:
             self.sock = create_client_socket(self.host, self.port)
             
-            state = TrackNet_pb2.ClientState()
-            
-            self.set_client_state_msg(state)
-            
-            if send(self.sock, state.SerializeToString()):
-                data = receive(self.sock)
-                server_resp = TrackNet_pb2.ServerResponse()
+            if self.sock is not None:
+                state = TrackNet_pb2.ClientState()
                 
-                if data is not None:
-                    server_resp.ParseFromString(data)
+                self.set_client_state_msg(state)
+                
+                if send(self.sock, state.SerializeToString()):
+                    data = receive(self.sock)
+                    server_resp = TrackNet_pb2.ServerResponse()
                     
-                    if self.train.name is None:
-                        self.train.name = server_resp.train_id
-                        LOGGER.debug(f"Initi. {self.train.name}")
+                    if data is not None:
+                        server_resp.ParseFromString(data)
                         
-                    if self.train.route is None: 
-                        if not server_resp.HasField("new_route"):
-                            LOGGER.warning(f"Server has not yet provided route for train.")
-                            ## cannot take instructions until route is assigned
-                            self.sock.close()
-                            continue
+                        if self.train.name is None:
+                            self.train.name = server_resp.train_id
+                            LOGGER.debug(f"Initi. {self.train.name}")
+                            
+                        if self.train.route is None: 
+                            if not server_resp.HasField("new_route"):
+                                LOGGER.warning(f"Server has not yet provided route for train.")
+                                ## cannot take instructions until route is assigned
+                                self.sock.close()
+                                continue
+                            
+                            self.set_route(server_resp.route)
+                            
+                        if server_resp.status == TrackNet_pb2.ServerResponse.UpdateStatus.CHANGE_SPEED:
+                            LOGGER.debug(f"CHANGE_SPEED {self.train.name} to {server_resp.speed_change}")
+                            self.train.set_speed(server_resp.speed_change)
+                            
+                        elif server_resp.status == TrackNet_pb2.ServerResponse.UpdateStatus.REROUTE:
+                            LOGGER.debug(f"REROUTING {self.train.name}")
+                            self.set_route(server_resp.route)
                         
-                        self.set_route(server_resp.route)
+                        elif server_resp.status == TrackNet_pb2.ServerResponse.UpdateStatus.STOP:
+                            LOGGER.debug(f"STOPPING {self.train.name}")
+                            self.train.stop()
                         
-                    if server_resp.status == TrackNet_pb2.ServerResponse.UpdateStatus.CHANGE_SPEED:
-                        LOGGER.debug(f"CHANGE_SPEED {self.train.name} to {server_resp.speed_change}")
-                        self.train.set_speed(server_resp.speed_change)
+                        elif server_resp.status == TrackNet_pb2.ServerResponse.UpdateStatus.CLEAR:
+                            if self.train.state in [TrainState.PARKED, TrainState.STOPPED]:
+                                self.train.unpark(server_resp.speed_change)
                         
-                    elif server_resp.status == TrackNet_pb2.ServerResponse.UpdateStatus.REROUTE:
-                        LOGGER.debug(f"REROUTING {self.train.name}")
-                        self.set_route(server_resp.route)
-                    
-                    elif server_resp.status == TrackNet_pb2.ServerResponse.UpdateStatus.STOP:
-                        LOGGER.debug(f"STOPPING {self.train.name}")
-                        self.train.stop()
-                    
-                    elif server_resp.status == TrackNet_pb2.ServerResponse.UpdateStatus.CLEAR:
-                        if self.train.state in [TrainState.PARKED, TrainState.STOPPED]:
-                            self.train.unpark(server_resp.speed_change)
-                    
-                self.sock.close()
+                    self.sock.close()
                 
             time.sleep(5)
             
             
     
     
+if __name__ == '__main__':
+    Client()
