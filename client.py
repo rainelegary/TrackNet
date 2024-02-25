@@ -62,6 +62,8 @@ class Client():
     
     def generate_route(self):
         self.train.route = Route(self.railmap.find_shortest_path(self.origin.name, self.destination.name))
+        self.train.location.set_track(self.train.route.get_next_track())
+        LOGGER.debug(f"init track={self.train.route.get_next_track()}")
         LOGGER.debug("Route created")
 
     def get_track_condition(self):
@@ -106,9 +108,9 @@ class Client():
         if self.train.route is not None:
             for junction_obj in self.train.route.junctions:
                 junction_msg = state.route.junctions.add() 
-                junction_msg.id = junction_obj
+                junction_msg.id = junction_obj.name
             
-            state.route.destination = self.train.route.destination
+            state.route.destination = self.train.route.destination.name
 
     def set_route(self, route: TrackNet_pb2.Route):
         new_route = []
@@ -116,6 +118,8 @@ class Client():
             new_route.append(self.railmap.junctions[junc])
         self.train.route = Route(new_route)
         self.train.location.set_track(self.train.route.get_next_track())
+        LOGGER.debug(f"init track={self.train.route.get_next_track()}")
+
     
     def run(self):
         """Initiates the client's main loop, continuously sending its state to the server and processing the server's response. It handles connection management, state serialization, and response deserialization. Based on the server's response, it adjusts the train's speed, reroutes, or stops as necessary.

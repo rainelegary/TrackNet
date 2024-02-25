@@ -63,7 +63,7 @@ class Railway:
         train.state = state
         if location_msg.HasField("front_track_id"):
             # check if new track
-            if train.location.front_cart["track"].name != location_msg.front_track_id:
+            if train.location.front_cart["track"] is None or train.location.front_cart["track"].name != location_msg.front_track_id:
                 # add to new track
                 self.map.tracks[location_msg.front_track_id].add_train(train)
                 # update location of train
@@ -80,17 +80,17 @@ class Railway:
         if location_msg.HasField("back_track_id"):
             # check if need to remove from previous junction 
             if train.location.back_cart["junction"] is not None:
-                self.map.junctions[location_msg.back_junction_id].depart_train(train) 
+                self.map.junctions[train.location.back_cart["junction"].name].depart_train(train) 
                 
             # check if new track
-            if train.location.back_cart["track"].name != location_msg.back_track_id:
+            if train.location.back_cart["track"] is None or train.location.back_cart["track"].name != location_msg.back_track_id:
                 # update location of train
                 train.location.back_cart["track"] = self.map.tracks[location_msg.back_track_id]
             
         elif location_msg.HasField("back_junction_id"):
             # check if need to remove from previous track
             if train.location.back_cart["track"] is not None:
-                self.map.tracks[location_msg.back_track_id].remove_train(train)
+                self.map.tracks[train.location.back_cart["track"].name].remove_train(train.name)
                 # track.remove_train(location_msg.back_track_id)
                 
             # check if new junction

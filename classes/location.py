@@ -93,6 +93,7 @@ class Location:
         junction = self.front_cart["junction"]
         self.front_cart = {"track": None, "junction": junction, "position": 0}
         self.back_cart = {"track": None, "junction": junction, "position": 0}
+        return junction
         
     def __str__(self):
         if self.front_cart["track"] is not None:

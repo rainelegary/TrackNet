@@ -17,8 +17,8 @@ message Junction {
 }
 
 message Route {
-    repeated Junction junctions = 2;
-    optional string destination = 3;
+    repeated Junction junctions = 1;
+    optional string destination = 2;
 }
 
 message Location {

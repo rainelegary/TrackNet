@@ -25,4 +25,4 @@ class Track:
         
     def remove_train(self, train):
         """Removes a train from the track."""
-        del self.trains[train.name]
+        del self.trains[train]

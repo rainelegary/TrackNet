@@ -4,7 +4,7 @@ import socket
 import signal 
 import threading
 from utils import *
-from  classes.enums import TrainState
+from  classes.enums import TrainState, TrackCondition
 from classes.railway import Railway
 from classes.train import Train
 
@@ -85,9 +85,9 @@ class Server():
             
             # check train condition
             if client_state.location.HasField("front_track_id"):
-                self.railway.set_track_condition(client_state.location.front_track_id)
+                self.railway.map.set_track_condition(client_state.location.front_track_id, TrackCondition(client_state.condition))
                 
-                if self.railway.has_bad_track_condition(client_state.location.front_track_id):
+                if self.railway.map.has_bad_track_condition(client_state.location.front_track_id):
                     resp.status = TrackNet_pb2.ServerResponse.UpdateStatus.CHANGE_SPEED
                     resp.speed_change = 200     ## TODO set slow speed
                     
