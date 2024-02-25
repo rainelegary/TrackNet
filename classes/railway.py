@@ -60,31 +60,30 @@ class Railway:
             raise Exception(f"Train {name} already exists.")
 
     def update_train(self, train, state, location_msg: TrackNet_pb2.Location):
-        #train.state = state
         # check if new track
         if train.location.front_cart["track"] is None or train.location.front_cart["track"].name != location_msg.front_track_id:
             # add to new track
             self.map.tracks[location_msg.front_track_id].add_train(train)
-            # update location of train
-            train.location.front_cart["track"] = self.map.tracks[location_msg.front_track_id]
-              
-
-        if train.state != TrainState.PARKED and state == TrainState.PARKED:
-
-            ## remove from track 
-            ## add to junction 
-            ## update train position
-            
+           
+        # check if new junction
+        if train.state != TrainState.PARKED and state in [TrainState.PARKED, TrainState.PARKING]:      
+            # remove train from track
+            try:
+                self.map.tracks[train.location.back_cart["track"].name].remove_train(train.name)
+            except:
+                pass
             # add tain to new junction
-            self.map.tracks[train.location.back_cart["track"].name].remove_train(train.name)
             self.map.junctions[location_msg.front_junction_id].park_train(train)
-            
 
+        # check if leaving junction
+        if train.state == TrainState.PARKED and state in [TrainState.RUNNING, TrainState.UNPARKING]:
+            # remove train from junction
+            self.map.junctions[location_msg.front_junction_id].depart_train(train)
 
-        # update location of train
+        # update location and state of train
         self.trains[train.name].location.front_cart = {"track": self.tracks[location_msg.front_track_id], "junction": self.junctions[location_msg.front_junction_id], "position": location_msg.front_position}
-        self.trains[train.name].location.front_cart = {"track": self.tracks[location_msg.front_track_id], "junction": self.junctions[location_msg.front_junction_id], "position": location_msg.front_position}
-       
+        self.trains[train.name].location.back_cart = {"track": self.tracks[location_msg.back_track_id], "junction": self.junctions[location_msg.back_junction_id], "position": location_msg.back_position}
+        train.state = state
 
     def add_train_to_track(self, train_name, track_name):
         """Places an existing train on a specified track by name."""
