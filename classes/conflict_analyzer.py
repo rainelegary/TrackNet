@@ -1,4 +1,6 @@
 
+from enums import TrainState
+
 class CannotRerouteException(Exception):
     pass
 
@@ -50,7 +52,7 @@ class ConflictAnalyzer:
 
     @staticmethod
     def reroute(railway, commands, train_id, junction_blacklist, track_blacklist): # throws CannotRerouteException
-        pass
+        pass # new reroute function TODO in later iterations
     
 
     """
@@ -127,7 +129,7 @@ class ConflictAnalyzer:
 
         junction = railway.junctions[junction_id]
 
-        involved_trains = {} # all trains involved in this junction
+        involved_trains = {} # all trains heading towards or already parked in this junction
         available_tracks = {} # all tracks that do not have trains heading towards this junction
         in_demand_tracks = {} # all tracks that at least one train wants to exit onto
 
@@ -164,15 +166,24 @@ class ConflictAnalyzer:
             in_demand_tracks[next_track.name] = next_track
 
 
-        # determine what to do for each train
+        # determine what to do for each train 
         for train in involved_trains:
+
+            # TODO POC - use some kind of command data structure
+
             if train.get_next_track().name in available_tracks:
-                continue # do nothing; we are all clear 
+                continue # keep going, or start moving if not moving yet
+
+            if train.state in [TrainState.PARKED, TrainState.PARKING]:
+                continue # do nothing until desired track clears up (stay parked)
 
             if train.location.front_cart["track"] in in_demand_tracks:
-                # issue "park" command to this train
+                # if junction still has capacity
+                    # issue "park" command
+                # otherwise
+                    # issue "stop" command
                 continue
-            
+
             # otherwise (desired track occupied and on low demand track)
             # issue "stop" command to this train
 
@@ -189,7 +200,7 @@ class ConflictAnalyzer:
     """
     @staticmethod
     def resolve_next_track_conflict(railway, commands, train_id, junction_blacklist, track_blacklist): 
-        # TODO later
+        # TODO in later iterations
         pass
         
 
@@ -203,7 +214,7 @@ class ConflictAnalyzer:
     """
     @staticmethod
     def resolve_later_junction_conflict(railway, commands, train_id, junction_blacklist, track_blacklist): 
-        # TODO later
+        # TODO in later iterations
         
         # try parking
 
