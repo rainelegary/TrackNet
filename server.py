@@ -47,7 +47,7 @@ class Server():
         self.listen_on_socket()
 
         
-    def get_train(self, train: TrackNet_pb2.Train):
+    def get_train(self, train: TrackNet_pb2.Train, origin_id: str):
         """Retrieves a Train object based on its ID. If the train does not exist, it creates a new Train object.
 
         :param train: The train identifier or a Train object with an unset ID to create a new Train.
@@ -55,13 +55,13 @@ class Server():
         :raises Exception: Logs an error if the train ID does not exist in the list of trains.
         """
         if not train.HasField("id"):
-            return self.railway.create_new_train(train.length)
+            return self.railway.create_new_train(train.length, origin_id)
         else:
             try:
                 train = self.railway.trains[train.id]
             except:
                 LOGGER.error(f"Train {train.id} does not exits in list of trains. Creating new train...")
-                return self.railway.create_new_train(train.length)
+                return self.railway.create_new_train(train.length, origin_id)
             
             return train
 
