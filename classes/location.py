@@ -93,6 +93,9 @@ class Location:
     def set_junction_front_cart(self, junction):
         self.front_cart["junction"] = junction
 
+    def set_junction_back_cart(self, junction):
+        self.back_cart["junction"] = junction
+
     def set_next_track_front_cart(self, track):
         self.front_cart["track"] = track
 
@@ -101,10 +104,8 @@ class Location:
 
     def set_to_park(self):
         """Parks the train at junction"""
-        junction = self.front_cart["junction"]
-        self.front_cart = {"track": None, "junction": junction, "position": 0}
-        self.back_cart = {"track": None, "junction": junction, "position": 0}
-        return junction
+        self.front_cart["position"] = 0
+        self.back_cart["position"] = 0
         
     def __str__(self):
         if self.front_cart["track"] is not None:
