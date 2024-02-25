@@ -154,17 +154,32 @@ class Railway:
         else:
             print(f"No alternative route found for Train {train_name}.")
 
+
     def print_map(self):
         """Prints an overview of the map, including junctions, tracks, and parked or running trains."""
         print("Map Overview:")
         print("Junctions:")
-        for junction_name, junction in self.map.junctions.items(): # iterate through junctions
-            trains_info = ", ".join(junction.parked_trains.keys())
+        for junction_name, junction in self.map.junctions.items():
+            # Assuming junction.parked_trains is a list; if it's a dict, adjust accordingly
+            trains_info = ", ".join([train.name for train in junction.parked_trains])  # Adjusted to directly use list comprehension
             print(f"  Junction: {junction_name}, Parked Trains: [{trains_info}]")
 
         print("Tracks:")
-        for track in self.map.tracks: # iterate through tracks
-            running_trains = ", ".join(track.trains.keys())
-            pprint(f"  Track: {track.name}, Length: {track.length}, Running Trains: [{running_trains}]")
-    
+        for track_name, track in self.map.tracks.items():  # Adjusted to iterate through items() 
+            if hasattr(track, 'trains') and isinstance(track.trains, dict):  # Safety checks
+                
+                running_trains = track.trains.keys()  #track.trains is a dictionary
+                
+                print(f"  Track: {track.name}, Length: {track.length}, Running Trains: [",)
+                
+                for running_train in running_trains:
+                    train_position_front = track.trains[running_train].location.front_cart['position']
+                    train_position_back = track.trains[running_train].location.back_cart['position']
+                    train_speed = track.trains[running_train].current_speed
+                    print(f"\t\t\t\t\t\t Train: {running_train} Speed: {train_speed} Front Position: {train_position_front} Back Position: {train_position_back}")
+                print("]")
+                 
+            else:
+                print(f"  Track: {track_name} has no running trains or is not properly initialized.")
+
     
