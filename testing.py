@@ -21,4 +21,4 @@ railway_system = Railway(
     tracks=initial_config["tracks"]
 )
 
-print(railway_system.find_shortest_path("B", "D"))
+print(railway_system.find_shortest_path("B", "D", "Track (C, D)"))
