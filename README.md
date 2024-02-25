@@ -12,8 +12,7 @@ Each track's ID is a tuple (nodeA_id, nodeB_id) in ascending order by id.
 ## Todo
 
 Refactor so Route's ist of junctions is named to "junctions" instead of "tracks"
-New Reroute function in ConflictAnalyzer
-New Reroute function in ConflictAnalyzer
+Updated Reroute function in ConflictAnalyzer
 Change "self.tracks" variable in railway to a dictionary
 
 
@@ -22,6 +21,7 @@ Add proxies
 Add replication
 Add server-to-server, proxy-to-proxy, and client-to-proxy communication
 Conflict analyzer
+Make pre-determined track conditions that everyone has immediate access to without communication
 Make pre-determined track conditions that everyone has immediate access to without communication
 Make pre-determined track conditions that everyone has immediate access to without communication
 Scheduler
