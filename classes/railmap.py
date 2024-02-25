@@ -19,14 +19,15 @@ class RailMap:
         else:
             return self.junctions[name]
     
-    def add_track(self, start_name, end_name, length):
+    def add_track(self, junction_a_name, junction_b_name, length):
         """Adds a track between two junctions."""
-        if start_name in self.junctions and end_name in self.junctions:
-            start_junction = self.junctions[start_name]
-            end_junction = self.junctions[end_name]
-            track = Track(start_junction, end_junction, length)
+        if junction_a_name in self.junctions and junction_b_name in self.junctions:
+            junction_a = self.junctions[junction_a_name]
+            junction_b = self.junctions[junction_b_name]
+            track = Track(junction_a, junction_b, length)
             self.tracks[track.name] = track
-            start_junction.add_neighbor(end_junction, track)
+            junction_a.add_neighbor(junction_b, track)
+            junction_b.add_neighbor(junction_a, track)
         else:
             print("One or both junctions do not exist, adding them now.")
        

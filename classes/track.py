@@ -11,11 +11,10 @@ class Track:
         name (str): The name of the track, represented as 'Start->End'.
         trains (list): A list of trains currently running on this track.
     """
-    def __init__(self, start_junction, end_junction, length):
-        self.start_junction = start_junction
-        self.end_junction = end_junction
+    def __init__(self, junction_a, junction_b, length):
+        self.junctions = tuple(sorted([junction_a, junction_b], key=lambda j: j.name))
         self.length = length
-        self.name = f"{start_junction.name}->{end_junction.name}"
+        self.name = f"Track ({self.junctions[0].name}, {self.junctions[1].name})"
         self.trains = {} 
         self.condition = TrackCondition.GOOD
     

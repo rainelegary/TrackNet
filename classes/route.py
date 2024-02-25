@@ -24,8 +24,11 @@ class Route:
         self.destination = junctions[len(junctions) - 1]
         
     def get_next_track(self):
-        self.junctions[self.current_junction_index].neighbors[self.junctions[self.current_junction_index + 1].name]
-        
+        return self.junctions[self.current_junction_index].neighbors[self.junctions[self.current_junction_index + 1].name]
+    
+    def get_next_junction(self):
+        return self.junctions[self.current_junction_index + 1]
+
     def increment_junction_index(self):
         self.current_junction_index += 1
         

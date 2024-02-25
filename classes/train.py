@@ -41,6 +41,7 @@ class Train:
         self.destination = destination
         self.current_speed = 0 
         self.last_time_updated = datetime.now()
+        self.stay_parked = True
     
     def update_location(self, distance_moved):   
         self.location.set_position(distance_moved)
@@ -61,19 +62,22 @@ class Train:
         # Handle the train's full arrival at the junction and transition to the next track if applicable
         # proceed with the next part of the route
         junction = self.location.set_to_park()
-        self.state == TrainState.PARKING
+        self.state = TrainState.PARKED
         self.current_speed = 0
             
         LOGGER.debug(f"Waiting at junction {junction.name} for {self.junction_delay} seconds...")
         time.sleep(self.junction_delay)  # Delay for 5 seconds
-        self.move_to_next_track()
+        
+        if not self.stay_parked:
+            self.move_to_next_track()
             
     def move_to_next_track(self):
         # Advance the train onto the next track or mark it as parked if at the end of the route
         self.route.increment_junction_index()
         if not self.route.destination_reached():
             next_track = self.route.get_next_track()
-            self.location.set_track(next_track)
+            next_junction = self.get_next_junction()
+            self.location.front_from_junction_to_track(self.junction, next_track, next_junction)
             self.current_speed = 50
             self.state = TrainState.UNPARKING
             

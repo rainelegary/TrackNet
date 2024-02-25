@@ -8,12 +8,25 @@ LOGGER = logging.getLogger(__name__)
 
 class Location:
     """ Used to store a train's location on a track.
-    :param start_junction: the node it's coming from
-    :param end_junction: the node it's heading towards
+    :param heading_junction: the node it's heading towards
+    :param prev_junction: the node it's coming from
     """
-    def __init__(self, start_junction: Junction, end_junction: Junction):
-        self.front_cart = {"track": None, "junction": start_junction, "position": 0}
-        self.back_cart = {"track": None, "junction": end_junction, "position": 0}
+    def __init__(self, heading_junction: Junction, prev_junction: Junction):
+        """
+        For each cart, each field works as follows.
+
+        When this cart is at a junction:
+            track is None
+            junction is the current junction
+            position is 0
+        
+        When this cart is on a track:
+            track is the current tracl
+            junction is the one we're heading TO if front cart, and junction we're heading FROM if back cart.
+            position is progress along track
+        """
+        self.front_cart = {"track": None, "junction": heading_junction, "position": 0}
+        self.back_cart = {"track": None, "junction": prev_junction, "position": 0}
     
     def set_position(self, distance_moved):
         self.front_cart["position"] = distance_moved
@@ -43,23 +56,27 @@ class Location:
 
     def check_front_junction_reached(self):
         if self.front_cart["track"] is not None and self.front_cart["position"] >= self.front_cart["track"].length:
-            self.front_cart["junction"] = self.front_cart["track"].end_junction
             self.front_cart["track"] = None  # Clear the front track as it has reached the junction
+            self.front_cart["position"] = 0
             return True
         return False
     
     def check_back_junction_reached(self):   
         # Calculate if the back of the train has reached the end of its track
         if self.back_cart["track"] is not None and self.back_cart["position"] >= self.back_cart["track"].length:
-            self.back_cart["junction"] = self.back_cart["track"].end_junction 
             self.back_cart["track"] = None  # Clear the back track as it has reached the junction
+            self.back_cart["position"] = 0
             return True
         return False
-      
+    
     def set_track(self, track: Track):
         self.front_cart["track"] = track
         self.back_cart["track"] = track
-        
+
+    def front_from_junction_to_track(self, next_track, next_junction):
+        self.front_cart["track"] = next_track
+        self.front_cart["junction"] = next_junction
+
     def set_to_park(self):
         """Parks the train at junction"""
         junction = self.front_cart["junction"]

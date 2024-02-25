@@ -11,11 +11,10 @@ Each track's ID is a tuple (nodeA_id, nodeB_id) in ascending order by id.
 
 ## Todo
 
-### Short term todo
+### Short term (next demo)
 
-Refactor so Route's ist of junctions is named to "junctions" instead of "tracks"
-Updated Reroute function in ConflictAnalyzer
-Change "self.tracks" variable in railway to a dictionary
+Anything in the code-base marked with "TODO POC"
+Allow client to handle park command, using train.stay_parked field
 Talk about proof of concept in project document
 
 
@@ -23,10 +22,12 @@ Talk about proof of concept in project document
 
 Add more details to Route class
 Upgrade conflict analyzer
+Updated Reroute function in ConflictAnalyzer
 
 
 ### Long term todo
 
+Anything in the code-base marked with "TODO"
 Add proxies
 Add replication
 Add server-to-server, proxy-to-proxy, and client-to-proxy communication
