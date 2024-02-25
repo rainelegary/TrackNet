@@ -1,10 +1,28 @@
 import logging
 from pprint import pprint
 from queue import PriorityQueue
-from junction import *
-from route import *
-from train import *
-from track import *
+from .junction import *
+from .route import *
+from .train import *
+from .track import *
+
+
+# Example usage:
+# initial_config = {
+#     "junctions": ["A", "B", "C", "D"],
+#     "tracks": [
+#         ("A", "B", 10),
+#         ("B", "C", 20),
+#         ("C", "D", 30),
+#         ("A", "D", 40)
+#     ]
+# }
+
+# railway_system = Railway(
+#     trains=None,
+#     junctions=initial_config["junctions"],
+#     tracks=initial_config["tracks"]
+# )
 
 class Railway:
     """Represents the entire railway map, containing junctions and tracks.
@@ -14,11 +32,23 @@ class Railway:
         tracks (dict): Stores all tracks in the railway.
         trains (dict): Stores trains by their name 
     """
-    def __init__(self):
+    def __init__(self, trains=None, junctions=None, tracks=None):
         self.junctions = {}  # Stores junctions by name
         self.tracks = {}  # List of tracks 
         self.trains = {} # store trains by name 
         self.train_counter = 0
+
+        if junctions:
+            for junction_name in junctions:
+                self.add_junction(junction_name)
+
+        if tracks:
+            for track_info in tracks:
+                self.add_track(*track_info)
+
+        if trains:
+            for train_name, train_length in trains.items():
+                self.add_train(train_name, train_length)
 
     def create_new_train(self, len : int):
         """
