@@ -63,11 +63,6 @@ class Train:
             self.location.set_junction_back_cart(self.next_junction)
             self.handle_arrival_at_junction()
             
-        if self.state == TrainState.UNPARKING and self.location.is_unparked():
-            #self.location.back_from_junction_to_track()
-            self.location.back_cart["track"] = self.location.front_cart["track"]
-            self.state = TrainState.RUNNING
-            
     def handle_arrival_at_junction(self):
         # assumes both front and back are at the same junction
         # Handle the train's full arrival at the junction and transition to the next track if applicable

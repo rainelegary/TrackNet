@@ -60,46 +60,31 @@ class Railway:
             raise Exception(f"Train {name} already exists.")
 
     def update_train(self, train, state, location_msg: TrackNet_pb2.Location):
-        train.state = state
-        if location_msg.HasField("front_track_id"):
-            # check if new track
-            if train.location.front_cart["track"] is None or train.location.front_cart["track"].name != location_msg.front_track_id:
-                # add to new track
-                self.map.tracks[location_msg.front_track_id].add_train(train)
-                # update location of train
-                train.location.front_cart["track"] = self.map.tracks[location_msg.front_track_id]
-            
-        if location_msg.HasField("front_junction_id"):  
-            # check if new junction
-            if train.location.front_cart["junction"] is None or train.location.front_cart["junction"].name != location_msg.front_junction_id:
-                # add to new junction
-                self.map.junctions[location_msg.front_junction_id].park_train(train)
-                # update location of train
-                train.location.front_cart["junction"] = self.map.junctions[location_msg.front_junction_id]
+        #train.state = state
+        # check if new track
+        if train.location.front_cart["track"] is None or train.location.front_cart["track"].name != location_msg.front_track_id:
+            # add to new track
+            self.map.tracks[location_msg.front_track_id].add_train(train)
+            # update location of train
+            train.location.front_cart["track"] = self.map.tracks[location_msg.front_track_id]
+              
 
-        if location_msg.HasField("back_track_id"):
-            # check if need to remove from previous junction 
-            if train.location.back_cart["junction"] is not None:
-                self.map.junctions[train.location.back_cart["junction"].name].depart_train(train) 
-                
-            # check if new track
-            if train.location.back_cart["track"] is None or train.location.back_cart["track"].name != location_msg.back_track_id:
-                # update location of train
-                train.location.back_cart["track"] = self.map.tracks[location_msg.back_track_id]
-            
-        if location_msg.HasField("back_junction_id"):
-            # check if need to remove from previous track
-            if train.location.back_cart["track"] is not None:
-                self.map.tracks[train.location.back_cart["track"].name].remove_train(train.name)
-                # track.remove_train(location_msg.back_track_id)
-                
-            # check if new junction
-            if train.location.back_cart["junction"] is None or train.location.back_cart["junction"].name != location_msg.back_junction_id:
-                # update location of train
-                train.location.back_cart["junction"] = self.map.junctions[location_msg.back_junction_id]
+        if train.state != TrainState.PARKED and state == TrainState.PARKED:
 
-        train.location.front_cart["position"] = location_msg.front_position
-        train.location.back_cart["position"] = location_msg.back_position
+            ## remove from track 
+            ## add to junction 
+            ## update train position
+            
+            # add tain to new junction
+            self.map.tracks[train.location.back_cart["track"].name].remove_train(train.name)
+            self.map.junctions[location_msg.front_junction_id].park_train(train)
+            
+
+
+        # update location of train
+        self.trains[train.name].location.front_cart = {"track": self.tracks[location_msg.front_track_id], "junction": self.junctions[location_msg.front_junction_id], "position": location_msg.front_position}
+        self.trains[train.name].location.front_cart = {"track": self.tracks[location_msg.front_track_id], "junction": self.junctions[location_msg.front_junction_id], "position": location_msg.front_position}
+       
 
     def add_train_to_track(self, train_name, track_name):
         """Places an existing train on a specified track by name."""

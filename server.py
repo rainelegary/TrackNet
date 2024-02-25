@@ -80,9 +80,6 @@ class Server():
             resp.train.id = train.name
             resp.train.length = train.length
             
-            # update train location
-            self.railway.update_train(train, TrainState(client_state.train.state), client_state.location)
-            
             # check train condition
             if client_state.location.HasField("front_track_id"):
                 self.railway.map.set_track_condition(client_state.location.front_track_id, TrackCondition(client_state.condition))
@@ -91,8 +88,8 @@ class Server():
                     resp.status = TrackNet_pb2.ServerResponse.UpdateStatus.CHANGE_SPEED
                     resp.speed_change = 200     ## TODO set slow speed
                     
-            self.railway.update_train(train, client_state.train.state, client_state.location)
-                
+            # update train location
+            self.railway.update_train(train, TrainState(client_state.train.state), client_state.location)
 
             ## (TODO) use speed, location & route data to detect possible conflicts.
             resp.speed_change = 200

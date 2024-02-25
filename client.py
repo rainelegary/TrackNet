@@ -82,16 +82,16 @@ class Client():
             time.sleep(3)
             if self.train.state in [TrainState.PARKED, TrainState.STOPPED]:
                 continue
+            else:
+                elapsed_time = (datetime.now() - self.last_time_updated).total_seconds()
 
-            elapsed_time = (datetime.now() - self.last_time_updated).total_seconds()
-
-            # Adjust the speed to achieve desired movement
-            speed_factor = 10  # Adjust this factor as needed
-            effective_speed = self.train.get_speed() * speed_factor        
-            distance_moved = effective_speed * (elapsed_time / 3600)  # Assuming speed is in km/h
-        
-            self.train.update_location(distance_moved)
-            self.last_time_updated = datetime.now()
+                # Adjust the speed to achieve desired movement
+                speed_factor = 10  # Adjust this factor as needed
+                effective_speed = self.train.get_speed() * speed_factor        
+                distance_moved = effective_speed * (elapsed_time / 3600)  # Assuming speed is in km/h
+            
+                self.train.update_location(distance_moved)
+                self.last_time_updated = datetime.now()
             
 
     def set_client_state_msg(self, state: TrackNet_pb2.ClientState):
