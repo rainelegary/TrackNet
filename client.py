@@ -63,6 +63,8 @@ class Client():
     def generate_route(self):
         self.train.route = Route(self.railmap.find_shortest_path(self.origin.name, self.destination.name))
         self.train.location.set_track(self.train.route.get_next_track())
+        self.train.prev_junction = self.origin
+        self.train.next_junction = self.train.route.get_next_junction()
         LOGGER.debug(f"init track={self.train.route.get_next_track()}")
         LOGGER.debug("Route created")
 
@@ -168,6 +170,7 @@ class Client():
                         
                         elif server_resp.status == TrackNet_pb2.ServerResponse.UpdateStatus.CLEAR:
                             if self.train.state in [TrainState.PARKED, TrainState.STOPPED]:
+                                LOGGER.debug("UNPARKING")
                                 self.train.unpark(server_resp.speed_change)
                         
                     self.sock.close()

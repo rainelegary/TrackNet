@@ -34,6 +34,8 @@ class Train:
         self.length = length
         self.location = Location(junction_front, junction_back)
         self.route = None
+        self.next_junction = None
+        self.prev_junction = None
         self.state = TrainState.PARKED
         self.junction_delay = 5
         self.railmap = railmap
@@ -45,20 +47,24 @@ class Train:
     def update_location(self, distance_moved):   
         self.location.set_position(distance_moved, self.length)
 
-        if self.location.check_back_has_left_junction():
-            LOGGER.debug(f"Train {self.name}'s back has left {self.location.back_cart['junction'].name} junction.")
-            #self.state = {TrainSpeed.FAST: TrainState.RUNNING, TrainSpeed.SLOW: TrainState.SLOW}[self.current_speed]
+        if self.location.check_back_cart_departed():
+            self.state = TrainState.RUNNING
 
+        if self.location.check_front_cart_departed() and not self.location.check_back_cart_departed():
+            self.state = TrainState.UNPARKING 
+            
         if self.location.check_front_junction_reached():
-            LOGGER.debug(f"Train {self.name}'s front has reached {self.location.front_cart['junction'].name} junction.")
+            self.location.set_junction_front_cart(self.next_junction)
+            LOGGER.debug(f"{self.name}'s front has reached {self.location.front_cart['junction'].name} junction.")
             self.state = TrainState.PARKING         
         
         if self.location.check_back_junction_reached() and self.state == TrainState.PARKING:
-            LOGGER.debug(f"Train {self.name}'s back has reached {self.location.back_cart['junction'].name} junction.")
+            LOGGER.debug(f"{self.name}'s back has reached {self.location.back_cart['junction'].name} junction.")
             self.handle_arrival_at_junction()
             
         if self.state == TrainState.UNPARKING and self.location.is_unparked():
-            self.location.back_from_junction_to_track()
+            #self.location.back_from_junction_to_track()
+            self.location.back_cart["track"] = self.location.front_cart["track"]
             self.state = TrainState.RUNNING
             
     def handle_arrival_at_junction(self):
@@ -81,13 +87,14 @@ class Train:
         # Advance the train onto the next track or mark it as parked if at the end of the route
         if not self.route.destination_reached():
             next_track = self.route.get_next_track()
-            next_junction = self.route.get_next_junction()
-            self.location.front_from_junction_to_track(self.junction, next_track, next_junction)
-            self.current_speed = 50
+            self.location.set_next_track_front_cart(next_track)
+            self.next_junction = self.route.get_next_junction()
+            
+            self.current_speed = next_track.speed
             self.state = TrainState.UNPARKING
             
         else:
-            LOGGER.debug(f"Train {self.name} has completed its route and is parked.")
+            LOGGER.debug(f"{self.name} has completed its route and is parked.")
 
     def stop(self):
         self.current_speed = 0
