@@ -1,9 +1,8 @@
-from classes import *
+from classes.railway import *
 import time
 
-
 # Create a  map
-my_map = Map()
+my_map = Railway()
 
 # Add junctions
 my_map.add_junction("A")
@@ -34,7 +33,7 @@ print()
 
 
 # Create a new map with more junctions and tracks 
-railway_map = Map()
+railway_map = Railway()
 
 # Add junctions
 junction_names = ['A', 'B', 'C', 'D', 'E', 'F', 'G']
