@@ -61,7 +61,6 @@ class Train:
         # Handle the train's full arrival at the junction and transition to the next track if applicable
         # proceed with the next part of the route
         junction = self.location.set_to_park()
-        self.railway_map.park_train_at_junction(self.name, junction.name)
         self.state == TrainState.PARKING
         self.current_speed = 0
             
@@ -76,7 +75,6 @@ class Train:
             next_track = self.route.get_next_track()
             self.location.set_track(next_track)
             self.current_speed = 50
-            self.railway_map.add_train_to_track(self.name, next_track.name) 
             self.state = TrainState.UNPARKING
             
         else:

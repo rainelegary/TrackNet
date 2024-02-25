@@ -62,6 +62,10 @@ class Server():
             resp.train.id = train.name
             resp.train.length = train.length
             
+            if not client_state.HasField("route"):
+                ## TODO initi route
+                pass
+            
             # update train location
             self.railway.trains[client_state.train.id].update_position(client_state.location.position)
             
@@ -82,7 +86,6 @@ class Server():
             if not send(conn, resp.SerializeToString()):
                 LOGGER.error("response did not send.")
                                            
-
     def listen_on_socket(self):
         """Listens for incoming connections on the server's socket. Handles incoming data, parses it, and responds according to the server logic.
 

@@ -32,12 +32,12 @@ message Location {
 
 message Train {
     enum TrainState {
-        RUNNING = 0
-        SLOW = 1
-        STOPPED = 2
-        PARKED = 3
-        PARKING = 4
-        UNPARKING = 5
+        RUNNING = 0;
+        SLOW = 1;
+        STOPPED = 2;
+        PARKED = 3;
+        PARKING = 4;
+        UNPARKING = 5;
     }
     optional string id = 1;
     optional float length = 2;

@@ -31,17 +31,9 @@ class RailMap:
             print("One or both junctions do not exist, adding them now.")
        
     def set_track_condition(self, track_id: str, condition: TrackCondition):
-        #for track in self.tracks:
-        #    if track.name == track_id:
-        #        track.condition = condition
         self.tracks[track_id].track.condition = condition
                 
     def has_bad_track_condition(self, track_id: str):
-        #for track in self.tracks:
-        #    if track.name == track_id and track.condition == TrackCondition.BAD:
-        #        return True  
-        #return False 
-    
         if self.tracks[track_id].track.condition == TrackCondition.BAD:
             return True
         return False

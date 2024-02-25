@@ -143,7 +143,7 @@ class Client():
                     
                 self.sock.close()
                 
-            time.sleep(3)
+            time.sleep(5)
             
             
     
