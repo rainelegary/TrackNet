@@ -8,7 +8,7 @@ LOGGER = logging.getLogger(__name__)
 class RailMap: 
     def __init__(self):
         self.junctions = {}  # Stores junctions by name
-        self.tracks = {}  # List of tracks 
+        self.tracks = {}  # Collection of tracks
       
     def add_junction(self, name):
         """Adds a junction to the map."""

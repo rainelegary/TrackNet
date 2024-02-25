@@ -10,6 +10,7 @@ from classes.enums import *
 from classes.railmap import RailMap
 from classes.route import Route
 from classes.train import Train
+from datetime import datetime
 
 setup_logging() ## only need to call at main entry point of application
 LOGGER = logging.getLogger(__name__)
