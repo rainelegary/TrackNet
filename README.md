@@ -13,8 +13,6 @@ Each track's ID is a tuple (nodeA_id, nodeB_id) in ascending order by id.
 
 ### Short term todo
 
-### Short term todo
-
 Refactor so Route's ist of junctions is named to "junctions" instead of "tracks"
 Updated Reroute function in ConflictAnalyzer
 Change "self.tracks" variable in railway to a dictionary
