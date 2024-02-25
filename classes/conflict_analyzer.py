@@ -59,7 +59,7 @@ class ConflictAnalyzer:
     """
     @staticmethod
     def resolve_current_track_conflict(railway, commands, track_id):
-        track = railway
+        track = railway.tracks[track_id]
         trains = []
         
     
