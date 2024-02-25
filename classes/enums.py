@@ -29,5 +29,5 @@ class TrainState(Enum):
 
 class TrackSpeed(Enum):
     STOPPED = 0
-    SLOW = 5
-    FAST = 10
+    SLOW = 100
+    FAST = 200
