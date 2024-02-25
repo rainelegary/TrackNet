@@ -47,7 +47,7 @@ class Train:
 
         if self.location.check_back_has_left_junction():
             LOGGER.debug(f"Train {self.name}'s back has left {self.location.back_cart['junction'].name} junction.")
-            self.state = {TrainSpeed.FAST: TrainState.RUNNING, TrainSpeed.SLOW: TrainState.SLOW}[self.current_speed]
+            #self.state = {TrainSpeed.FAST: TrainState.RUNNING, TrainSpeed.SLOW: TrainState.SLOW}[self.current_speed]
 
         if self.location.check_front_junction_reached():
             LOGGER.debug(f"Train {self.name}'s front has reached {self.location.front_cart['junction'].name} junction.")
@@ -81,7 +81,7 @@ class Train:
         # Advance the train onto the next track or mark it as parked if at the end of the route
         if not self.route.destination_reached():
             next_track = self.route.get_next_track()
-            next_junction = self.get_next_junction()
+            next_junction = self.route.get_next_junction()
             self.location.front_from_junction_to_track(self.junction, next_track, next_junction)
             self.current_speed = 50
             self.state = TrainState.UNPARKING

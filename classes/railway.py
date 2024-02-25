@@ -71,7 +71,7 @@ class Railway:
             
         elif location_msg.HasField("front_junction_id"):  
             # check if new junction
-            if train.location.front_cart["junction"].name != location_msg.front_junction_id:
+            if train.location.front_cart["junction"] is None or train.location.front_cart["junction"].name != location_msg.front_junction_id:
                 # add to new junction
                 self.map.junctions[location_msg.front_junction_id].park_train(train)
                 # update location of train
@@ -94,7 +94,7 @@ class Railway:
                 # track.remove_train(location_msg.back_track_id)
                 
             # check if new junction
-            if train.location.back_cart["junction"].name != location_msg.back_junction_id:
+            if train.location.back_cart["junction"] is None or train.location.back_cart["junction"].name != location_msg.back_junction_id:
                 # update location of train
                 train.location.back_cart["junction"] = self.map.junctions[location_msg.back_junction_id]
 
@@ -161,7 +161,7 @@ class Railway:
         print("Junctions:")
         for junction_name, junction in self.map.junctions.items():
             # Assuming junction.parked_trains is a list; if it's a dict, adjust accordingly
-            trains_info = ", ".join([train.name for train in junction.parked_trains])  # Adjusted to directly use list comprehension
+            trains_info = ", ".join([train for train in junction.parked_trains])  # Adjusted to directly use list comprehension
             print(f"  Junction: {junction_name}, Parked Trains: [{trains_info}]")
 
         print("Tracks:")

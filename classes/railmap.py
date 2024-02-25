@@ -46,8 +46,8 @@ class RailMap:
     def has_bad_track_condition(self, track_id: str):
         return self.tracks[track_id].condition == TrackCondition.BAD
          
-    def get_random_origin_junction(self):
-        pass
+    def get_origin_destination_junction(self):
+        return self.junctions["A"], self.junctions["C"]
 
     # example usage = map_instance.find_shortest_path(start_junction_name="A", destination_junction_name="D", avoid_track_name="AB")
     def find_shortest_path(self, start_junction_name, destination_junction_name, avoid_track_name=None):
@@ -60,7 +60,7 @@ class RailMap:
 
         while not pq.empty():
             current_distance, current_junction_name = pq.get()
-            current_junction:Junction = self.junctions[current_junction_name]
+            current_junction = self.junctions[current_junction_name]
 
             if current_junction_name == destination_junction_name:
                 break

@@ -15,6 +15,15 @@ from datetime import datetime
 setup_logging() ## only need to call at main entry point of application
 LOGGER = logging.getLogger(__name__)
 
+initial_config = {
+    "junctions": ["A", "B", "C", "D"],
+    "tracks": [
+        ("A", "B", 10),
+        ("B", "C", 20),
+        ("C", "D", 30),
+        ("A", "D", 40)
+    ]
+}
 #signal.signal(signal.SIGTERM, exit_gracefully)
 #signal.signal(signal.SIGINT, exit_gracefully)
 
@@ -35,12 +44,14 @@ class Client():
         self.port = port
         self.sock = None
         self.probabilty_of_good_track = 95
-        self.railmap = RailMap()
+        self.railmap = RailMap(
+            junctions=initial_config["junctions"],
+            tracks=initial_config["tracks"])
         self.last_time_updated = datetime.now()
         
-        origin = self.railmap.get_random_origin_junction()
-        self.train = Train(length=self.generate_random_train_length(), junction_front=origin, junction_back=origin)
-        
+        self.origin, self.destination = self.railmap.get_origin_destination_junction()
+        self.train = Train(length=self.generate_random_train_length(), junction_front=self.origin, junction_back=self.origin)
+        self.generate_route()
         threading.Thread(target=self.update_position, args=(), daemon=True).start() 
         self.run()
         
@@ -48,6 +59,9 @@ class Client():
     def generate_random_train_length(self):
         ## TODO 
         return 30
+    
+    def generate_route(self):
+        self.train.route = Route(self.railmap.find_shortest_path(self.origin.name, self.destination.name))
         
     def get_track_condition(self):
         """ Determines the track condition based on a predefined probability.
@@ -122,7 +136,7 @@ class Client():
                         server_resp.ParseFromString(data)
                         
                         if self.train.name is None:
-                            self.train.name = server_resp.train_id
+                            self.train.name = server_resp.train.id
                             LOGGER.debug(f"Initi. {self.train.name}")
                             
                         if self.train.route is None: 
@@ -131,8 +145,6 @@ class Client():
                                 ## cannot take instructions until route is assigned
                                 self.sock.close()
                                 continue
-                            
-                            self.set_route(server_resp.route)
                             
                         if server_resp.status == TrackNet_pb2.ServerResponse.UpdateStatus.CHANGE_SPEED:
                             LOGGER.debug(f"CHANGE_SPEED {self.train.name} to {server_resp.speed_change}")

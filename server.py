@@ -4,12 +4,22 @@ import socket
 import signal 
 import threading
 from utils import *
+from  classes.enums import TrainState
 from classes.railway import Railway
 from classes.train import Train
 
 setup_logging() ## only need to call at main entry point of application
 LOGGER = logging.getLogger(__name__)
 
+initial_config = {
+    "junctions": ["A", "B", "C", "D"],
+    "tracks": [
+        ("A", "B", 10),
+        ("B", "C", 20),
+        ("C", "D", 30),
+        ("A", "D", 40)
+    ]
+}
 #signal.signal(signal.SIGTERM, exit_gracefully)
 #signal.signal(signal.SIGINT, exit_gracefully)
 
@@ -29,7 +39,11 @@ class Server():
         self.host = host
         self.port = port
         self.sock = None
-        self.railway = Railway()
+        self.railway = Railway(
+            trains=None,
+            junctions=initial_config["junctions"],
+            tracks=initial_config["tracks"]
+        )
         self.listen_on_socket()
 
         
@@ -43,10 +57,12 @@ class Server():
         if not train.HasField("id"):
             return self.railway.create_new_train(train.length)
         else:
-            train = self.railway.trains[train.id]
-            if train is None:
+            try:
+                train = self.railway.trains[train.id]
+            except:
                 LOGGER.error(f"Train {train.id} does not exits in list of trains. Creating new train...")
                 return self.railway.create_new_train(train.length)
+            
             return train
 
     def handle_connection(self, conn):
@@ -64,12 +80,8 @@ class Server():
             resp.train.id = train.name
             resp.train.length = train.length
             
-            if not client_state.HasField("route"):
-                ## TODO initi route
-                pass
-            
             # update train location
-            self.railway.trains[client_state.train.id].update_train(train, resp.train.state, client_state.location.position)
+            self.railway.update_train(train, TrainState(client_state.train.state), client_state.location)
             
             # check train condition
             if client_state.location.HasField("front_track_id"):
@@ -81,12 +93,15 @@ class Server():
                     
             self.railway.update_train(train, client_state.train.state, client_state.location)
                 
+
             ## (TODO) use speed, location & route data to detect possible conflicts.
             
             resp.status = TrackNet_pb2.ServerResponse.UpdateStatus.CLEAR
             
             if not send(conn, resp.SerializeToString()):
                 LOGGER.error("response did not send.")
+
+        self.railway.print_map()
                                            
     def listen_on_socket(self):
         """Listens for incoming connections on the server's socket. Handles incoming data, parses it, and responds according to the server logic.
