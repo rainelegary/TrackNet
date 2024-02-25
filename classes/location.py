@@ -69,6 +69,15 @@ class Location:
             return True
         return False
     
+
+    def check_back_has_left_junction(self):
+        if self.front_cart["track"] is not None and self.back_cart["position"] == 0:
+            self.back_cart["track"] = self.front_cart["track"] 
+            return True
+        return False
+        
+
+    
     def set_track(self, track: Track):
         self.front_cart["track"] = track
         self.back_cart["track"] = track

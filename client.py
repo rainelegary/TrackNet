@@ -57,6 +57,10 @@ class Client():
     def update_position(self):
         ## TODO decided how often to update
         while not exit_flag:
+            time.sleep(3)
+            if self.train.state in [TrainState.PARKED, TrainState.STOPPED]:
+                continue
+
             elapsed_time = (datetime.now() - self.last_time_updated).total_seconds()
 
             # Adjust the speed to achieve desired movement
@@ -66,7 +70,7 @@ class Client():
         
             self.train.update_location(distance_moved)
             self.last_time_updated = datetime.now()
-            time.sleep(3)
+            
 
     def set_client_state_msg(self, state: TrackNet_pb2.ClientState):
         """ Populates a `ClientState` message with the current state of the train, including its id, length, speed, location, track condition, and route.
