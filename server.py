@@ -69,7 +69,7 @@ class Server():
                 pass
             
             # update train location
-            self.railway.trains[client_state.train.id].update_position(client_state.location.position)
+            self.railway.trains[client_state.train.id].update_train(train, resp.train.state, client_state.location.position)
             
             # check train condition
             if client_state.location.HasField("front_track_id"):

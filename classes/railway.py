@@ -61,7 +61,7 @@ class Railway:
         self.train_counter += 1
         new_train = Train(new_name, len)
         self.trains[new_name] = new_train
-        return new_name
+        return new_train
 
     def set_track_condition(self, track_id: str, condition: TrackCondition):
         self.tracks[track_id].condition = condition
@@ -97,7 +97,7 @@ class Railway:
         else:
             raise Exception(f"Train {name} already exists.")
 
-    def update_train(self, train, state: TrainState, location_msg: TrackNet_pb2.Location):
+    def update_train(self, train, state, location_msg: TrackNet_pb2.Location):
         train.state = state
         if location_msg.HasField("front_track_id"):
             # check if new track
