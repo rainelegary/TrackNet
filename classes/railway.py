@@ -33,18 +33,18 @@ class Railway:
         trains (dict): Stores trains by their name 
     """
     def __init__(self, trains=None, junctions=None, tracks=None):
-        self.junctions = {}  # Stores junctions by name
-        self.tracks = {}  # List of tracks 
+        self.map = RailMap()  # Composition: Railway has a RailMap; Track & Junction are now accessed as map.tracks and map.junctions
         self.trains = {} # store trains by name 
         self.train_counter = 0
 
+        # Initialize junctions and tracks using the map component
         if junctions:
             for junction_name in junctions:
-                self.add_junction(junction_name)
+                self.map.add_junction(junction_name)  # Use map component to add junctions
 
         if tracks:
             for track_info in tracks:
-                self.add_track(*track_info)
+                self.map.add_track(*track_info)  # Use map component to add tracks
 
         if trains:
             for train_name, train_length in trains.items():
@@ -64,31 +64,18 @@ class Railway:
         return new_train
 
     def set_track_condition(self, track_id: str, condition: TrackCondition):
-        self.tracks[track_id].condition = condition
+        self.map.tracks[track_id].condition = condition
                 
     def has_bad_track_condition(self, track_id: str):
-        return self.tracks[track_id].condition == TrackCondition.BAD
+        return self.map.tracks[track_id].condition == TrackCondition.BAD
                 
     def add_junction(self, name):
-        """Adds a junction to the map."""
-        if name not in self.junctions:
-            junction = Junction(name)
-            self.junctions[name] = junction
-            return junction
-        else:
-            return self.junctions[name]
-    
+        """Wrapper method to add a junction using the map component."""
+        return self.map.add_junction(name)
+
     def add_track(self, start_name, end_name, length):
-        """Adds a track between two junctions."""
-        if start_name in self.junctions and end_name in self.junctions:
-            start_junction = self.junctions[start_name]
-            end_junction = self.junctions[end_name]
-            track = Track(start_junction, end_junction, length)
-            self.tracks[track.name] = track
-            start_junction.add_neighbor(end_junction, track)
-            end_junction.add_neighbor(start_junction, track)
-        else:
-            print("One or both junctions do not exist, adding them now.")
+        """Wrapper method to add a track using the map component."""
+        return self.map.add_track(start_name, end_name, length)
             
     def add_train(self, name, length):
         """Adds a new train to the map."""
@@ -103,38 +90,38 @@ class Railway:
             # check if new track
             if train.location.front_cart["track"].name != location_msg.front_track_id:
                 # add to new track
-                self.tracks[location_msg.front_track_id].add_train(train)
+                self.map.tracks[location_msg.front_track_id].add_train(train)
                 # update location of train
-                train.location.front_cart["track"] = self.tracks[location_msg.front_track_id]
+                train.location.front_cart["track"] = self.map.tracks[location_msg.front_track_id]
             
         elif location_msg.HasField("front_junction_id"):  
             # check if new junction
             if train.location.front_cart["junction"].name != location_msg.front_junction_id:
                 # add to new junction
-                self.junctions[location_msg.front_junction_id].park_train(train)
+                self.map.junctions[location_msg.front_junction_id].park_train(train)
                 # update location of train
-                train.location.front_cart["junction"] = self.junctions[location_msg.front_junction_id]
+                train.location.front_cart["junction"] = self.map.junctions[location_msg.front_junction_id]
 
         if location_msg.HasField("back_track_id"):
             # check if need to remove from previous junction 
             if train.location.back_cart["junction"] is not None:
-                self.junctions[location_msg.back_junction_id].depart_train(train) 
+                self.map.junctions[location_msg.back_junction_id].depart_train(train) 
                 
             # check if new track
             if train.location.back_cart["track"].name != location_msg.back_track_id:
                 # update location of train
-                train.location.back_cart["track"] = self.tracks[location_msg.back_track_id]
+                train.location.back_cart["track"] = self.map.tracks[location_msg.back_track_id]
             
         elif location_msg.HasField("back_junction_id"):
             # check if need to remove from previous track
             if train.location.back_cart["track"] is not None:
-                self.tracks[location_msg.back_track_id].remove_train(train)
+                self.map.tracks[location_msg.back_track_id].remove_train(train)
                 # track.remove_train(location_msg.back_track_id)
                 
             # check if new junction
             if train.location.back_cart["junction"].name != location_msg.back_junction_id:
                 # update location of train
-                train.location.back_cart["junction"] = self.junctions[location_msg.back_junction_id]
+                train.location.back_cart["junction"] = self.map.junctions[location_msg.back_junction_id]
 
         train.location.front_cart["position"] = location_msg.front_position
         train.location.back_cart["position"] = location_msg.back_position
@@ -143,19 +130,19 @@ class Railway:
         """Places an existing train on a specified track by name."""
         #*Modify to remove train from parked junction if on one*
 
-        if train_name in self.trains and track_name in self.tracks:
+        if train_name in self.trains and track_name in self.map.tracks:
             train = self.trains[train_name]
-            self.tracks[track_name].add_train(train)
-            train.place_on_track(self.tracks[track_name])
+            self.map.tracks[track_name].add_train(train)
+            train.place_on_track(self.map.tracks[track_name])
             print(f"Train {train_name} added to track {track_name}.")
         else:
             print(f"Train {train_name} not found or track {track_name} does not exist.")
     
     def park_train_at_junction(self, train_name, junction_name):
         """Parks an existing train at a specified junction by name."""
-        if train_name in self.trains and junction_name in self.junctions:
+        if train_name in self.trains and junction_name in self.map.junctions:
             train = self.trains[train_name]
-            junction = self.junctions[junction_name]
+            junction = self.map.junctions[junction_name]
 
             # Remove the train from its current track if it's on one
             if train.current_track_front:
@@ -194,8 +181,8 @@ class Railway:
 
     # example usage = map_instance.find_shortest_path(start_junction_name="A", destination_junction_name="D", avoid_track_name="AB")
     def find_shortest_path(self, start_junction_name, destination_junction_name, avoid_track_name=None):
-        distances = {junction: float('infinity') for junction in self.junctions}
-        previous_junctions = {junction: None for junction in self.junctions}
+        distances = {junction: float('infinity') for junction in self.map.junctions}
+        previous_junctions = {junction: None for junction in self.map.junctions}
         distances[start_junction_name] = 0
 
         pq = PriorityQueue()
@@ -203,7 +190,7 @@ class Railway:
 
         while not pq.empty():
             current_distance, current_junction_name = pq.get()
-            current_junction = self.junctions[current_junction_name]
+            current_junction = self.map.junctions[current_junction_name]
 
             if current_junction_name == destination_junction_name:
                 break
@@ -242,12 +229,12 @@ class Railway:
         """Prints an overview of the map, including junctions, tracks, and parked or running trains."""
         print("Map Overview:")
         print("Junctions:")
-        for junction_name, junction in self.junctions.items(): # iterate through junctions
+        for junction_name, junction in self.map.junctions.items(): # iterate through junctions
             trains_info = ", ".join(junction.parked_trains.keys())
             print(f"  Junction: {junction_name}, Parked Trains: [{trains_info}]")
 
         print("Tracks:")
-        for track in self.tracks: # iterate through tracks
+        for track in self.map.tracks: # iterate through tracks
             running_trains = ", ".join(track.trains.keys())
             pprint(f"  Track: {track.name}, Length: {track.length}, Running Trains: [{running_trains}]")
     
