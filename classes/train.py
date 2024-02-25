@@ -48,7 +48,7 @@ class Train:
 
         if self.location.check_back_has_left_junction():
             LOGGER.debug(f"Train {self.name}'s back has left {self.location.back_cart['junction'].name} junction.")
-            self.state = {TrainSpeed.FAST: TrainState.RUNNING, TrainSpeed.SLOW: TrainState.SLOW}[self.current_speed]
+            self.state = {TrainSpeed.NORMAL: TrainState.RUNNING, TrainSpeed.SLOW: TrainState.SLOW}[self.current_speed]
 
         if self.location.check_front_junction_reached():
             LOGGER.debug(f"Train {self.name}'s front has reached {self.location.front_cart['junction'].name} junction.")
