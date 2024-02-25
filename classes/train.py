@@ -2,11 +2,11 @@ import datetime
 import logging
 import time
 import TrackNet_pb2
-from location import *
-from route import *
-from junction import *
-from enums import *
-from railmap import *
+from classes.location import *
+from classes.route import *
+from classes.junction import *
+from classes.enums import *
+from classes.railmap import *
 
 LOGGER = logging.getLogger(__name__)
     
