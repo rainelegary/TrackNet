@@ -15,8 +15,7 @@ __all__ = [
 exit_flag = False
 
 def exit_gracefully(signum, frame):
-    global exitFlag
-    global img_sock
+    global exit_flag
 
     sig_type = 'Unknown'
     if signum == signal.SIGTERM:
@@ -25,11 +24,7 @@ def exit_gracefully(signum, frame):
         sig_type == 'SIGINT'
 
     print('Trying to exit gracefully. ' + sig_type)
-    exitFlag = True
-
-    if img_sock:
-        img_sock.close()
-
+    exit_flag = True
 
 def setup_logging():
     formatter = logging.Formatter('%(asctime)s %(levelname)s@%(name)s: %(message)s')
