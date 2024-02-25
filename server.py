@@ -75,7 +75,7 @@ class Server():
             client_state.ParseFromString(data)
             resp = TrackNet_pb2.ServerResponse()
             
-            train = self.get_train(client_state.train)
+            train = self.get_train(client_state.train, client_state.location.front_junction_id)
             ## set train info in response message
             resp.train.id = train.name
             resp.train.length = train.length

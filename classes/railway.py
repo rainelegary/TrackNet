@@ -39,7 +39,7 @@ class Railway:
             for train_name, train_length in trains.items():
                 self.add_train(train_name, train_length)
 
-    def create_new_train(self, len : int):
+    def create_new_train(self, len : int, origin_id: str):
         """
         Creates a new Train object with the specified length and adds it to the list of trains.
 
@@ -49,6 +49,8 @@ class Railway:
         new_name = "Train" + str(self.train_counter)
         self.train_counter += 1
         new_train = Train(new_name, len)
+        # add train to origin junction
+        self.map.junctions[origin_id].park_train(new_train)
         self.trains[new_name] = new_train
         return new_train
             
@@ -78,11 +80,14 @@ class Railway:
         # check if leaving junction
         if train.state == TrainState.PARKED and state in [TrainState.RUNNING, TrainState.UNPARKING]:
             # remove train from junction
-            self.map.junctions[location_msg.front_junction_id].depart_train(train)
+            try:
+                self.map.junctions[location_msg.front_junction_id].depart_train(train)
+            except Exception as exc:
+                LOGGER.debug("ERROR: "+ str(exc))
 
         # update location and state of train
-        self.trains[train.name].location.front_cart = {"track": self.tracks[location_msg.front_track_id], "junction": self.junctions[location_msg.front_junction_id], "position": location_msg.front_position}
-        self.trains[train.name].location.back_cart = {"track": self.tracks[location_msg.back_track_id], "junction": self.junctions[location_msg.back_junction_id], "position": location_msg.back_position}
+        self.trains[train.name].location.front_cart = {"track": self.map.tracks[location_msg.front_track_id], "junction": self.map.junctions[location_msg.front_junction_id], "position": location_msg.front_position}
+        self.trains[train.name].location.back_cart = {"track": self.map.tracks[location_msg.back_track_id], "junction": self.map.junctions[location_msg.back_junction_id], "position": location_msg.back_position}
         train.state = state
 
     def add_train_to_track(self, train_name, track_name):
