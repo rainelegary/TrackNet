@@ -160,8 +160,8 @@ class Railway:
         print("Map Overview:")
         print("Junctions:")
         for junction_name, junction in self.map.junctions.items():
-            # Assuming junction.parked_trains is a list; if it's a dict, adjust accordingly
-            trains_info = ", ".join([train for train in junction.parked_trains])  # Adjusted to directly use list comprehension
+            
+            trains_info = ", ".join([train for train in junction.parked_trains])  
             print(f"  Junction: {junction_name}, Parked Trains: [{trains_info}]")
 
         print("Tracks:")
