@@ -86,6 +86,7 @@ class Railway:
             track = Track(start_junction, end_junction, length)
             self.tracks[track.name] = track
             start_junction.add_neighbor(end_junction, track)
+            end_junction.add_neighbor(start_junction, track)
         else:
             print("One or both junctions do not exist, adding them now.")
             
@@ -220,6 +221,13 @@ class Railway:
 
             if current_junction_name == destination_junction_name:
                 break
+
+            print(f"Exploring junction {current_junction_name}. Printing neighbors:")
+            #find all the neighbors of the current junction
+            for neighbor_name, track in current_junction.neighbors.items():
+                print(neighbor_name, track.name)
+                
+
 
             for neighbor_name, track in current_junction.neighbors.items():
                 if track.name == avoid_track_name:
