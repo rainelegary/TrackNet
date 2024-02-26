@@ -176,7 +176,7 @@ class Client():
                     self.sock.close()
             else:
                 LOGGER.debug(f"no connection")
-            time.sleep(8)
+            time.sleep(3)
             
             
     
