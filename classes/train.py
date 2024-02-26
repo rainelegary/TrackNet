@@ -59,8 +59,8 @@ class Train:
             self.state = TrainState.PARKING         
         
         if self.location.check_back_junction_reached() and self.state == TrainState.PARKING:
-            LOGGER.debug(f"{self.name}'s back has reached {self.location.back_cart['junction'].name} junction.")
             self.location.set_junction_back_cart(self.next_junction)
+            LOGGER.debug(f"{self.name}'s back has reached {self.location.back_cart['junction'].name} junction.")
             self.handle_arrival_at_junction()
             
     def handle_arrival_at_junction(self):
