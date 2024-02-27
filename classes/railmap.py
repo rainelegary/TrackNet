@@ -41,7 +41,7 @@ class RailMap:
             print("One or both junctions do not exist, adding them now.")
        
     def set_track_condition(self, track_id: str, condition: TrackCondition):
-        self.tracks[track_id].track.condition = condition
+        self.tracks[track_id].condition = condition
                 
     def has_bad_track_condition(self, track_id: str):
         return self.tracks[track_id].condition == TrackCondition.BAD
@@ -83,7 +83,7 @@ class RailMap:
         while current != start:
             if current is None:
                 return None  # Path not found
-            path.insert(0, current)
+            path.insert(0, self.junctions[current])
             current = previous_junctions[current]
-        path.insert(0, start)
+        path.insert(0, self.junctions[start])
         return path

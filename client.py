@@ -29,7 +29,7 @@ initial_config = {
 
 class Client():
     
-    def __init__(self, host: str ="10.13.151.47", port: int =5555):
+    def __init__(self, host: str ="localhost", port: int =5555):
         """ A client class responsible for simulating a train's interaction with a server, including sending its state and receiving updates.
 
         :param host: The hostname or IP address of the server to connect to.
@@ -58,11 +58,16 @@ class Client():
         
     def generate_random_train_length(self):
         ## TODO 
-        return 30
+        return 5
     
     def generate_route(self):
         self.train.route = Route(self.railmap.find_shortest_path(self.origin.name, self.destination.name))
-        
+        self.train.location.set_track(self.train.route.get_next_track())
+        self.train.prev_junction = self.origin
+        self.train.next_junction = self.train.route.get_next_junction()
+        LOGGER.debug(f"init track={self.train.route.get_next_track()}")
+        LOGGER.debug("Route created")
+
     def get_track_condition(self):
         """ Determines the track condition based on a predefined probability.
 
@@ -77,16 +82,16 @@ class Client():
             time.sleep(3)
             if self.train.state in [TrainState.PARKED, TrainState.STOPPED]:
                 continue
+            else:
+                elapsed_time = (datetime.now() - self.last_time_updated).total_seconds()
 
-            elapsed_time = (datetime.now() - self.last_time_updated).total_seconds()
-
-            # Adjust the speed to achieve desired movement
-            speed_factor = 10  # Adjust this factor as needed
-            effective_speed = self.train.get_speed() * speed_factor        
-            distance_moved = effective_speed * (elapsed_time / 3600)  # Assuming speed is in km/h
-        
-            self.train.update_location(distance_moved)
-            self.last_time_updated = datetime.now()
+                # Adjust the speed to achieve desired movement
+                speed_factor = 10  # Adjust this factor as needed
+                effective_speed = self.train.get_speed() * speed_factor        
+                distance_moved = effective_speed * (elapsed_time / 3600)  # Assuming speed is in km/h
+            
+                self.train.update_location(distance_moved)
+                self.last_time_updated = datetime.now()
             
 
     def set_client_state_msg(self, state: TrackNet_pb2.ClientState):
@@ -105,15 +110,18 @@ class Client():
         if self.train.route is not None:
             for junction_obj in self.train.route.junctions:
                 junction_msg = state.route.junctions.add() 
-                junction_msg.id = junction_obj
+                junction_msg.id = junction_obj.name
             
-            state.route.destination = self.train.route.destination
+            state.route.destination = self.train.route.destination.name
 
     def set_route(self, route: TrackNet_pb2.Route):
         new_route = []
         for junc in route.junctions:
             new_route.append(self.railmap.junctions[junc])
         self.train.route = Route(new_route)
+        self.train.location.set_track(self.train.route.get_next_track())
+        LOGGER.debug(f"init track={self.train.route.get_next_track()}")
+
     
     def run(self):
         """Initiates the client's main loop, continuously sending its state to the server and processing the server's response. It handles connection management, state serialization, and response deserialization. Based on the server's response, it adjusts the train's speed, reroutes, or stops as necessary.
@@ -124,9 +132,11 @@ class Client():
             self.sock = create_client_socket(self.host, self.port)
             
             if self.sock is not None:
+                LOGGER.debug("Connected")
                 state = TrackNet_pb2.ClientState()
                 
                 self.set_client_state_msg(state)
+                LOGGER.debug(f"state={state}")
                 
                 if send(self.sock, state.SerializeToString()):
                     data = receive(self.sock)
@@ -160,11 +170,13 @@ class Client():
                         
                         elif server_resp.status == TrackNet_pb2.ServerResponse.UpdateStatus.CLEAR:
                             if self.train.state in [TrainState.PARKED, TrainState.STOPPED]:
+                                LOGGER.debug("UNPARKING")
                                 self.train.unpark(server_resp.speed_change)
                         
                     self.sock.close()
-                
-            time.sleep(5)
+            else:
+                LOGGER.debug(f"no connection")
+            time.sleep(3)
             
             
     
