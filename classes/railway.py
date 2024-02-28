@@ -164,7 +164,7 @@ class Railway:
                 
                 running_trains = track.trains.keys()  #track.trains is a dictionary
                 
-                print(f"  Track: {track.name}, Length: {track.length}, Running Trains: [",)
+                print(f"{track.name}, Length: {track.length}, Running Trains: [",)
                 
                 for running_train in running_trains:
                     train_position_front = track.trains[running_train].location.front_cart['position']
