@@ -1,5 +1,5 @@
 import logging
-from classes.enums import TrackCondition 
+from classes.enums import TrackCondition, TrackSpeed
 
 class Track:
     """Represents a track connecting two junctions.
@@ -17,6 +17,7 @@ class Track:
         self.name = f"Track ({self.junctions[0].name}, {self.junctions[1].name})"
         self.trains = {} 
         self.condition = TrackCondition.GOOD
+        self.speed = TrackSpeed.FAST.value
     
     def add_train(self, train):
         """Adds a train to the track."""
@@ -24,4 +25,4 @@ class Track:
         
     def remove_train(self, train):
         """Removes a train from the track."""
-        del self.trains[train.name]
+        del self.trains[train]

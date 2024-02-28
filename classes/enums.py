@@ -26,3 +26,8 @@ class TrainState(Enum):
     PARKED = 3
     PARKING = 4
     UNPARKING = 5
+
+class TrackSpeed(Enum):
+    STOPPED = 0
+    SLOW = 100
+    FAST = 200

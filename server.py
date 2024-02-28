@@ -4,18 +4,28 @@ import socket
 import signal 
 import threading
 from utils import *
+from  classes.enums import TrainState, TrackCondition
 from classes.railway import Railway
 from classes.train import Train
 
 setup_logging() ## only need to call at main entry point of application
 LOGGER = logging.getLogger(__name__)
 
-signal.signal(signal.SIGTERM, exit_gracefully)
-signal.signal(signal.SIGINT, exit_gracefully)
+initial_config = {
+    "junctions": ["A", "B", "C", "D"],
+    "tracks": [
+        ("A", "B", 10),
+        ("B", "C", 20),
+        ("C", "D", 30),
+        ("A", "D", 40)
+    ]
+}
+#signal.signal(signal.SIGTERM, exit_gracefully)
+#signal.signal(signal.SIGINT, exit_gracefully)
 
 class Server():
     
-    def __init__(self, host: str, port: int):
+    def __init__(self, host: str ="localhost", port: int =5555):
         """A server class that manages train objects and handles network connections.
 
         :param host: The hostname or IP address to listen on.
@@ -29,9 +39,15 @@ class Server():
         self.host = host
         self.port = port
         self.sock = None
-        self.railway = Railway()
+        self.railway = Railway(
+            trains=None,
+            junctions=initial_config["junctions"],
+            tracks=initial_config["tracks"]
+        )
+        self.listen_on_socket()
+
         
-    def get_train(self, train: TrackNet_pb2.Train):
+    def get_train(self, train: TrackNet_pb2.Train, origin_id: str):
         """Retrieves a Train object based on its ID. If the train does not exist, it creates a new Train object.
 
         :param train: The train identifier or a Train object with an unset ID to create a new Train.
@@ -39,12 +55,14 @@ class Server():
         :raises Exception: Logs an error if the train ID does not exist in the list of trains.
         """
         if not train.HasField("id"):
-            return self.railway.create_new_train(train.length)
+            return self.railway.create_new_train(train.length, origin_id)
         else:
-            train = self.railway.trains[train.id]
-            if train is None:
+            try:
+                train = self.railway.trains[train.id]
+            except:
                 LOGGER.error(f"Train {train.id} does not exits in list of trains. Creating new train...")
-                return self.railway.create_new_train(train.length)
+                return self.railway.create_new_train(train.length, origin_id)
+            
             return train
 
     def handle_connection(self, conn):
@@ -55,36 +73,32 @@ class Server():
         
         if data is not None:
             client_state.ParseFromString(data)
-            resp = TrackNet_pb2.SercerResponse()
+            resp = TrackNet_pb2.ServerResponse()
             
-            train = self.get_train(client_state.train)
+            train = self.get_train(client_state.train, client_state.location.front_junction_id)
             ## set train info in response message
             resp.train.id = train.name
             resp.train.length = train.length
             
-            if not client_state.HasField("route"):
-                ## TODO initi route
-                pass
-            
-            # update train location
-            self.railway.trains[client_state.train.id].update_position(client_state.location.position)
-            
             # check train condition
             if client_state.location.HasField("front_track_id"):
-                self.railway.set_track_condition(client_state.location.front_track_id)
+                self.railway.map.set_track_condition(client_state.location.front_track_id, TrackCondition(client_state.condition))
                 
-                if self.railway.has_bad_track_condition(client_state.location.front_track_id):
+                if self.railway.map.has_bad_track_condition(client_state.location.front_track_id):
                     resp.status = TrackNet_pb2.ServerResponse.UpdateStatus.CHANGE_SPEED
-                    resp.speed_change = 20     ## TODO set slow speed
+                    resp.speed_change = 200     ## TODO set slow speed
                     
-            self.railway.update_train(train, client_state.train.state, client_state.location)
-                
+            # update train location
+            self.railway.update_train(train, TrainState(client_state.train.state), client_state.location)
+
             ## (TODO) use speed, location & route data to detect possible conflicts.
-            
+            resp.speed_change = 200
             resp.status = TrackNet_pb2.ServerResponse.UpdateStatus.CLEAR
             
             if not send(conn, resp.SerializeToString()):
                 LOGGER.error("response did not send.")
+
+        self.railway.print_map()
                                            
     def listen_on_socket(self):
         """Listens for incoming connections on the server's socket. Handles incoming data, parses it, and responds according to the server logic.
@@ -99,7 +113,7 @@ class Server():
         while not exit_flag and self.sock:
             try:
                 conn, addr = self.sock.accept()
-                threading.Thread(target=self.handle_connection, args=(conn), daemon=True).start() 
+                threading.Thread(target=self.handle_connection, args=(conn,), daemon=True).start() 
                         
             except socket.timeout:
                 pass 
@@ -111,3 +125,5 @@ class Server():
                 self.sock = create_server_socket(self.host, self.port)
             
     
+if __name__ == '__main__':
+    Server()

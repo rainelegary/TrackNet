@@ -29,6 +29,9 @@ class Route:
     def get_next_junction(self):
         return self.junctions[self.current_junction_index + 1]
 
+    def get_current_junction(self):
+        return self.junctions[self.current_junction_index]
+
     def increment_junction_index(self):
         self.current_junction_index += 1
         

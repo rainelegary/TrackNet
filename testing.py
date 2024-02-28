@@ -21,4 +21,9 @@ railway_system = Railway(
     tracks=initial_config["tracks"]
 )
 
-print(railway_system.find_shortest_path("B", "D"))
+print(railway_system.map.find_shortest_path("B", "D"))
+
+for junc in railway_system.map.junctions.values():
+    print(f"Junction: {junc.name} neighbors:  {junc.neighbors.keys()}")
+
+railway_system.print_map()
