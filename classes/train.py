@@ -41,10 +41,11 @@ class Train:
         self.railmap = railmap
         self.railway = None
         self.destination = destination
+        #speed is set by the server
         self.current_speed = 0 
         self.stay_parked = False
     
-    def update_location(self, distance_moved):   
+    def update_location(self, distance_moved): 
         self.location.set_position(distance_moved, self.length)
 
         if self.location.check_back_cart_departed():
@@ -55,7 +56,7 @@ class Train:
             
         if self.location.check_front_junction_reached():
             self.location.set_junction_front_cart(self.next_junction)
-            LOGGER.debug(f"{self.name}'s front has reached {self.location.front_cart['junction'].name} junction.")
+            LOGGER.debug(f"{self.name}'s front has reached {self.location.front_cart['junction'].name} junction - Waiting for back to reach junction.")
             self.state = TrainState.PARKING         
         
         if self.location.check_back_junction_reached() and self.state == TrainState.PARKING:

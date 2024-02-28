@@ -161,7 +161,7 @@ class Client():
                         if self.train.name is None:
                             self.train.name = server_resp.train.id
                             LOGGER.debug(f"Initi. {self.train.name}")
-                            
+              
                         if self.train.route is None: 
                             if not server_resp.HasField("new_route"):
                                 LOGGER.warning(f"Server has not yet provided route for train.")

@@ -77,9 +77,9 @@ class Server():
             
             train = self.get_train(client_state.train, client_state.location.front_junction_id)
             ## set train info in response message
-            resp.train.id = train.name
-            resp.train.length = train.length
-            
+            resp.train.id            = train.name
+            resp.train.length        = train.length
+
             # check train condition
             if client_state.location.HasField("front_track_id"):
                 self.railway.map.set_track_condition(client_state.location.front_track_id, TrackCondition(client_state.condition))
