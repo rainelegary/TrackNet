@@ -54,6 +54,12 @@ class Client():
         self.origin, self.destination = self.railmap.get_origin_destination_junction()
         self.train = Train(length=self.generate_random_train_length(), junction_front=self.origin, junction_back=self.origin)
         self.generate_route()
+        print("Route: ",end = "")
+        for junc in self.train.route.junctions:
+            print("->",junc.name,end=" ")
+        print()
+        print()
+                    
         threading.Thread(target=self.update_position, args=(), daemon=True).start() 
         self.run()
         

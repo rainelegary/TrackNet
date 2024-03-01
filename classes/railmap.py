@@ -47,7 +47,7 @@ class RailMap:
         return self.tracks[track_id].condition == TrackCondition.BAD
          
     def get_origin_destination_junction(self):
-        return self.junctions["A"], self.junctions["C"]
+        return self.junctions["A"], self.junctions["D"]
 
     # example usage = map_instance.find_shortest_path(start_junction_name="A", destination_junction_name="D", avoid_track_name="AB")
     def find_shortest_path(self, start_junction_name, destination_junction_name, avoid_track_name=None):
