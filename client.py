@@ -11,7 +11,7 @@ from classes import *
 from classes.enums import *
 from classes.railmap import RailMap
 from classes.route import Route
-from classes.train import Train
+from classes.trainmovement import TrainMovement
 from datetime import datetime
 
 setup_logging() ## only need to call at main entry point of application
@@ -52,7 +52,7 @@ class Client():
         self.last_time_updated = datetime.now()
         
         self.origin, self.destination = self.railmap.get_origin_destination_junction()
-        self.train = Train(length=self.generate_random_train_length(), junction_front=self.origin, junction_back=self.origin)
+        self.train = TrainMovement(length=self.generate_random_train_length(), junction_front=self.origin, junction_back=self.origin)
         self.generate_route()
         print("Route: ",end = "")
         for junc in self.train.route.junctions:
@@ -82,7 +82,7 @@ class Client():
         :return: Returns GOOD track condition with a 95% probability and BAD track condition with a 5% probability.
         :rtype: TrackNet_pb2.ClientState.TrackCondition
         """
-        return TrackNet_pb2.ClientState.TrackCondition.GOOD if random.random() < self.probabilty_of_good_track else TrackNet_pb2.ClientState.TrackCondition.BAD
+        return TrackNet_pb2.TrackCondition.GOOD if random.random() < self.probabilty_of_good_track else TrackNet_pb2.TrackCondition.BAD
     
     def update_position(self):
         ## TODO decided how often to update
@@ -131,7 +131,7 @@ class Client():
                 junction_msg = state.route.junctions.add() 
                 junction_msg.id = junction_obj.name
             
-            state.route.destination = self.train.route.destination.name
+            state.route.destination.id = self.train.route.destination.name
 
     def set_route(self, route: TrackNet_pb2.Route):
         new_route = []

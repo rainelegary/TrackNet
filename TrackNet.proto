@@ -11,14 +11,37 @@ package TrackNet;
 //  repeated: this field type can be repeated zero or more times in a well-formed message. The order of the repeated values will be preserved.
 //
 //  map: this is a paired key/value field type. See Maps for more on this field type.
+enum TrackCondition {
+    BAD = 0;
+    GOOD = 1;
+}
+
+enum TrainSpeed {
+    STOPPED = 0
+    SLOW = 100
+    FAST = 200
+}
+
+
+message Track {
+    optional string junction_a = 1;
+    optional string junction_b = 2;
+    optional string id = 3; 
+    map<string, Train> trains = 4;
+    optional TrackCondition condition = 5;
+    optional TrainSpeed speed = 6;
+}
 
 message Junction {
     optional string id = 1;
+    map<string, Track> neighbors = 2;
+    map<string, Train> parked_trains = 3;
 }
 
 message Route {
     repeated Junction junctions = 1;
-    optional string destination = 2;
+    optional int32 current_junction_index = 2;
+    optional Junction destination = 3;
 }
 
 message Location {
@@ -42,6 +65,26 @@ message Train {
     optional string id = 1;
     optional float length = 2;
     optional TrainState state = 3;
+    optional Location location = 4;
+    optional Route route = 5;
+    optional Junction destination = 6;
+    optional int32 speed = 7; 
+}
+
+message Railmap {
+    map<string, Junction> junctions = 1;
+    map<string, Track> tracks = 2;
+}
+
+message Railway {
+    optional Railmap map = 1;
+    map<string, Train> trains = 2;
+    optional int32 train_counter = 3;  
+}
+
+message RailwayUpdate {
+    optional Railway railway = 1;
+    optional string timestamp = 2; 
 }
 
 message ServerResponse {
@@ -56,19 +99,26 @@ message ServerResponse {
     optional Train train = 1;
 	optional UpdateStatus status = 2;
 	optional Route new_route = 3;
-    optional float speed_change = 4;
+    optional int32 speed = 4;
 }
 
 message ClientState {
-
-    enum TrackCondition {
-	    BAD = 0;
-		GOOD = 1;
-	}
-
     optional Train train = 1;
     optional float speed = 2;
     optional Location location = 3;
     optional TrackCondition condition = 4;
     optional Route route = 5;
+}
+
+message InitConnection {
+     enum Sender {
+        SERVER_MASTER = 0;
+        SERVER_SLAVE = 1;
+        CLIENT = 2;
+        PROXY = 3;
+     }
+
+     optional Sender sender = 1;
+     optional ClientState client_state = 2;
+     optional ServerResponse server_response = 3;
 }
