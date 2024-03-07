@@ -22,7 +22,6 @@ enum TrainSpeed {
     FAST = 200
 }
 
-
 message Track {
     optional string junction_a = 1;
     optional string junction_b = 2;
