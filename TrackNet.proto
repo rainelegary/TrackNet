@@ -95,7 +95,8 @@ message ServerResponse {
 		CLEAR = 3; 
 	}	
 
-    optional clientaddress = 0;
+    optional string clientIP = 5;
+    optional string clientPort = 6;
     optional Train train = 1;
 	optional UpdateStatus status = 2;
 	optional Route new_route = 3;
@@ -103,7 +104,8 @@ message ServerResponse {
 }
 
 message ClientState {
-    optional string clientaddress = 1;
+    optional string clientIP = 0;
+    optional string clientPort = 1;
     optional Train train = 2;
     optional float speed = 3;
     optional Location location = 4;

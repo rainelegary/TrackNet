@@ -113,13 +113,15 @@ class Client():
         #utils.exit_flag = True
             
 
-    def set_client_state_msg(self, state: TrackNet_pb2.ClientState):
+    def set_client_state_msg(self, state: TrackNet_pb2.ClientState, clientIP, clientPort):
         """ Populates a `ClientState` message with the current state of the train, including its id, length, speed, location, track condition, and route.
 
         :param state: The `ClientState` message object to be populated with the train's current state.
         """
 
-        state.clientaddress = 
+        state.clientIP = clientIP
+        state.clientPort = f"{clientPort}"
+    
         if self.train.name is not None:
             state.train.id = self.train.name
         state.train.length = self.train.length
@@ -151,12 +153,13 @@ class Client():
         """
         while not utils.exit_flag:
             self.sock = create_client_socket(self.host, self.port)
+            client_ip, client_port = self.sock.getsockname()
             
             if self.sock is not None:
                 LOGGER.debug("Connected")
                 state = TrackNet_pb2.ClientState()
                 
-                self.set_client_state_msg(state)
+                self.set_client_state_msg(state, client_ip, client_port)
                 LOGGER.debug(f"state={state.location}")
                 
                 if send(self.sock, state.SerializeToString()):
