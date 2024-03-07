@@ -88,7 +88,8 @@ class Server():
                     if proxy_resp.HasField("role"):
                         if proxy_resp.role.isMaster:
                             print("This server has promoted to the MASTER")
-                            self.promote_to_master() 
+                            self.promote_to_master() # list of slaves
+
                         else:
                             print("This server has been designated as a SLAVE.")
 
