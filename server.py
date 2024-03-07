@@ -54,10 +54,12 @@ class Server():
         self.proxy_host = ""
         self.proxy_port = ""
         self.connect_to_proxy (self.proxy_host, self.proxy_port)
+        self.connected_to_master = False
         #self.listen_on_socket ()
 
     def set_slave_identification_msg (self, slave_identification_msg: TrackNet_pb2.InitConnection):
         slave_identification_msg.sender = TrackNet_pb2.InitConnection.SERVER_SLAVE
+
         slave_identification_msg.slave_server_details.host = self.host
         slave_identification_msg.slave_server_details.port = self.port 
 
@@ -74,32 +76,30 @@ class Server():
                 listen_to_proxy_thread = threading.Thread(target=self.listen_to_proxy, daemon=True).start()
 
     def listen_to_proxy (self):
-        data = receive(self.proxy_sock)
-        if data is not None:
-            proxy_resp = TrackNet_pb2.InitConnection()
-            proxy_resp.ParseFromString(data)
-
-            # Determine if this server has been assigned as the master
-            if proxy_resp.HasField("server_role_assignment") and proxy_resp.role_assignment.isMaster:
-                print("This server has been assigned as the MASTER")
-                self.promote_to_master() 
-            else:
-                print("This server has been designated as a SLAVE.") 
-                master_host = ""
-                master_port = ""
-                #Connect to master if the current server hasn't been assigned master by proxy
-                self.connect_to_master (master_host, master_port) 
         try:
             while True: 
                 data = receive(self.proxy_sock)
                 if data is not None: 
-                    proxy_resp = TrackNet_pb2.InitConnection()
+                    proxy_resp = TrackNet_pb2.ServerAssignment()
                     proxy_resp.ParseFromString(data)
                     
                     # Determine if this server has been assigned as the master
-                    if proxy_resp.HasField("server_role_assignment") and proxy_resp.role_assignment.isMaster:
-                        print("This server has promoted to the MASTER")
-                        self.promote_to_master() 
+                    if proxy_resp.HasField("role"):
+                        if proxy_resp.role.isMaster:
+                            print("This server has promoted to the MASTER")
+                            self.promote_to_master() 
+                        else:
+                            print("This server has been designated as a SLAVE.")
+
+                            if not self.connected_to_master and (len(proxy_resp.servers) == 1):
+                                # Extract the master server's IP and port from the ServerDetails
+                                master_host = proxy_resp.servers[0].ip
+                                master_port = proxy_resp.servers[0].port
+
+                                #Connect to master if the current server hasn't been assigned master by proxy
+                                #listen to master instead of initiating connection
+                                self.connect_to_master (master_host, master_port) 
+                           
         except Exception as e:
             LOGGER.error(f"Error communicating with proxy: {e}")
             self.proxy_sock.close() 
@@ -108,6 +108,7 @@ class Server():
         self.master_sock = create_slave_socket (master_host, master_port)
         if (self.master_sock):
             LOGGER.debug ("Connected to master")
+            self.connected_to_master = True
             # Handle master communication in a separate thread
             threading.Thread(target=self.handle_master_communication, daemon=True).start()
 
@@ -123,6 +124,7 @@ class Server():
                         LOGGER.debug(f"Received railway update from master at {master_resp.railway_update.timestamp}")
         except Exception as e:
             LOGGER.error(f"Error communicating with master: {e}")
+            self.connected_to_master = False
             self.master_sock.close()  
 
     def promote_to_master(self):
