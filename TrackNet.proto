@@ -103,6 +103,7 @@ message ServerResponse {
 }
 
 message ClientState {
+    optional clientaddress = 0;
     optional Train train = 1;
     optional float speed = 2;
     optional Location location = 3;
