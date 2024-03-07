@@ -122,6 +122,12 @@ message ServerDetails{
     int32 port = 2; // The slave server's port
 }
 
+<<<<<<< HEAD
+=======
+
+//if is master, will receive a list of slave servers
+//if is slave, will receive one master server detail to connect to
+>>>>>>> alisha
 message ServerAssignment {
     optional RoleAssignment role = 1; 
     repeated ServerDetails servers = 2;
