@@ -45,20 +45,20 @@ class ProxyServer:
                 init_conn = proto.InitConnection()
                 init_conn.ParseFromString(message)
                 # handle connection based on types 
-                if init_conn.sender == proto.InitConnection.CLIENT:
+                if init_conn.sender == proto.InitConnection.Sender.CLIENT:
                     with self.lock:
                         if self.master_server_socket:
                             utils.send(self.master_server_socket, message)
                         else:
                             print("There is currently no master server")
 
-                elif init_conn.sender == proto.InitConnection.SERVER_MASTER:
+                elif init_conn.sender == proto.InitConnection.Sender.SERVER_MASTER:
                     with self.lock: # need to forward to the client 
                         self.master_server_socket = client_socket
                         print("Master server updated")
                         #utils.send(self.client_sockets, message)
 
-                elif init_conn.sender == proto.InitConnection.SERVER_SLAVE:
+                elif init_conn.sender == proto.InitConnection.Sender.SERVER_SLAVE:
                     with self.lock:
                         # Check if there is no master server, and promote the first slave to master
                         if not self.master_server_socket:
