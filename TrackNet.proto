@@ -121,11 +121,11 @@ message RoleAssignment {
 //Sent to proxy upon initialization
 message ServerDetails{
     string ip = 1;  // The slave server's IP address
-    int32 port = 2; // The slave server's port
+    string port = 2; // The slave server's port
 }
 
 message ServerAssignment {
-    optional RoleAssignment role = 1; 
+    optional bool isMaster = 1; 
     repeated ServerDetails servers = 2;
 }
 

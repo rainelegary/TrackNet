@@ -79,13 +79,28 @@ class ProxyServer:
                         if not self.master_server_socket:
                             self.master_server_socket = client_socket
                             print("First slave server promoted to master server")
-                            #  notify the newly promoted master server of its new role here
-
+                            #  notify the newly promoted master server of its new role 
+                            new_message = proto.ServerAssignment()
+                            new_message.isMaster = True
+                            for slaveServerSocket in self.slave_server_sockets:
+                                slave_ip, slave_port = slaveServerSocket.getsockname()
+                                slaveServerDetails = new_message.servers.add()
+                                slaveServerDetails.ip = slave_ip
+                                slaveServerDetails.port = f"{slave_port}"
+                            utils.send(client_socket,new_message.SerializaToString())
+                            
                         else:
                             self.slave_server_sockets.append(client_socket)
                             print("Slave server added")
                             #new_message = proto.InitConnection()
                             #new_message.sender = proto.InitConnection.Sender.PROXY
+                            new_message = proto.ServerAssignment()
+                            new_message.isMaster = True
+                            master_ip, master_port = self.master_server_socket.getsockname()
+                            masterServerDetails = new_message.servers.add()
+                            masterServerDetails.ip = master_ip
+                            masterServerDetails.port = f"{master_port}"
+                            utils.send(client_socket,new_message.SerializaToString())
 
                 
 
