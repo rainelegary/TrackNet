@@ -95,6 +95,7 @@ message ServerResponse {
 		CLEAR = 3; 
 	}	
 
+    optional clientaddress = 0;
     optional Train train = 1;
 	optional UpdateStatus status = 2;
 	optional Route new_route = 3;

@@ -118,6 +118,8 @@ class Client():
 
         :param state: The `ClientState` message object to be populated with the train's current state.
         """
+
+        state.clientaddress = 
         if self.train.name is not None:
             state.train.id = self.train.name
         state.train.length = self.train.length
