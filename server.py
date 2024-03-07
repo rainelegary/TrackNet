@@ -42,7 +42,7 @@ class Server():
         #remove sock
         self.sock = None
         self.proxy_sock = None
-        self.master_sock = None
+        self.sock_for_communicating_to_master = None
 
         self.railway = Railway(
             trains=None,
@@ -153,28 +153,41 @@ class Server():
             LOGGER.error(f"Error communicating with proxy: {e}")
             self.proxy_sock.close() 
 
-    def connect_to_master (self, master_host, master_port):
-        self.master_sock = create_slave_socket (master_host, master_port)
-        if (self.master_sock):
-            LOGGER.debug ("Connected to master")
-            self.connected_to_master = True
-            # Handle master communication in a separate thread
-            threading.Thread(target=self.handle_master_communication, daemon=True).start()
+    def listen_to_master (self, host, port):
+        self.sock_for_communicating_to_master = create_server_socket (host, port)
+        LOGGER.debug ("Created server socket for slave, waiting for ")
+
+        while not exit_flag and self.sock_for_communicating_to_master:
+            try:
+                conn, addr = self.sock.accept()
+                self.connected_to_master = True
+                threading.Thread(target=self.handle_master_communication, args=(conn,), daemon=True).start() 
+                        
+            except socket.timeout:
+                pass 
+            
+            except Exception as exc: 
+                LOGGER.error("listen_on_socket(): " + str(exc))
+                self.sock.close()
+                LOGGER.info("Restarting listening socket...")
+                self.sock = create_server_socket(self.host, self.port)
+            
 
     def handle_master_communication (self):
         try:
             while True:
-                data = receive(self.master_sock)
+                data = receive(self.sock_for_communicating_to_master)
                 if data is not None:
                     master_resp = TrackNet_pb2.InitConnection()
                     master_resp.ParseFromString(data)
-                    if master_resp.HasField("railway_update"):
+                    #Check if sender is master
+                    if master_resp.sender == TrackNet_pb2.InitConnection.SERVER_MASTER and master_resp.HasField("railway_update"):
                         self.railway = master_resp.railway_update.railway
                         LOGGER.debug(f"Received railway update from master at {master_resp.railway_update.timestamp}")
         except Exception as e:
             LOGGER.error(f"Error communicating with master: {e}")
             self.connected_to_master = False
-            self.master_sock.close()  
+            self.sock_for_communicating_to_master.close()  
 
     def promote_to_master(self):
         self.isMaster = True
