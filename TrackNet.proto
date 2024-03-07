@@ -127,6 +127,16 @@ message ServerAssignment {
     repeated ServerDetails servers = 2;
 }
 
+message Response {
+    enum Code {
+        ACK = 0;
+        NAK = 1;
+        ERROR = 2;
+    }
+
+    optional Code code = 1;
+}
+
 message InitConnection {
      enum Sender {
         SERVER_MASTER = 0;
@@ -139,7 +149,5 @@ message InitConnection {
      optional ClientState client_state = 2;
      optional ServerResponse server_response = 3;
      optional RailwayUpdate railway_update = 4;
-     optional ServerAssignment server_assignment = 5;
-
 }
 
