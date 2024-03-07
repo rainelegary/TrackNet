@@ -17,9 +17,9 @@ enum TrackCondition {
 }
 
 enum TrainSpeed {
-    STOPPED = 0
-    SLOW = 100
-    FAST = 200
+    STOPPED = 0;
+    SLOW = 100;
+    FAST = 200;
 }
 
 message Track {
@@ -103,12 +103,12 @@ message ServerResponse {
 }
 
 message ClientState {
-    optional clientaddress = 0;
-    optional Train train = 1;
-    optional float speed = 2;
-    optional Location location = 3;
-    optional TrackCondition condition = 4;
-    optional Route route = 5;
+    optional string clientaddress = 1;
+    optional Train train = 2;
+    optional float speed = 3;
+    optional Location location = 4;
+    optional TrackCondition condition = 5;
+    optional Route route = 6;
 }
 
 //Proxy sends to slave upon initialization
