@@ -73,6 +73,7 @@ class Server():
                 LOGGER.debug ("Sent slave identification message to proxy")
                 listen_to_proxy_thread = threading.Thread(target=self.listen_to_proxy, daemon=True).start()
 
+
     def listen_to_proxy (self):
         data = receive(self.proxy_sock)
         if data is not None:
@@ -100,6 +101,10 @@ class Server():
                     if proxy_resp.HasField("server_role_assignment") and proxy_resp.role_assignment.isMaster:
                         print("This server has promoted to the MASTER")
                         self.promote_to_master() 
+
+                    # Determine is other server is assigned as the master
+                    
+
         except Exception as e:
             LOGGER.error(f"Error communicating with proxy: {e}")
             self.proxy_sock.close() 
@@ -146,6 +151,7 @@ class Server():
                 return self.railway.create_new_train(train.length, origin_id)
             
             return train
+
 
     def handle_connection(self, conn):
         ## assumes that ClientSate.Location is always set
