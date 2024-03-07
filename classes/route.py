@@ -36,6 +36,6 @@ class Route:
         self.current_junction_index += 1
         
     def destination_reached(self):
-        if self.current_junction_index > len(self.junctions):
+        if self.current_junction_index >= len(self.junctions) - 1:
             return True
         return False

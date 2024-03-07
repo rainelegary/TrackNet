@@ -4,12 +4,14 @@ import signal
 import time
 import random
 import threading
+import utils
+import os
 from utils import *
 from classes import *
 from classes.enums import *
 from classes.railmap import RailMap
 from classes.route import Route
-from classes.train import Train
+from classes.trainmovement import TrainMovement
 from datetime import datetime
 
 setup_logging() ## only need to call at main entry point of application
@@ -19,8 +21,8 @@ initial_config = {
     "junctions": ["A", "B", "C", "D"],
     "tracks": [
         ("A", "B", 10),
-        ("B", "C", 20),
-        ("C", "D", 30),
+        ("B", "C", 10),
+        ("C", "D", 10),
         ("A", "D", 40)
     ]
 }
@@ -50,8 +52,14 @@ class Client():
         self.last_time_updated = datetime.now()
         
         self.origin, self.destination = self.railmap.get_origin_destination_junction()
-        self.train = Train(length=self.generate_random_train_length(), junction_front=self.origin, junction_back=self.origin)
+        self.train = TrainMovement(length=self.generate_random_train_length(), junction_front=self.origin, junction_back=self.origin)
         self.generate_route()
+        print("Route: ",end = "")
+        for junc in self.train.route.junctions:
+            print("->",junc.name,end=" ")
+        print()
+        print()
+                    
         threading.Thread(target=self.update_position, args=(), daemon=True).start() 
         self.run()
         
@@ -74,12 +82,19 @@ class Client():
         :return: Returns GOOD track condition with a 95% probability and BAD track condition with a 5% probability.
         :rtype: TrackNet_pb2.ClientState.TrackCondition
         """
-        return TrackNet_pb2.ClientState.TrackCondition.GOOD if random.random() < self.probabilty_of_good_track else TrackNet_pb2.ClientState.TrackCondition.BAD
+        return TrackNet_pb2.TrackCondition.GOOD if random.random() < self.probabilty_of_good_track else TrackNet_pb2.TrackCondition.BAD
     
     def update_position(self):
         ## TODO decided how often to update
-        while not exit_flag:
-            time.sleep(3)
+        while not utils.exit_flag and not (self.train.route.destination_reached()):
+            time.sleep(2)
+
+#            if self.train.route.destination_reached():
+#                #self.stay_parked = True
+#                LOGGER.debug(f"*****************DESTINATION REACHED*******************")
+#                utils.exit_flag = True
+#                break
+
             if self.train.state in [TrainState.PARKED, TrainState.STOPPED]:
                 continue
             else:
@@ -92,6 +107,10 @@ class Client():
             
                 self.train.update_location(distance_moved)
                 self.last_time_updated = datetime.now()
+
+        LOGGER.debug(f"*****************DESTINATION REACHED*******************")
+        os._exit(0)  # Exit the program immediately with a status of 0
+        #utils.exit_flag = True
             
 
     def set_client_state_msg(self, state: TrackNet_pb2.ClientState):
@@ -112,7 +131,7 @@ class Client():
                 junction_msg = state.route.junctions.add() 
                 junction_msg.id = junction_obj.name
             
-            state.route.destination = self.train.route.destination.name
+            state.route.destination.id = self.train.route.destination.name
 
     def set_route(self, route: TrackNet_pb2.Route):
         new_route = []
@@ -128,7 +147,7 @@ class Client():
 
         The method uses a loop that runs until an `exit_flag` is set. It manages the socket connection, sends the train's state, and processes responses from the server. The method also handles rerouting, speed adjustments, and stopping the train based on the server's instructions.
         """
-        while not exit_flag:
+        while not utils.exit_flag:
             self.sock = create_client_socket(self.host, self.port)
             
             if self.sock is not None:
@@ -136,7 +155,7 @@ class Client():
                 state = TrackNet_pb2.ClientState()
                 
                 self.set_client_state_msg(state)
-                LOGGER.debug(f"state={state}")
+                LOGGER.debug(f"state={state.location}")
                 
                 if send(self.sock, state.SerializeToString()):
                     data = receive(self.sock)
@@ -148,7 +167,7 @@ class Client():
                         if self.train.name is None:
                             self.train.name = server_resp.train.id
                             LOGGER.debug(f"Initi. {self.train.name}")
-                            
+              
                         if self.train.route is None: 
                             if not server_resp.HasField("new_route"):
                                 LOGGER.warning(f"Server has not yet provided route for train.")
@@ -173,10 +192,10 @@ class Client():
                                 LOGGER.debug("UNPARKING")
                                 self.train.unpark(server_resp.speed_change)
                         
-                    self.sock.close()
+                    #self.sock.close()
             else:
                 LOGGER.debug(f"no connection")
-            time.sleep(3)
+            time.sleep(2)
             
             
     

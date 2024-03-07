@@ -15,8 +15,8 @@ initial_config = {
     "junctions": ["A", "B", "C", "D"],
     "tracks": [
         ("A", "B", 10),
-        ("B", "C", 20),
-        ("C", "D", 30),
+        ("B", "C", 10),
+        ("C", "D", 10),
         ("A", "D", 40)
     ]
 }
@@ -77,22 +77,22 @@ class Server():
             
             train = self.get_train(client_state.train, client_state.location.front_junction_id)
             ## set train info in response message
-            resp.train.id = train.name
-            resp.train.length = train.length
-            
+            resp.train.id            = train.name
+            resp.train.length        = train.length
+
             # check train condition
             if client_state.location.HasField("front_track_id"):
                 self.railway.map.set_track_condition(client_state.location.front_track_id, TrackCondition(client_state.condition))
                 
                 if self.railway.map.has_bad_track_condition(client_state.location.front_track_id):
                     resp.status = TrackNet_pb2.ServerResponse.UpdateStatus.CHANGE_SPEED
-                    resp.speed_change = 200     ## TODO set slow speed
+                    resp.speed = 200     ## TODO set slow speed
                     
             # update train location
             self.railway.update_train(train, TrainState(client_state.train.state), client_state.location)
 
             ## (TODO) use speed, location & route data to detect possible conflicts.
-            resp.speed_change = 200
+            resp.speed = 200
             resp.status = TrackNet_pb2.ServerResponse.UpdateStatus.CLEAR
             
             if not send(conn, resp.SerializeToString()):

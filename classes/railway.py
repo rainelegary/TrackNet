@@ -164,13 +164,15 @@ class Railway:
                 
                 running_trains = track.trains.keys()  #track.trains is a dictionary
                 
-                print(f"  Track: {track.name}, Length: {track.length}, Running Trains: [",)
+                print(f"{track.name}, Length: {track.length}, Running Trains: [",)
                 
                 for running_train in running_trains:
                     train_position_front = track.trains[running_train].location.front_cart['position']
-                    train_position_back = track.trains[running_train].location.back_cart['position']
-                    train_speed = track.trains[running_train].current_speed
-                    print(f"\t\t\t\t\t\t Train: {running_train} Speed: {train_speed} Front Position: {train_position_front} Back Position: {train_position_back}")
+                    train_position_back  = track.trains[running_train].location.back_cart['position']
+                    train_speed          = track.trains[running_train].current_speed
+                    track_speed          = track.speed
+                    #***prints the track speed*** - train speed is 0 because it is not being sent from client to server in the protobuf
+                    print(f"\t\t\t\t\t\t Train: {running_train} Speed: {track_speed} Front Position: {train_position_front} Back Position: {train_position_back}")
                 print("]")
                  
             else:
