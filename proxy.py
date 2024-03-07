@@ -29,6 +29,9 @@ class ProxyServer:
                         thread = threading.Thread(target=self.handle_connection, args=(client_socket, client_address))
                         thread.daemon = True
                         thread.start()
+            
+                # check for a master if there is one start a new thread for making sure it is alive 
+                        
         finally:
             self.shutdown(server_socket)
 
@@ -88,6 +91,8 @@ class ProxyServer:
                                 slaveServerDetails.ip = slave_ip
                                 slaveServerDetails.port = f"{slave_port}"
                             utils.send(client_socket,new_message.SerializaToString())
+                            # handle response of an acknowledgment 
+                             
                             
                         else:
                             self.slave_server_sockets.append(client_socket)
@@ -95,12 +100,13 @@ class ProxyServer:
                             #new_message = proto.InitConnection()
                             #new_message.sender = proto.InitConnection.Sender.PROXY
                             new_message = proto.ServerAssignment()
-                            new_message.isMaster = True
+                            new_message.isMaster = False
                             master_ip, master_port = self.master_server_socket.getsockname()
                             masterServerDetails = new_message.servers.add()
                             masterServerDetails.ip = master_ip
                             masterServerDetails.port = f"{master_port}"
                             utils.send(client_socket,new_message.SerializaToString())
+                            # handle response of an acknowledgment 
 
                 
 
