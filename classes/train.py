@@ -27,14 +27,12 @@ class Train:
         length = 1000, # in meters
         junction_front: Junction = None, # junction ID
         junction_back: Junction = None,
-        destination: Junction = None,
     ):
         self.name = name
         self.length = length
         self.state = TrainState.PARKED
         self.location = Location(junction_front, junction_back)
         self.route = None
-        self.destination = destination
         #speed is set by the server
         self.current_speed = 0 
     
