@@ -110,6 +110,17 @@ message ClientState {
     optional Route route = 5;
 }
 
+//Proxy sends to slave upon initialization
+message RoleAssignment {
+    bool isMaster = 1; // True if the server is being assigned the role of master, false if slave.
+}
+
+//Sent to proxy upon initialization
+message SlaveServerDetails{
+    string ip = 1;  // The slave server's IP address
+    int32 port = 2; // The slave server's port
+}
+
 message InitConnection {
      enum Sender {
         SERVER_MASTER = 0;
@@ -122,4 +133,7 @@ message InitConnection {
      optional ClientState client_state = 2;
      optional ServerResponse server_response = 3;
      optional RailwayUpdate railway_update = 4;
+     optional RoleAssignment server_role_assignment = 5; 
+     optional SlaveServerDetails slave_server_details = 6;
 }
+

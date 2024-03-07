@@ -6,6 +6,7 @@ __all__ = [
     "setup_logging",
     "exit_flag",
     "exit_gracefully",
+    "create_slave_socket",
     "create_client_socket",
     "create_server_socket",
     "send",
@@ -72,6 +73,35 @@ def bytes_to_int(value: bytes) -> int:
     assert type(value) == bytes
     return int.from_bytes(value, 'big')
 
+
+def create_slave_socket(ip: str, port: int):
+    """Create a TCP/IP socket at the specified port.
+
+    PARAMETERS
+    ==========
+    ip: A string representing the IP address to connect to.
+    port: An integer representing the port to connect to.
+
+    RETURNS
+    =======
+    If successful, a connected socket object.
+    Otherwise, return None.
+    """
+
+    assert type(ip) == str
+    assert type(port) == int
+
+    #socket.setdefaulttimeout(0.5)
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+    try:
+        sock.connect((ip, port))
+
+    except socket.error as err:
+        print(f"Failed to connect to proxy at {ip}:{port}, error: {err}")
+        return None
+
+    return sock
 
 def create_client_socket(ip: str, port: int):
     """Create a TCP/IP socket at the specified port.
