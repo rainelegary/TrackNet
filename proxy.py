@@ -84,8 +84,8 @@ class ProxyServer:
                         else:
                             self.slave_server_sockets.append(client_socket)
                             print("Slave server added")
-                            new_message = proto.InitConnection()
-                            new_message.sender = proto.InitConnection.Sender.PROXY
+                            #new_message = proto.InitConnection()
+                            #new_message.sender = proto.InitConnection.Sender.PROXY
 
                 
 

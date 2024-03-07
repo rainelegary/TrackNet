@@ -157,12 +157,16 @@ class Client():
             
             if self.sock is not None:
                 LOGGER.debug("Connected")
-                state = TrackNet_pb2.ClientState()
+                client_state = TrackNet_pb2.ClientState()
                 
-                self.set_client_state_msg(state, client_ip, client_port)
-                LOGGER.debug(f"state={state.location}")
+                self.set_client_state_msg(client_state, client_ip, client_port)
+                LOGGER.debug(f"state={client_state.location}")
                 
-                if send(self.sock, state.SerializeToString()):
+                message = TrackNet_pb2.InitConnection()
+                message.sender = TrackNet_pb2.InitConnection.Sender.CLIENT
+                message.client_state.CopyFrom(client_state)
+                
+                if send(self.sock, message.SerializeToString()):
                     data = receive(self.sock)
                     server_resp = TrackNet_pb2.ServerResponse()
                     
