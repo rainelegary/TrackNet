@@ -17,9 +17,9 @@ enum TrackCondition {
 }
 
 enum TrainSpeed {
-    STOPPED = 0
-    SLOW = 100
-    FAST = 200
+    STOPPED = 0;
+    SLOW = 100;
+    FAST = 200;
 }
 
 message Track {
@@ -95,19 +95,20 @@ message ServerResponse {
 		CLEAR = 3; 
 	}	
 
-    optional Train train = 1;
-	optional UpdateStatus status = 2;
-	optional Route new_route = 3;
-    optional int32 speed = 4;
+    optional string clientaddress = 1;
+    optional Train train = 2;
+	optional UpdateStatus status = 3;
+	optional Route new_route = 4;
+    optional int32 speed = 5;
 }
 
 message ClientState {
-    optional clientaddress = 0;
-    optional Train train = 1;
-    optional float speed = 2;
-    optional Location location = 3;
-    optional TrackCondition condition = 4;
-    optional Route route = 5;
+    optional string clientaddress = 1;
+    optional Train train = 2;
+    optional float speed = 3;
+    optional Location location = 4;
+    optional TrackCondition condition = 5;
+    optional Route route = 6;
 }
 
 //Proxy sends to slave upon initialization
@@ -116,9 +117,14 @@ message RoleAssignment {
 }
 
 //Sent to proxy upon initialization
-message SlaveServerDetails{
+message ServerDetails{
     string ip = 1;  // The slave server's IP address
     int32 port = 2; // The slave server's port
+}
+
+message ServerAssignment {
+    optional RoleAssignment role = 1; 
+    repeated ServerDetails servers = 2;
 }
 
 message InitConnection {
@@ -133,7 +139,7 @@ message InitConnection {
      optional ClientState client_state = 2;
      optional ServerResponse server_response = 3;
      optional RailwayUpdate railway_update = 4;
-     optional RoleAssignment server_role_assignment = 5; 
-     optional SlaveServerDetails slave_server_details = 6;
+     optional ServerAssignment server_assignment = 5;
+
 }
 
