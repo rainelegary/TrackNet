@@ -235,7 +235,7 @@ class Server():
         return railway_update 
         
     def talk_to_slaves(self): # needs to send railway update to slaves 
-        print(f"number of slaves: {len()}")
+        print(f"number of slaves: {len(self.socks_for_communicating_to_slaves)}")
         for slave_socket in self.socks_for_communicating_to_slaves:
             # Prepare the client state message
             master_resp = TrackNet_pb2.InitConnection()
