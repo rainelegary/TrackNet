@@ -66,8 +66,7 @@ message Train {
     optional TrainState state = 3;
     optional Location location = 4;
     optional Route route = 5;
-    optional Junction destination = 6;
-    optional int32 speed = 7; 
+    optional int32 speed = 6; 
 }
 
 message Railmap {

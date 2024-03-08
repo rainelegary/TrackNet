@@ -17,7 +17,7 @@ class Track:
         self.name = f"Track ({self.junctions[0]}, {self.junctions[1]})"
         self.trains = {} 
         self.condition = TrackCondition.GOOD
-        self.speed = TrainSpeed.FAST.value
+        self.speed = TrainSpeed.FAST
     
     def add_train(self, train):
         """Adds a train to the track."""
