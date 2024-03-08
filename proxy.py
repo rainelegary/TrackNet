@@ -1,8 +1,10 @@
 import select
 import socket
 import threading
+import TrackNet_pb2
 import TrackNet_pb2 as proto
 import utils
+from utils import *
 
 class ProxyServer:
     def __init__(self, host, port): #initialise all values
@@ -68,7 +70,29 @@ class ProxyServer:
                         else:
                             self.slave_server_sockets.append(client_socket)
                             print("Slave server added")
-                
+                            data = receive(client_socket)
+                            if data:
+                                slave_resp = TrackNet_pb2.InitConnection()
+                                slave_resp.ParseFromString(data)
+                                if slave_resp.sender == TrackNet_pb2.InitConnection.Sender.SERVER_SLAVE:
+                                    print("Received a message from slave server")
+                                    if slave_resp.new_slave_server_details.ip and slave_resp.new_slave_server_details.port:
+                                        slave_ip   = slave_resp.new_slave_server_details.ip
+                                        slave_port = slave_resp.new_slave_server_details.port
+                                        print(f"Received ip from slave server:   {slave_resp.new_slave_server_details.ip}")
+                                        print(f"Received port from slave server: {slave_resp.new_slave_server_details.port}")
+
+                                        #Notify master server of new slave server so it can connect to it
+                                        resp = TrackNet_pb2.InitConnection()
+                                        resp.sender = TrackNet_pb2.InitConnection.Sender.PROXY
+                                        resp.new_slave_server_details.ip   = slave_ip
+                                        resp.new_slave_server_details.port = slave_port
+                                        print ("Sending new slave details to master")
+                                        send(self.master_server_socket, resp.SerializeToString())
+
+                            else:
+                                print ("Error: Nothing received from slave server")
+                            
             except Exception as e:
                 print(f"Failed to process message: {e}")
                 break
@@ -86,7 +110,6 @@ class ProxyServer:
                 self.slave_server_sockets.remove(client_socket)
                 print("Slave server connection lost")
         client_socket.close()
-
 
     def shutdown(self, server_socket): #shutdown process
         with self.lock:

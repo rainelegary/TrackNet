@@ -103,13 +103,13 @@ message ServerResponse {
 }
 
 message ClientState {
-    optional string clientIP = 0;
-    optional string clientPort = 1;
-    optional Train train = 2;
-    optional float speed = 3;
-    optional Location location = 4;
-    optional TrackCondition condition = 5;
-    optional Route route = 6;
+    optional string clientIP = 1;
+    optional string clientPort = 2;
+    optional Train train = 3;
+    optional float speed = 4;
+    optional Location location = 5;
+    optional TrackCondition condition = 6;
+    optional Route route = 7;
 }
 
 //Proxy sends to slave upon initialization
@@ -141,6 +141,7 @@ message InitConnection {
      optional ServerResponse server_response = 3;
      optional RailwayUpdate railway_update = 4;
      optional ServerAssignment server_assignment = 5;
+     optional ServerDetails new_slave_server_details = 6;
 
 }
 
