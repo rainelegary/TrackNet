@@ -8,6 +8,7 @@ from  classes.enums import TrainState, TrackCondition
 from classes.railway import Railway
 from classes.train import Train
 import traceback
+from datetime import datetime
 
 setup_logging() ## only need to call at main entry point of application
 LOGGER = logging.getLogger(__name__)
@@ -44,7 +45,7 @@ class Server():
         self.sock = None
         self.proxy_sock = None
         self.sock_for_communicating_to_master = None
-        self.socks_for_communicating_to_slaves = None
+        self.socks_for_communicating_to_slaves = []
 
         self.railway = Railway(
             trains=None,
@@ -80,25 +81,30 @@ class Server():
     def listen_to_proxy (self):
         try:
             while True:
-                print ("before receive")
+                #print ("before receive")
                 
                 data = receive(self.proxy_sock)
                 if data: # split data into 3 difrerent types of messages, a heartbeat, a clientstate or a ServerAssignment
-                    proxy_resp = TrackNet_pb2.InitConnection() #Data also needs to include an update of a new slave
-                    proxy_resp.ParseFromString(data)
                     print("Received response from proxy: ")
                     #Master server responsibilitites
                     if self.isMaster:
                         proxy_resp = TrackNet_pb2.InitConnection() #Data also needs to include an update of a new slave
                         proxy_resp.ParseFromString(data)
                         print(proxy_resp)
+
                         #Receive updates on new slaves connecting to the proxy
                         if proxy_resp.HasField("slave_server_details"):
                             LOGGER.debug ("Received slave server details from proxy")
+                            print ("getting host ")
                             slave_host = proxy_resp.slave_server_details.host
-                            slave_port = proxy_resp.slave_server_detials.port
+                            print("got host !!! ")
+                            print(f"getting port: ")
+                            slave_port = proxy_resp.slave_server_details.port
+                            print ("got port ")
                             #connect to slave in separate thread
-                            self.connect_to_slave (slave_host, slave_port)
+                            print("connect to the new slave")
+                            self.connect_to_slave(slave_host, slave_port)
+                            print("connection to new slave ran")
                         
                         #listen on proxy sock for client states
                         if proxy_resp.HasField("client_state"):
@@ -114,7 +120,9 @@ class Server():
 
                             print("sent a server response back")
                             # Create a separate thread for talking to slaves
-                            threading.Thread(target=self.talk_to_slaves, args=(proxy_resp.client_state,), daemon=True).start()
+                            print("sned backups to the slaves")
+                            #threading.Thread(target=self.talk_to_slaves, args=(proxy_resp.client_state,), daemon=True).start()
+                            threading.Thread(target=self.talk_to_slaves, daemon=True).start()
 
                     #Slave server responsibilities
                     else:
@@ -129,12 +137,13 @@ class Server():
                             else:
                                 print("This server has been designated as a SLAVE.")
 
-                                if not self.connected_to_master and (len(proxy_resp.servers) == 1):
+                                if not self.connected_to_master:
                                     #Connect to master if the current server hasn't been assigned master by proxy
                                     #listen to master instead of initiating connection
-                                    self.listen_to_master(self.host, 5555) 
+                                    self.listen_to_master(self.host, 4444) 
                 else:
-                    LOGGER.debug ("No data received from proxy")
+                    #LOGGER.debug ("No data received from proxy")
+                    pass
                            
         except Exception as e:
             LOGGER.error(f"Error communicating with proxy: {e}")
@@ -143,7 +152,7 @@ class Server():
     def connect_to_slave (self, slave_host, slave_port):
         try:
             # for each slave create client sockets
-            slave_sock = create_client_socket(slave_host, slave_port)
+            slave_sock = create_client_socket(slave_host, 4444)
             self.socks_for_communicating_to_slaves.append(slave_sock)
             LOGGER.debug (f"Added slave server {slave_host}:{slave_port}")
             # Start a new thread dedicated to this slave for communication
@@ -151,15 +160,90 @@ class Server():
         except Exception as e:
             LOGGER.error(f"Could not connect to slave {slave_host}:{slave_port}: {e}")
 
-    def talk_to_slaves(self, client_state: TrackNet_pb2.ClientState):
-        if self.socks_for_communicating_to_slaves:
-            while not exit_flag and any(self.socks_for_communicating_to_slaves):
-                for slave_socket in self.socks_for_communicating_to_slaves:
-                    # Prepare the client state message
-                    master_resp = TrackNet_pb2.InitConnection()
-                    master_resp.sender = TrackNet_pb2.InitConnection.SERVER_MASTER
-                    master_resp.client_state.CopyFrom(client_state)
-                    send (slave_socket, master_resp.SerializeToString())
+
+    def serialize_train(self, train_obj, train_pb):
+        """
+        Fills in the details of a Protobuf Train message from a Train object.
+        """
+        train_pb.id = train_obj.name
+        train_pb.length = train_obj.length
+        train_pb.state = train_obj.state.value
+        train_pb.speed = train_obj.current_speed
+
+        # Serialize the train's Location
+        if train_obj.location:
+            self.serialize_location(train_obj.location, train_pb.location)
+
+        # Serialize the train's Route
+        if train_obj.route:
+            self.serialize_route(train_obj.route, train_pb.route)
+
+    def serialize_location(self, location_obj, location_pb):
+        """
+        Fills in the details of a Protobuf Location message from a Location object.
+        """
+        if location_obj.front_cart["track"]:
+            location_pb.front_track_id = location_obj.front_cart["track"].name
+        if location_obj.front_cart["junction"]:
+            location_pb.front_junction_id = location_obj.front_cart["junction"].name
+        location_pb.front_position = location_obj.front_cart["position"]
+
+        if location_obj.back_cart["track"]:
+            location_pb.back_track_id = location_obj.back_cart["track"].name
+        if location_obj.back_cart["junction"]:
+            location_pb.back_junction_id = location_obj.back_cart["junction"].name
+        location_pb.back_position = location_obj.back_cart["position"]
+
+    def serialize_route(self, route_obj, route_pb):
+        """
+        Fills in the details of a Protobuf Route message from a Route object.
+        """
+        for junction in route_obj.junctions:
+            junction_pb = route_pb.junctions.add()
+            junction_pb.id = junction.name
+        route_pb.current_junction_index = route_obj.current_junction_index
+        if route_obj.destination:
+            route_pb.destination.id = route_obj.destination.name
+
+    def create_railway_update_message(self):
+        railway_update = TrackNet_pb2.RailwayUpdate()
+        railway_update.timestamp = datetime.utcnow().isoformat()
+
+        # Serialize the state of Junctions and Tracks in the RailMap
+        for junction_name, junction_obj in self.railway.map.junctions.items():
+            junction_pb = railway_update.railway.map.junctions[junction_name]
+            junction_pb.id = junction_name
+            # Note: You may need to serialize other properties of the Junction here
+
+        for track_id, track_obj in self.railway.map.tracks.items():
+            track_pb = railway_update.railway.map.tracks[track_id]
+            track_pb.id = track_id
+            track_pb.junction_a = track_obj.junctions[0].name
+            track_pb.junction_b = track_obj.junctions[1].name
+            track_pb.condition = track_obj.condition.value
+            track_pb.speed = track_obj.speed
+            # Note: You may need to serialize other properties of the Track here
+
+        # Serialize Trains
+        for train_name, train_obj in self.railway.trains.items():
+            train_pb = railway_update.railway.trains[train_name]
+            self.serialize_train(train_obj, train_pb)
+
+        railway_update.railway.train_counter = self.railway.train_counter
+
+
+        return railway_update 
+        
+    def talk_to_slaves(self): # needs to send railway update to slaves 
+        print(f"number of slaves: {len()}")
+        for slave_socket in self.socks_for_communicating_to_slaves:
+            # Prepare the client state message
+            master_resp = TrackNet_pb2.InitConnection()
+            master_resp.sender = TrackNet_pb2.InitConnection.SERVER_MASTER
+            master_resp.railway_update.CopyFrom(self.create_railway_update_message())
+            print("Railway update message created")
+            success = send(slave_socket, master_resp.SerializeToString())
+            print(f"Railway update message sent to slave successfully: {success}")
 
     def listen_to_master (self, host, port):
         self.sock_for_communicating_to_master = create_server_socket(host, port)
@@ -181,16 +265,18 @@ class Server():
                 self.sock_for_communicating_to_master = create_server_socket(self.host, self.port)
             
 
-    def handle_master_communication (self):
+    def handle_master_communication (self, conn):
         try:
-            while True:
-                data = receive(self.sock_for_communicating_to_master)
-                if data is not None:
+            while self.connected_to_master:
+                data = receive(conn)
+                if data:
                     master_resp = TrackNet_pb2.InitConnection()
                     master_resp.ParseFromString(data)
+                    print("data received at slave")
                     #Check if sender is master
                     if master_resp.sender == TrackNet_pb2.InitConnection.SERVER_MASTER and master_resp.HasField("railway_update"):
-                        self.railway = master_resp.railway_update.railway
+                        print(f"Received a backup form the master: {master_resp.railway_update}")
+                        # need to store the backup
                         LOGGER.debug(f"Received railway update from master at {master_resp.railway_update.timestamp}")
         except Exception as e:
             LOGGER.error(f"Error communicating with master: {e}")
