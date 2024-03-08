@@ -60,18 +60,22 @@ class ProxyServer:
                             new_message.sender = proto.InitConnection.Sender.PROXY
                             new_message.client_state.CopyFrom(init_conn.client_state)
                             utils.send(self.master_server_socket, new_message.SerializeToString())
+                            print("client state forwaded to master server")
                         else:
                             print("There is currently no master server")
 
                 elif init_conn.sender  == proto.InitConnection.Sender.SERVER_MASTER:
                     with self.lock:
-                        print ("Received message from master server")
+                        print (f"Received message from master server, ip:{init_conn.server_response.clientIP} port:{init_conn.server_response.clientPort}")
                         # Extract the target client's IP and port
                         target_client_key = f"{init_conn.server_response.clientIP}:{int(init_conn.server_response.clientPort)}"
                         target_client_socket = self.client_sockets.get(target_client_key)
+                        print("found client")
                         new_message = proto.InitConnection()
                         new_message.sender = proto.InitConnection.Sender.PROXY
-                        new_message.ServerResponse.CopyFrom(init_conn.ServerResponse)
+                        print(f"about to copy: {init_conn.server_response}")
+                        new_message.server_response.CopyFrom(init_conn.server_response)
+                        print("response message to client created")
                         if target_client_socket:
                             utils.send(target_client_socket, new_message.SerializeToString())  # Forward the server's message to the target client
                         else:
@@ -114,7 +118,7 @@ class ProxyServer:
                             masterServerDetails.host = master_ip
                             masterServerDetails.port = master_port
                             utils.send(client_socket,new_message.SerializeToString())
-                            print ("sent details of slave to master server")
+                            print ("sent details of slave to slave server")
                             # handle response of an acknowledgment 
 
             except Exception as e:
