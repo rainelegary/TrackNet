@@ -106,7 +106,7 @@ class Server():
         slave_identification_msg.slave_server_details.port = self.port 
 
     def connect_to_proxy (self, proxy_host, proxy_port):
-        self.proxy_sock = create_slave_socket(proxy_host, proxy_port)
+        self.proxy_sock = create_client_socket(proxy_host, proxy_port)
         if self.proxy_sock:        
             LOGGER.debug ("Connected to proxy")
             #Send proxy init message to identify itself as a slave
@@ -139,6 +139,7 @@ class Server():
                             #connect to slave in separate thread
                             self.connect_to_slave (slave_host, slave_port)
                         
+                        #listen on proxy sock for client states
                         if proxy_resp.HasField("client_state"):
                             resp = self.handle_client_state(proxy_resp.client_state)
                             send(self.proxy_sock, resp.SerializeToString())
@@ -150,7 +151,6 @@ class Server():
                             if proxy_resp.role.isMaster:
                                 print("This server has promoted to the MASTER")
                                 self.promote_to_master() 
-                                #listen on proxy sock for client states
                             else:
                                 print("This server has been designated as a SLAVE.")
 
@@ -175,7 +175,7 @@ class Server():
     def connect_to_slave (self, slave_host, slave_port):
         try:
             # for each slave create client sockets
-            slave_sock = create_slave_socket(slave_host, slave_port)
+            slave_sock = create_client_socket(slave_host, slave_port)
             self.socks_for_communicating_to_slaves.append(slave_sock)
             LOGGER.debug (f"Added slave server {slave_host}:{slave_port}")
             # Start a new thread dedicated to this slave for communication
@@ -183,6 +183,7 @@ class Server():
         except Exception as e:
             LOGGER.error(f"Could not connect to slave {slave_host}:{slave_port}: {e}")
 
+    #Master communicating with slave
     def handle_slave_communication(self, slave_sock):
         try:
             while True:
@@ -283,9 +284,6 @@ class Server():
         update.timestamp = 2
 
         
-
-
-
 
     def get_train(self, train: TrackNet_pb2.Train, origin_id: str):
         """Retrieves a Train object based on its ID. If the train does not exist, it creates a new Train object.
