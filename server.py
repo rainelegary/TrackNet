@@ -43,6 +43,7 @@ class Server():
         self.sock = None
         self.proxy_sock = None
         self.sock_for_communicating_to_master = None
+        self.socks_for_communicating_to_slaves = []
 
         self.railway = Railway(
             trains=None,
@@ -89,6 +90,7 @@ class Server():
         # (TODO) use speed, location & route data to detect possible conflicts.
         resp.speed = 200
         resp.status = TrackNet_pb2.ServerResponse.UpdateStatus.CLEAR
+        resp.clientaddress = client_state.clientaddress
         
         #if not send(conn, resp.SerializeToString()):
         #    LOGGER.error("response did not send.")
@@ -146,13 +148,27 @@ class Server():
 
                     elif proxy_resp.HasField("client_state"):
                         resp = self.handle_client_state(proxy_resp.client_state)
-                        
-                        pass
+                        send(self.proxy_sock, resp.SerializeToString())
                     
                            
         except Exception as e:
             LOGGER.error(f"Error communicating with proxy: {e}")
-            self.proxy_sock.close() 
+            self.proxy_sock.close()
+
+
+    def talk_to_slaves(self):
+        # create client sockets
+
+        LOGGER.debug ("Created client sockets for master")
+
+        while not exit_flag and any(self.socks_for_communicating_to_slaves):
+            # for each slave
+                # try
+                    # send command
+                # except
+            pass
+
+
 
     def listen_to_master (self, host, port):
         self.sock_for_communicating_to_master = create_server_socket (host, port)
@@ -172,6 +188,15 @@ class Server():
                 self.sock.close()
                 LOGGER.info("Restarting listening socket...")
                 self.sock = create_server_socket(self.host, self.port)
+
+    def handle_slave_communication(self):
+        while True:
+            for slave_socket in self.socks_for_communicating_to_slaves:
+                try:
+                    send(slave_socket, )
+
+                except Exception as e:
+                    LOGGER.error(f"Error communicating with slave: {e}")
             
 
     def handle_master_communication (self):
@@ -188,11 +213,31 @@ class Server():
         except Exception as e:
             LOGGER.error(f"Error communicating with master: {e}")
             self.connected_to_master = False
-            self.sock_for_communicating_to_master.close()  
+            self.sock_for_communicating_to_master.close()
+
 
     def promote_to_master(self):
         self.isMaster = True
-        #initialize saved railway state
+        # initiate connections with all servers
+        # initialize saved railway state
+
+
+    def railway_from_railway_update(self, data) -> Railway:
+        pass
+
+
+
+    def set_railway_update_msg(self) -> TrackNet_pb2.InitConnection:
+        update = TrackNet_pb2.RailwayUpdate()
+        update.railway.map = 1
+        update.railway.trains
+        update.railway.train_counter
+        update.timestamp = 2
+
+        
+
+
+
 
     def get_train(self, train: TrackNet_pb2.Train, origin_id: str):
         """Retrieves a Train object based on its ID. If the train does not exist, it creates a new Train object.
