@@ -112,31 +112,6 @@ class ProxyServer:
                         else:
                             self.slave_server_sockets.append(client_socket)
                             print("Slave server added")
-<<<<<<< HEAD
-                            data = receive(client_socket)
-                            if data:
-                                slave_resp = TrackNet_pb2.InitConnection()
-                                slave_resp.ParseFromString(data)
-                                if slave_resp.sender == TrackNet_pb2.InitConnection.Sender.SERVER_SLAVE:
-                                    print("Received a message from slave server")
-                                    if slave_resp.new_slave_server_details.ip and slave_resp.new_slave_server_details.port:
-                                        slave_ip   = slave_resp.new_slave_server_details.ip
-                                        slave_port = slave_resp.new_slave_server_details.port
-                                        print(f"Received ip from slave server:   {slave_resp.new_slave_server_details.ip}")
-                                        print(f"Received port from slave server: {slave_resp.new_slave_server_details.port}")
-
-                                        #Notify master server of new slave server so it can connect to it
-                                        resp = TrackNet_pb2.InitConnection()
-                                        resp.sender = TrackNet_pb2.InitConnection.Sender.PROXY
-                                        resp.new_slave_server_details.ip   = slave_ip
-                                        resp.new_slave_server_details.port = slave_port
-                                        print ("Sending new slave details to master")
-                                        send(self.master_server_socket, resp.SerializeToString())
-
-                            else:
-                                print ("Error: Nothing received from slave server")
-                            
-=======
                             #new_message = proto.InitConnection()
                             #new_message.sender = proto.InitConnection.Sender.PROXY
                             new_message = proto.ServerAssignment()
@@ -149,7 +124,6 @@ class ProxyServer:
                             print ("sent details of slave to master server")
                             # handle response of an acknowledgment 
 
->>>>>>> main
             except Exception as e:
                 print(traceback.format_exc())
                 #print(f"Failed to process message: {e}")
