@@ -55,8 +55,8 @@ class Server():
         )
 
         self.proxy_sock = None
-        self.proxy_host = ""
-        self.proxy_port = ""
+        self.proxy_host = "192.168.68.55"
+        self.proxy_port = 5555
         self.connect_to_proxy (self.proxy_host, self.proxy_port)
         #self.listen_on_socket ()
 
@@ -107,6 +107,7 @@ class Server():
         slave_identification_msg.slave_server_details.port = self.port 
 
     def connect_to_proxy (self, proxy_host, proxy_port):
+        LOGGER.debug (f"Connecting to proxy at {proxy_host}:{proxy_port}")
         self.proxy_sock = create_client_socket(proxy_host, proxy_port)
         if self.proxy_sock:        
             LOGGER.debug ("Connected to proxy")
@@ -215,13 +216,14 @@ class Server():
     #         LOGGER.debug("Removed slave from list of slaves.")
 
     def talk_to_slaves(self, client_state: TrackNet_pb2.ClientState):
-        while not exit_flag and any(self.socks_for_communicating_to_slaves):
-            for slave_socket in self.socks_for_communicating_to_slaves:
-                # Prepare the client state message
-                master_resp = TrackNet_pb2.InitConnection()
-                master_resp.sender = TrackNet_pb2.InitConnection.SERVER_MASTER
-                master_resp.client_state.CopyFrom(client_state)
-                send (slave_socket, master_resp.SerializeToString())
+        LOGGER.debug("Talking to slaves...")
+        for slave_socket in self.socks_for_communicating_to_slaves:
+            # Prepare the client state message
+            LOGGER.debug("Talking to slave: " + str(slave_socket))
+            master_resp = TrackNet_pb2.InitConnection()
+            master_resp.sender = TrackNet_pb2.InitConnection.SERVER_MASTER
+            master_resp.client_state.CopyFrom(client_state)
+            send (slave_socket, master_resp.SerializeToString())
 
     def listen_for_master(self, host, port):
         self.sock_for_communicating_to_master = create_server_socket(host, port)
@@ -244,14 +246,14 @@ class Server():
                 self.sock_for_communicating_to_master = create_server_socket(self.host, self.port)
     
 
-    def handle_slave_communication(self):
-        while True:
-            for slave_socket in self.socks_for_communicating_to_slaves:
-                try:
-                    send(slave_socket, )
+    # def handle_slave_communication(self):
+    #     while True:
+    #         for slave_socket in self.socks_for_communicating_to_slaves:
+    #             try:
+    #                 send(slave_socket, )
 
-                except Exception as e:
-                    LOGGER.error(f"Error communicating with slave: {e}")
+    #             except Exception as e:
+    #                 LOGGER.error(f"Error communicating with slave: {e}")
     
     #Slave server communication with master
     def handle_master_communication(self, conn):
@@ -271,7 +273,7 @@ class Server():
                     if client_state.location.HasField("front_track_id"):
                         self.railway.map.set_track_condition(client_state.location.front_track_id, TrackCondition(client_state.condition))
                     self.railway.update_train(train, TrainState(client_state.train.state), client_state.location)
-                    LOGGER.debug(f"Received railway update from master at {master_resp.railway_update.timestamp}")
+                    LOGGER.debug(f"Received client state (train) update from master at {master_resp.railway_update.timestamp}")
 
         except Exception as e:
             LOGGER.error(f"Error communicating with master: {e}")
