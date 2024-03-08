@@ -40,6 +40,8 @@ class MessageConverter:
     @staticmethod
     def railway_msg_to_obj(msg: TrackNet_pb2.Railway) -> Railway:
         railway = Railway()
+        railway.map = MessageConverter.railmap_msg_to_obj(msg.map)
+        railway.trains
 
     
     @staticmethod
@@ -114,6 +116,16 @@ class MessageConverter:
     @staticmethod
     def train_msg_to_obj(msg: TrackNet_pb2.Train) -> Train:
         pass
+
+
+    # Railway
+        # Railmap
+            # Junctions
+                # Neighbours
+                # 
+        # Train
+            # Route
+                # Junction ID
 
 
     @staticmethod
