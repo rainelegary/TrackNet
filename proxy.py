@@ -182,7 +182,7 @@ class ProxyServer:
             print("Proxy server shut down")
 
 if __name__ == "__main__":
-    proxy = ProxyServer("localhost", 5555)
+    proxy = ProxyServer("csx2.uc.ucalgary.ca", 5555)
     try:
         proxy.run()
     except KeyboardInterrupt:

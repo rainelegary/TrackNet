@@ -39,7 +39,7 @@ class Server():
         :ivar trains: A list of Train objects managed by the server.
         :ivar train_counter: A counter to assign unique IDs to trains.
         """
-        self.host = host
+        self.host = socket.gethostname()
         self.port = port
         #remove sock
         self.sock = None
@@ -54,7 +54,7 @@ class Server():
         )
 
         self.isMaster = False
-        self.proxy_host = "localhost"
+        self.proxy_host = "csx2.uc.ucalgary.ca"
         self.proxy_port = 5555
         self.connect_to_proxy (self.proxy_host, self.proxy_port)
         self.connected_to_master = False
