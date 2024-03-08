@@ -33,7 +33,7 @@ class RailMap:
         if junction_a_name in self.junctions and junction_b_name in self.junctions:
             junction_a:Junction = self.junctions[junction_a_name]
             junction_b:Junction = self.junctions[junction_b_name]
-            track = Track(junction_a, junction_b, length)
+            track = Track(junction_a_name, junction_b_name, length)
             self.tracks[track.name] = track
             junction_a.add_neighbor(junction_b, track)
             junction_b.add_neighbor(junction_a, track)

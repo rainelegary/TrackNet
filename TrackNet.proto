@@ -26,21 +26,21 @@ message Track {
     optional string junction_a = 1;
     optional string junction_b = 2;
     optional string id = 3; 
-    map<string, Train> trains = 4;
+    repeated string trains = 4;
     optional TrackCondition condition = 5;
     optional TrainSpeed speed = 6;
 }
 
 message Junction {
     optional string id = 1;
-    map<string, Track> neighbors = 2;
-    map<string, Train> parked_trains = 3;
+    repeated string neighbors = 2;
+    repeated string parked_trains = 3;
 }
 
 message Route {
-    repeated Junction junctions = 1;
+    repeated string junctions = 1;
     optional int32 current_junction_index = 2;
-    optional Junction destination = 3;
+    optional string destination = 3;
 }
 
 message Location {

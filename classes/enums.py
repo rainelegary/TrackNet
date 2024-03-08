@@ -1,5 +1,6 @@
 
 from enum import Enum
+import TrackNet_pb2
 
 """
 These are all the enumerated types that can be used for status codes. 
@@ -27,7 +28,7 @@ class TrainState(Enum):
     PARKING = 4
     UNPARKING = 5
 
-class TrackSpeed(Enum):
+class TrainSpeed(Enum):
     STOPPED = 0
     SLOW = 100
     FAST = 200
