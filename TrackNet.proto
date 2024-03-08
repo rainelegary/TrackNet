@@ -95,22 +95,22 @@ message ServerResponse {
 		CLEAR = 3; 
 	}	
 
-    optional string clientIP = 5;
-    optional string clientPort = 6;
-    optional Train train = 1;
-	optional UpdateStatus status = 2;
-	optional Route new_route = 3;
-    optional int32 speed = 4;
+    optional string clientIP = 1;
+    optional string clientPort = 2;
+    optional Train train = 3;
+	optional UpdateStatus status = 4;
+	optional Route new_route = 5;
+    optional int32 speed = 6;
 }
 
 message ClientState {
-    optional string clientIP = 0;
-    optional string clientPort = 1;
-    optional Train train = 2;
-    optional float speed = 3;
-    optional Location location = 4;
-    optional TrackCondition condition = 5;
-    optional Route route = 6;
+    optional string clientIP = 1;
+    optional string clientPort = 2;
+    optional Train train = 3;
+    optional float speed = 4;
+    optional Location location = 5;
+    optional TrackCondition condition = 6;
+    optional Route route = 7;
 }
 
 //Proxy sends to slave upon initialization
@@ -120,8 +120,8 @@ message RoleAssignment {
 
 //Sent to proxy upon initialization
 message ServerDetails{
-    string ip = 1;  // The slave server's IP address
-    string port = 2; // The slave server's port
+    string host = 1;  // The slave server's IP address
+    int32 port = 2; // The slave server's port
 }
 
 message ServerAssignment {
@@ -147,10 +147,11 @@ message InitConnection {
         PROXY = 3;
      }
 
-    optional bool isHeartBeat = 5;
-     optional Sender sender = 1;
-     optional ClientState client_state = 2;
-     optional ServerResponse server_response = 3;
-     optional RailwayUpdate railway_update = 4;
+    optional bool isHeartBeat = 1;
+     optional Sender sender = 2;
+     optional ClientState client_state = 3;
+     optional ServerResponse server_response = 4;
+     optional RailwayUpdate railway_update = 5;
+     optional ServerDetails slave_server_details = 6;
 }
 

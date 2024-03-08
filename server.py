@@ -51,8 +51,8 @@ class Server():
         )
 
         self.isMaster = False
-        self.proxy_host = ""
-        self.proxy_port = ""
+        self.proxy_host = "localhost"
+        self.proxy_port = 5555
         self.connect_to_proxy (self.proxy_host, self.proxy_port)
         self.connected_to_master = False
         #self.listen_on_socket ()
@@ -73,37 +73,76 @@ class Server():
 
             if send(self.proxy_sock, slave_identification_msg.SerializeToString()):
                 LOGGER.debug ("Sent slave identification message to proxy")
-                listen_to_proxy_thread = threading.Thread(target=self.listen_to_proxy, daemon=True).start()
+                listen_to_proxy_thread = threading.Thread(target=self.listen_to_proxy).start()
 
     def listen_to_proxy (self):
         try:
             while True: 
                 data = receive(self.proxy_sock)
-                if data is not None: 
-                    proxy_resp = TrackNet_pb2.ServerAssignment()
+                if data is not None: # split data into 3 difrerent types of messages, a heartbeat, a clientstate or a ServerAssignment
+                    proxy_resp = TrackNet_pb2.InitConnection() #Data also needs to include an update of a new slave
                     proxy_resp.ParseFromString(data)
-                    
-                    # Determine if this server has been assigned as the master
-                    if proxy_resp.HasField("role"):
-                        if proxy_resp.role.isMaster:
-                            print("This server has promoted to the MASTER")
-                            self.promote_to_master() 
-                            #listen on proxy sock for client states
-                        else:
-                            print("This server has been designated as a SLAVE.")
+                    print("Received response from proxy: ")
+                    print(proxy_resp)
 
-                            if not self.connected_to_master and (len(proxy_resp.servers) == 1):
-                                # Extract the master server's IP and port from the ServerDetails
-                                master_host = proxy_resp.servers[0].ip
-                                master_port = proxy_resp.servers[0].port
+                    #Master server responsibilitites
+                    if self.isMaster:
+                        #Receive updates on new slaves connecting to the proxy
+                        if proxy_resp.HasField("slave_server_details"):
+                            LOGGER.debug ("Received slave server details from proxy")
+                            slave_host = proxy_resp.slave_server_details.host
+                            slave_port = proxy_resp.slave_server_detials.port
+                            #connect to slave in separate thread
+                            self.connect_to_slave (slave_host, slave_port)
+                        
+                        #listen on proxy sock for client states
+                        if proxy_resp.HasField("client_state"):
+                            resp = self.handle_client_state(proxy_resp.client_state)
+                            send(self.proxy_sock, resp.SerializeToString())
 
-                                #Connect to master if the current server hasn't been assigned master by proxy
-                                #listen to master instead of initiating connection
-                                self.listen_to_master (self.host, self.port) 
+                            # Create a separate thread for talking to slaves
+                            threading.Thread(target=self.talk_to_slaves, args=(proxy_resp.client_state,), daemon=True).start()
+
+                    #Slave server responsibilities
+                    else:
+                        proxy_resp = TrackNet_pb2.ServerAssignment()
+                        proxy_resp.ParseFromString(data)
+                        # Determine if this server has been assigned as the master
+                        if proxy_resp.HasField("isMaster"):
+                            if proxy_resp.isMaster:
+                                print("This server has promoted to the MASTER")
+                                self.promote_to_master() 
+                            else:
+                                print("This server has been designated as a SLAVE.")
+
+                                if not self.connected_to_master and (len(proxy_resp.servers) == 1):
+                                    #Connect to master if the current server hasn't been assigned master by proxy
+                                    #listen to master instead of initiating connection
+                                    self.listen_to_master (self.host, self.port) 
                            
         except Exception as e:
             LOGGER.error(f"Error communicating with proxy: {e}")
-            self.proxy_sock.close() 
+            self.proxy_sock.close()
+
+    def connect_to_slave (self, slave_host, slave_port):
+        try:
+            # for each slave create client sockets
+            slave_sock = create_client_socket(slave_host, slave_port)
+            self.socks_for_communicating_to_slaves.append(slave_sock)
+            LOGGER.debug (f"Added slave server {slave_host}:{slave_port}")
+            # Start a new thread dedicated to this slave for communication
+#            threading.Thread(target=self.handle_slave_communication, args=(slave_sock,), daemon=True).start()
+        except Exception as e:
+            LOGGER.error(f"Could not connect to slave {slave_host}:{slave_port}: {e}")
+
+    def talk_to_slaves(self, client_state: TrackNet_pb2.ClientState):
+        while not exit_flag and any(self.socks_for_communicating_to_slaves):
+            for slave_socket in self.socks_for_communicating_to_slaves:
+                # Prepare the client state message
+                master_resp = TrackNet_pb2.InitConnection()
+                master_resp.sender = TrackNet_pb2.InitConnection.SERVER_MASTER
+                master_resp.client_state.CopyFrom(client_state)
+                send (slave_socket, master_resp.SerializeToString())
 
     def listen_to_master (self, host, port):
         self.sock_for_communicating_to_master = create_server_socket (host, port)
@@ -113,7 +152,7 @@ class Server():
             try:
                 conn, addr = self.sock.accept()
                 self.connected_to_master = True
-                threading.Thread(target=self.handle_master_communication, args=(conn,), daemon=True).start() 
+                threading.Thread(target=self.handle_master_communication, args=(conn,)).start() 
                         
             except socket.timeout:
                 pass 

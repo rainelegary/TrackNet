@@ -45,6 +45,7 @@ class ProxyServer:
 
         while not utils.exit_flag:
             message = utils.receive(client_socket)
+
             if message is None:
                 break
 
@@ -64,7 +65,7 @@ class ProxyServer:
 
                 elif init_conn.sender  == proto.InitConnection.Sender.SERVER_MASTER:
                     with self.lock:
-                        
+                        print ("Received message from master server")
                         # Extract the target client's IP and port
                         target_client_key = f"{init_conn.server_response.clientIP}:{int(init_conn.server_response.clientPort)}"
                         target_client_socket = self.client_sockets.get(target_client_key)
@@ -85,14 +86,21 @@ class ProxyServer:
                             #  notify the newly promoted master server of its new role 
                             new_message = proto.ServerAssignment()
                             new_message.isMaster = True
-                            for slaveServerSocket in self.slave_server_sockets:
-                                slave_ip, slave_port = slaveServerSocket.getsockname()
-                                slaveServerDetails = new_message.servers.add()
-                                slaveServerDetails.ip = slave_ip
-                                slaveServerDetails.port = f"{slave_port}"
-                            utils.send(client_socket,new_message.SerializaToString())
-                            # handle response of an acknowledgment 
-                             
+
+                            if len (self.slave_server_sockets) > 0:
+                                for slaveServerSocket in self.slave_server_sockets:
+                                    slave_ip, slave_port = slaveServerSocket.getsockname()
+                                    slaveServerDetails = new_message.servers.add()
+                                    slaveServerDetails.host = slave_ip
+                                    slaveServerDetails.port = f"{slave_port}"
+                                    print("Adding slave to list to send to master")
+                                print("Sent all slaves to newly elected master")
+                                # handle response of an acknowledgment 
+                            else:
+                                print("No slaves to send to master")
+                            
+                            print ("sending role assignment to server")
+                            utils.send(client_socket,new_message.SerializeToString())
                             
                         else:
                             self.slave_server_sockets.append(client_socket)
@@ -103,12 +111,11 @@ class ProxyServer:
                             new_message.isMaster = False
                             master_ip, master_port = self.master_server_socket.getsockname()
                             masterServerDetails = new_message.servers.add()
-                            masterServerDetails.ip = master_ip
-                            masterServerDetails.port = f"{master_port}"
-                            utils.send(client_socket,new_message.SerializaToString())
+                            masterServerDetails.host = master_ip
+                            masterServerDetails.port = master_port
+                            utils.send(client_socket,new_message.SerializeToString())
+                            print ("sent details of slave to master server")
                             # handle response of an acknowledgment 
-
-                
 
             except Exception as e:
                 print(f"Failed to process message: {e}")
