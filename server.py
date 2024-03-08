@@ -78,9 +78,8 @@ class Server():
 
     def listen_to_proxy (self):
         try:
-            self.proxy_sock.setblocking(0)
             while True: 
-                #print ("before receive")
+                print ("before receive")
                 data = receive(self.proxy_sock)
                 #print ("Received data from proxy")
                 if data is not None: # split data into 3 difrerent types of messages, a heartbeat, a clientstate or a ServerAssignment
@@ -124,6 +123,8 @@ class Server():
                                     #Connect to master if the current server hasn't been assigned master by proxy
                                     #listen to master instead of initiating connection
                                     self.listen_to_master (self.host, self.port) 
+                else:
+                    LOGGER.debug ("No data received from proxy")
                            
         except Exception as e:
             LOGGER.error(f"Error communicating with proxy: {e}")
