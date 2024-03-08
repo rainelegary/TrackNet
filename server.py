@@ -272,12 +272,65 @@ class Server():
 
 
     def railway_from_railway_update(self, data) -> Railway:
+        # railmap
+            # junctions
+                # id
+                # neighboring track id's (change proto)
+                # parked train id's (change proto)
+            # tracks
+                # junction_a id
+                # junction_b id
+                # id
+                # train id's (change proto)
+                # condition
+                # speed
+
+        # trains
+            # id
+            # length
+            # state
+            # location
+                #
+            # route
+                #
+            # destination junction id (change proto)
+            # speed
+
+        # train counter
         pass
 
 
 
     def set_railway_update_msg(self) -> TrackNet_pb2.InitConnection:
         update = TrackNet_pb2.RailwayUpdate()
+
+        # railmap
+            # junctions
+                # id
+                # neighboring track id's (change proto)
+                # parked train id's (change proto)
+            # tracks
+                # junction_a id
+                # junction_b id
+                # id
+                # train id's (change proto)
+                # condition
+                # speed
+
+        # trains
+            # id
+            # length
+            # state
+            # location
+                #
+            # route
+                #
+            # destination junction id (change proto)
+            # speed
+
+        # train counter
+
+
         update.railway.map = 1
         update.railway.trains
         update.railway.train_counter
