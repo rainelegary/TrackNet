@@ -40,6 +40,7 @@ class ProxyServer:
 
         while not utils.exit_flag:
             message = utils.receive(client_socket)
+
             if message is None:
                 break
 

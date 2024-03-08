@@ -117,7 +117,7 @@ def create_client_socket(ip: str, port: int):
     Otherwise, return None.
     """
 
-    assert type(ip) == str
+    assert type(ip)   == str
     assert type(port) == int
 
     #socket.setdefaulttimeout(0.5)
@@ -125,7 +125,9 @@ def create_client_socket(ip: str, port: int):
 
     try:
         sock.connect((ip, port))
-    except:
+    except Exception as e:
+        print ("Failed to connect to proxy at " + ip + ":" + str(port))
+        print ("exception: " + str(e))
         return None
 
     return sock

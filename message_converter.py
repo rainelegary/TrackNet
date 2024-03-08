@@ -187,7 +187,9 @@ class MessageConverter:
     
     @staticmethod
     def route_msg_to_obj(msg: TrackNet_pb2.Route) -> Route:
+        
         pass
+        
 
 
     

@@ -12,7 +12,7 @@ class Track:
         trains (list): A list of trains currently running on this track.
     """
     def __init__(self, junction_a, junction_b, length):
-        self.junctions = tuple(sorted([junction_a, junction_b], key=lambda j: j.name))
+        self.junctions = tuple(sorted([junction_a, junction_b]))
         self.length = length
         self.name = f"Track ({self.junctions[0]}, {self.junctions[1]})"
         self.trains = {} 
