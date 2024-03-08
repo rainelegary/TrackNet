@@ -7,6 +7,7 @@ from utils import *
 from  classes.enums import TrainState, TrackCondition
 from classes.railway import Railway
 from classes.train import Train
+import traceback
 
 setup_logging() ## only need to call at main entry point of application
 LOGGER = logging.getLogger(__name__)
@@ -77,8 +78,11 @@ class Server():
 
     def listen_to_proxy (self):
         try:
+            self.proxy_sock.setblocking(0)
             while True: 
+                #print ("before receive")
                 data = receive(self.proxy_sock)
+                #print ("Received data from proxy")
                 if data is not None: # split data into 3 difrerent types of messages, a heartbeat, a clientstate or a ServerAssignment
                     proxy_resp = TrackNet_pb2.InitConnection() #Data also needs to include an update of a new slave
                     proxy_resp.ParseFromString(data)
@@ -112,6 +116,7 @@ class Server():
                             if proxy_resp.isMaster:
                                 print("This server has promoted to the MASTER")
                                 self.promote_to_master() 
+
                             else:
                                 print("This server has been designated as a SLAVE.")
 

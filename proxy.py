@@ -3,6 +3,7 @@ import socket
 import threading
 import TrackNet_pb2 as proto
 import utils
+import traceback
 
 class ProxyServer:
     def __init__(self, host, port):
@@ -66,6 +67,7 @@ class ProxyServer:
                 elif init_conn.sender  == proto.InitConnection.Sender.SERVER_MASTER:
                     with self.lock:
                         print ("Received message from master server")
+                        print (init_conn)
                         # Extract the target client's IP and port
                         target_client_key = f"{init_conn.server_response.clientIP}:{int(init_conn.server_response.clientPort)}"
                         target_client_socket = self.client_sockets.get(target_client_key)
@@ -118,7 +120,8 @@ class ProxyServer:
                             # handle response of an acknowledgment 
 
             except Exception as e:
-                print(f"Failed to process message: {e}")
+                print(traceback.format_exc())
+                #print(f"Failed to process message: {e}")
                 break
 
         with self.lock:
