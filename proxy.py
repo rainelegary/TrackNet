@@ -123,19 +123,21 @@ class ProxyServer:
                             if data:
                                 slave_resp = TrackNet_pb2.InitConnection()
                                 slave_resp.ParseFromString(data)
+                                print ("received slave response")
+                                print (slave_resp)
                                 if slave_resp.sender == TrackNet_pb2.InitConnection.Sender.SERVER_SLAVE:
                                     print("Received a message from slave server")
-                                    if slave_resp.new_slave_server_details.host and slave_resp.new_slave_server_details.port:
-                                        slave_ip   = slave_resp.new_slave_server_details.host
-                                        slave_port = slave_resp.new_slave_server_details.port
-                                        print(f"Received ip from slave server:   {slave_resp.new_slave_server_details.host}")
-                                        print(f"Received port from slave server: {slave_resp.new_slave_server_details.port}")
+                                    if slave_resp.slave_server_details.host and slave_resp.slave_server_details.port:
+                                        slave_ip   = slave_resp.slave_server_details.host
+                                        slave_port = slave_resp.slave_server_details.port
+                                        print(f"Received ip from slave server:   {slave_resp.slave_server_details.host}")
+                                        print(f"Received port from slave server: {slave_resp.slave_server_details.port}")
 
                                         #Notify master server of new slave server so it can connect to it
                                         resp = TrackNet_pb2.InitConnection()
                                         resp.sender = TrackNet_pb2.InitConnection.Sender.PROXY
-                                        resp.new_slave_server_details.host = slave_ip
-                                        resp.new_slave_server_details.port = slave_port
+                                        resp.slave_server_details.host = slave_ip
+                                        resp.slave_server_details.port = slave_port
                                         print ("Sending new slave details to master")
                                         send(self.master_server_socket, resp.SerializeToString())
 
