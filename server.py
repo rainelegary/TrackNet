@@ -54,10 +54,10 @@ class Server():
         )
 
         self.isMaster = False
+        self.connected_to_master = False
         self.proxy_host = "localhost"
         self.proxy_port = 5555
         self.connect_to_proxy (self.proxy_host, self.proxy_port)
-        self.connected_to_master = False
         #self.listen_on_socket ()
 
     def set_slave_identification_msg (self, slave_identification_msg: TrackNet_pb2.InitConnection):
