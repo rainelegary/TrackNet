@@ -171,11 +171,7 @@ class ProxyServer:
                 print("Slave server connection lost.")
         client_socket.close()
 
-<<<<<<< HEAD
     def shutdown(self, server_socket): #shutdown process
-=======
-    def shutdown(self, server_socket):
->>>>>>> main
         with self.lock:
             server_socket.close()
             for socket in self.socket_list:
