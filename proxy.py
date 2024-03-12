@@ -4,11 +4,7 @@ import threading
 import TrackNet_pb2
 import TrackNet_pb2 as proto
 import utils
-<<<<<<< HEAD
-from utils import *
-=======
 import traceback
->>>>>>> main
 
 class ProxyServer:
     def __init__(self, host, port):
@@ -66,19 +62,24 @@ class ProxyServer:
                             new_message.sender = proto.InitConnection.Sender.PROXY
                             new_message.client_state.CopyFrom(init_conn.client_state)
                             utils.send(self.master_server_socket, new_message.SerializeToString())
+                            print("client state forwaded to master server")
                         else:
                             print("There is currently no master server")
 
-                elif init_conn.sender  == proto.InitConnection.Sender.SERVER_MASTER:
+                elif (init_conn.sender == proto.InitConnection.Sender.SERVER_MASTER) and (init_conn.HasField("server_response")):
                     with self.lock:
-                        print ("Received message from master server")
+                        print (f"Received message from master server, ip:{init_conn.server_response.clientIP} port:{init_conn.server_response.clientPort}")
                         print (init_conn)
+
                         # Extract the target client's IP and port
                         target_client_key = f"{init_conn.server_response.clientIP}:{int(init_conn.server_response.clientPort)}"
                         target_client_socket = self.client_sockets.get(target_client_key)
+                        print("found client")
                         new_message = proto.InitConnection()
                         new_message.sender = proto.InitConnection.Sender.PROXY
-                        new_message.ServerResponse.CopyFrom(init_conn.ServerResponse)
+                        print(f"about to copy: {init_conn.server_response}")
+                        new_message.server_response.CopyFrom(init_conn.server_response)
+                        print("response message to client created")
                         if target_client_socket:
                             utils.send(target_client_socket, new_message.SerializeToString())  # Forward the server's message to the target client
                         else:
@@ -109,20 +110,50 @@ class ProxyServer:
                             print ("sending role assignment to server")
                             utils.send(client_socket,new_message.SerializeToString())
                             
-                        else:
+                        else: # currently jave a master so this is a slave server 
                             self.slave_server_sockets.append(client_socket)
                             print("Slave server added")
-                            #new_message = proto.InitConnection()
-                            #new_message.sender = proto.InitConnection.Sender.PROXY
+                            print("Already have a master, so assign as a salve")
                             new_message = proto.ServerAssignment()
                             new_message.isMaster = False
-                            master_ip, master_port = self.master_server_socket.getsockname()
-                            masterServerDetails = new_message.servers.add()
-                            masterServerDetails.host = master_ip
-                            masterServerDetails.port = master_port
+                            print ("sending role assignment to slave server")
                             utils.send(client_socket,new_message.SerializeToString())
+
+                           
+                            slave_resp = TrackNet_pb2.InitConnection()
+                            slave_resp.CopyFrom(init_conn)
+                            print ("received slave response")
+                            print (slave_resp)
+                            if slave_resp.sender == TrackNet_pb2.InitConnection.Sender.SERVER_SLAVE:
+                                print("Received a message from slave server")
+                                if slave_resp.slave_server_details.host and slave_resp.slave_server_details.port:
+                                    slave_ip   = slave_resp.slave_server_details.host
+                                    slave_port = slave_resp.slave_server_details.port
+                                    print(f"Received ip from slave server:   {slave_resp.slave_server_details.host} {slave_ip}")
+                                    print(f"Received port from slave server: {slave_resp.slave_server_details.port} {slave_port}")
+
+                                    #Notify master server of new slave server so it can connect to it
+                                    resp = TrackNet_pb2.InitConnection()
+                                    resp.sender = TrackNet_pb2.InitConnection.Sender.PROXY
+                                    resp.slave_server_details.host = slave_ip
+                                    resp.slave_server_details.port = slave_port
+                                    print ("Sending new slave details to master")
+                                    send(self.master_server_socket, resp.SerializeToString())
+
                             print ("sent details of slave to master server")
                             # handle response of an acknowledgment 
+                            #new_message = proto.InitConnection()
+                            #new_message.sender = proto.InitConnection.Sender.PROXY
+                            # new_message = proto.ServerAssignment()
+                            # new_message.isMaster = False
+                            # master_ip, master_port = self.master_server_socket.getsockname()
+                            # masterServerDetails = new_message.servers.add()
+                            # masterServerDetails.host = master_ip
+                            # masterServerDetails.port = master_port
+                            # utils.send(client_socket,new_message.SerializeToString())
+                            
+                            
+
 
             except Exception as e:
                 print(traceback.format_exc())

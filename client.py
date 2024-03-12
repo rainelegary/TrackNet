@@ -168,11 +168,13 @@ class Client():
                 
                 if send(self.sock, message.SerializeToString()):
                     data = receive(self.sock)
+                    resp = TrackNet_pb2.InitConnection()
                     server_resp = TrackNet_pb2.ServerResponse()
                     
                     if data is not None:
-                        server_resp.ParseFromString(data)
-                        
+                        resp.ParseFromString(data)
+                        server_resp.CopyFrom(resp.server_response)
+
                         if self.train.name is None:
                             self.train.name = server_resp.train.id
                             LOGGER.debug(f"Initi. {self.train.name}")
@@ -199,7 +201,7 @@ class Client():
                         elif server_resp.status == TrackNet_pb2.ServerResponse.UpdateStatus.CLEAR:
                             if self.train.state in [TrainState.PARKED, TrainState.STOPPED]:
                                 LOGGER.debug("UNPARKING")
-                                self.train.unpark(server_resp.speed_change)
+                                self.train.unpark(server_resp.speed)
                         
                     #self.sock.close()
             else:
