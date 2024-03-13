@@ -119,8 +119,8 @@ class Client():
         :param state: The `ClientState` message object to be populated with the train's current state.
         """
 
-        state.clientIP = clientIP
-        state.clientPort = f"{clientPort}"
+        state.client.ip = clientIP
+        state.client.port = clientPort
     
         if self.train.name is not None:
             state.train.id = self.train.name
