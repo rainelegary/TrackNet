@@ -138,7 +138,7 @@ class ProxyServer:
                                     resp.slave_server_details.host = slave_ip
                                     resp.slave_server_details.port = slave_port
                                     print ("Sending new slave details to master")
-                                    send(self.master_server_socket, resp.SerializeToString())
+                                    utils.send(self.master_server_socket, resp.SerializeToString())
 
                             print ("sent details of slave to master server")
                             # handle response of an acknowledgment 
