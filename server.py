@@ -57,6 +57,7 @@ class Server():
         )
 
         self.isMaster = False
+        self.connected_to_master = False
         self.proxy_host = "localhost"
         self.proxy_port = 5555
         self.connect_to_proxy (self.proxy_host, self.proxy_port)
