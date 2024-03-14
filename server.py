@@ -41,7 +41,7 @@ class Server():
         :ivar trains: A list of Train objects managed by the server.
         :ivar train_counter: A counter to assign unique IDs to trains.
         """
-        self.host = host
+        self.host = socket.gethostname()
         self.port = port
         self.sock = None
 
@@ -57,8 +57,7 @@ class Server():
         )
 
         self.isMaster = False
-        self.connected_to_master = False
-        self.proxy_host = "localhost"
+        self.proxy_host = "csx2.uc.ucalgary.ca"
         self.proxy_port = 5555
         self.connect_to_proxy (self.proxy_host, self.proxy_port)
         #self.listen_on_socket ()
@@ -139,6 +138,13 @@ class Server():
                         proxy_resp.ParseFromString(data)
                         print(proxy_resp)
 
+                        if proxy_resp.HasField("isHeartBeat"): # respond to heartbeat message                             
+                            masterserverResponse = TrackNet_pb2.InitConnection()
+                            masterserverResponse.sender = TrackNet_pb2.InitConnection.Sender.SERVER_MASTER
+                            masterserverResponse.isHeartBeat = True
+                            send(self.proxy_sock, masterserverResponse.SerializeToString())
+
+
                         #Receive updates on new slaves connecting to the proxy
                         if proxy_resp.HasField("slave_server_details"):
                             LOGGER.debug ("Received slave server details from proxy")
@@ -167,7 +173,7 @@ class Server():
 
                             print("sent a server response back")
                             # Create a separate thread for talking to slaves
-                            print("sned backups to the slaves")
+                            print("send backups to the slaves")
                             #threading.Thread(target=self.talk_to_slaves, args=(proxy_resp.client_state,), daemon=True).start()
                             threading.Thread(target=self.talk_to_slaves, daemon=True).start()
 
@@ -324,7 +330,7 @@ class Server():
                     print("data received at slave")
                     #Check if sender is master
                     if master_resp.sender == TrackNet_pb2.InitConnection.SERVER_MASTER and master_resp.HasField("railway_update"):
-                        print(f"Received a backup form the master: {master_resp.railway_update}")
+                        print(f"Received a backup from the master: {master_resp.railway_update}")
                         # need to store the backup
                         LOGGER.debug(f"Received railway update from master at {master_resp.railway_update.timestamp}")
         except Exception as e:
