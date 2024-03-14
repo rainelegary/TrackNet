@@ -139,28 +139,19 @@ message Response {
 }
 
 message InitConnection {
-     enum Sender {
+    enum Sender {
         SERVER_MASTER = 0;
         SERVER_SLAVE = 1;
         CLIENT = 2;
         PROXY = 3;
-     }
+    }
 
-<<<<<<< HEAD
-     optional Sender sender = 1;
-     optional ClientState client_state = 2;
-     optional ServerResponse server_response = 3;
-     optional RailwayUpdate railway_update = 4;
-     optional ServerAssignment server_assignment = 5;
-     optional ServerDetails new_slave_server_details = 6;
-
-=======
-    optional bool isHeartBeat = 1;
-     optional Sender sender = 2;
-     optional ClientState client_state = 3;
-     optional ServerResponse server_response = 4;
-     optional RailwayUpdate railway_update = 5;
-     optional ServerDetails slave_server_details = 6;
->>>>>>> main
+    optional Sender sender = 1;
+    optional ClientState client_state = 2;
+    optional ServerResponse server_response = 3;
+    optional RailwayUpdate railway_update = 4;
+    optional ServerAssignment server_assignment = 5;
+    optional ServerDetails new_slave_server_details = 6;
+    optional bool isHeartBeat = 7;
 }
 
