@@ -5,6 +5,7 @@ import TrackNet_pb2
 import TrackNet_pb2 as proto
 import utils
 import traceback
+import time
 
 class ProxyServer:
     def __init__(self, host, port):
@@ -15,6 +16,9 @@ class ProxyServer:
         self.client_sockets = {}  # Map client address (IP, port) to socket for direct access
         self.socket_list = []
         self.lock = threading.Lock()
+        self.heartbeat_interval = 30
+        self.heartbeat_timeout = 10
+
 
     def run(self):
         server_socket = utils.create_server_socket(self.host, self.port)
@@ -109,6 +113,10 @@ class ProxyServer:
                             
                             print ("sending role assignment to server")
                             utils.send(client_socket,new_message.SerializeToString())
+
+                            ## need to start heartbeat mechanism
+                            thread = threading.Thread(target=self.send_heartbeat, args=(self.master_server_socket,), daemon=True).start()
+                            
                             
                         else: # currently have a master so this is a slave server 
                             self.slave_server_sockets.append(client_socket)
@@ -170,6 +178,52 @@ class ProxyServer:
                 self.slave_server_sockets.remove(client_socket)
                 print("Slave server connection lost.")
         client_socket.close()
+
+
+    def send_heartbeat(self, master_socket):
+        while not utils.exit_flag and self.master_server_socket == master_socket:
+            with self.lock:
+                if self.master_server_socket:
+                    try:
+                        heartbeat_message = proto.InitConnection()
+                        heartbeat_message.isHeartBeat = True
+                        utils.send(self.master_server_socket, heartbeat_message.SerializeToString())
+                        
+                        # Wait for a response with a timeout
+                        ready = select.select([self.master_server_socket], [], [], self.heartbeat_timeout)
+                        if ready[0]:
+                            response = utils.receive(self.master_server_socket)
+                            if response:
+                                print("Heartbeat acknowledged by master server.")
+                            else:
+                                raise Exception("No heartbeat response from master server.")
+                        else:
+                            raise Exception("Heartbeat response timed out.")
+                    except Exception as e:
+                        print("Master server is not responding. Considered dead.")
+                        self.master_server_socket = None
+                        ## need to select a new master 
+                        ## need to notify the 
+                        if self.slave_server_sockets:
+                            # promote first slave to master 
+                            new_master_server_socket  = self.slave_server_sockets.pop()
+
+                            #notify slave of promotion
+                            new_master_message = proto.ServerAssignment()
+                            new_master_message.isMaster = True
+                            utils.send(new_master_server_socket, new_master_message.SerializeToString())
+                            print("A new master server has been promoted.")
+
+                            # notify back up proxy of promotion 
+                            
+                            self.master_server_socket = new_master_server_socket
+                            # start a heartbeat for the new master 
+                            thread = threading.Thread(target=self.send_heartbeat, args=(self.master_server_socket,), daemon=True).start()
+                        else:
+                            print("No slave servers available to promote to master.")
+                        break
+            time.sleep(self.heartbeat_interval)
+
 
     def shutdown(self, server_socket): #shutdown process
         with self.lock:
