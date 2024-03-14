@@ -16,8 +16,6 @@ class TrainMovement(Train):
         junction_back: Junction = None,
     ):
         Train.__init__(self, name, length, junction_front, junction_back)
-        self.next_junction = None
-        self.prev_junction = None
         self.junction_delay = 5
         #speed is set by the server
         self.stay_parked = False

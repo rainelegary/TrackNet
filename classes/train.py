@@ -35,6 +35,8 @@ class Train:
         self.route = None
         #speed is set by the server
         self.current_speed = 0 
+        self.next_junction = None
+        self.prev_junction = None
     
     def set_route(self, route):
         self.route = route

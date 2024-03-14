@@ -331,74 +331,7 @@ class Server():
         finally:
             conn.close()
             self.connected_to_master = False #Reset the flag to allow for a new connection
-
-
-    def railway_from_railway_update(self, data) -> Railway:
-        # railmap
-            # junctions
-                # id
-                # neighboring track id's (change proto)
-                # parked train id's (change proto)
-            # tracks
-                # junction_a id
-                # junction_b id
-                # id
-                # train id's (change proto)
-                # condition
-                # speed
-
-        # trains
-            # id
-            # length
-            # state
-            # location
-                #
-            # route
-                #
-            # destination junction id (change proto)
-            # speed
-
-        # train counter
-        pass
-
-
-
-    def set_railway_update_msg(self) -> TrackNet_pb2.InitConnection:
-        update = TrackNet_pb2.RailwayUpdate()
-
-        # railmap
-            # junctions
-                # id
-                # neighboring track id's (change proto)
-                # parked train id's (change proto)
-            # tracks
-                # junction_a id
-                # junction_b id
-                # id
-                # train id's (change proto)
-                # condition
-                # speed
-
-        # trains
-            # id
-            # length
-            # state
-            # location
-                #
-            # route
-                #
-            # destination junction id (change proto)
-            # speed
-
-        # train counter
-
-
-        update.railway.map = 1
-        update.railway.trains
-        update.railway.train_counter
-        update.timestamp = 2
-
-        
+            
 
     def get_train(self, train: TrackNet_pb2.Train, origin_id: str):
         """Retrieves a Train object based on its ID. If the train does not exist, it creates a new Train object.
@@ -437,7 +370,7 @@ class Server():
                 resp.status = TrackNet_pb2.ServerResponse.UpdateStatus.CHANGE_SPEED
                 resp.speed = 200     ## TODO set slow speed
                 
-        # update train location
+        # update train
         self.railway.update_train(train, TrainState(client_state.train.state), client_state.location)
 
         # (TODO) use speed, location & route data to detect possible conflicts.
@@ -475,9 +408,10 @@ class Server():
                     resp.speed = 200     ## TODO set slow speed
                     
             # update train location
-            self.railway.update_train(train, TrainState(client_state.train.state), client_state.location)
+            self.railway.update_train(train, TrainState(client_state.train.state), client_state.location, client_state.route)
 
-            # (TODO) use speed, location & route data to detect possible conflicts.
+            # TODO Run conflict analyzer
+
             resp.speed = 200
             resp.status = TrackNet_pb2.ServerResponse.UpdateStatus.CLEAR
             

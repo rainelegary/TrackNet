@@ -54,6 +54,37 @@ class ConflictAnalyzer:
     def reroute(railway, commands, train_id, junction_blacklist, track_blacklist): # throws CannotRerouteException
         pass # new reroute function TODO in later iterations
     
+    
+    def reroute_train(self, train_name, avoid_track_name):
+        """
+        Previous implemenation as written in the server class
+        """
+
+
+        """
+        Reroutes a train to avoid a specified track.
+
+        :param train_name: The name of the train to reroute.
+        :param avoid_track_name: The name of the track to avoid.
+        """
+        train = self.trains[train_name]
+        if not train:
+            print(f"No train found with the name {train_name}.")
+            return
+
+        # Destination is the last junction in the train's current route
+        destination_junction = train.route.tracks[-1]
+
+        # Find a new route from the train's current junction to the destination
+        new_route = self.map.find_shortest_path(train.current_junction, destination_junction, avoid_track_name)
+
+        if new_route:
+            # Update the train's route
+            train.set_route(new_route)
+            print(f"Train {train_name} rerouted successfully.")
+        else:
+            print(f"No alternative route found for Train {train_name}.")
+    
 
     """
     Resolve a conflict that may occur on train's current track

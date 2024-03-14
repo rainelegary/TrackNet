@@ -39,9 +39,34 @@ class MessageConverter:
     
     @staticmethod
     def railway_msg_to_obj(msg: TrackNet_pb2.Railway) -> Railway:
-        railway = Railway()
-        railway.map = MessageConverter.railmap_msg_to_obj(msg.map)
-        railway.trains
+
+        # junctions and tracks
+        junctions = list(msg.map.junctions.keys())
+        tracks = []
+        for track_name in msg.map.tracks.keys():
+            track_msg = msg.map.tracks[track_name]
+            junction_a = track_msg.junction_a
+            junction_b = track_msg.junction_b
+            length = track_msg.length
+            track = (junction_a, junction_b, length)
+            tracks.append(track)
+
+        railway = Railway(None, junctions, tracks)
+
+        # trains
+        for train_name in msg.trains.keys():
+            train_msg = msg.trains[train_name]
+            location_msg = train_msg.location
+
+            length = train_msg.length
+            filler_junction = railway.map.junctions.keys()[0]
+            train_state = MessageConverter.train_state_proto_to_py(train_msg.state)
+
+            train = railway.create_new_train(length, filler_junction)
+            railway.update_train(train, train_state, location_msg)
+
+        return railway
+        
 
     
     @staticmethod
@@ -56,6 +81,13 @@ class MessageConverter:
     
     @staticmethod
     def railmap_msg_to_obj(msg: TrackNet_pb2.Railmap) -> RailMap:
+
+        # similar to generating railmap from initial config
+
+        # junctions
+
+        # tracks
+
         pass
 
 
@@ -69,7 +101,7 @@ class MessageConverter:
 
     
     @staticmethod
-    def junction_msg_to_obj(msg: TrackNet_pb2.Junction) -> Junction:
+    def junction_msg_to_obj(msg: TrackNet_pb2.Junction, track_refs: "dict[str, Track]") -> Junction:
         pass
     
 
@@ -78,6 +110,7 @@ class MessageConverter:
         msg = TrackNet_pb2.Track()
         msg.junction_a = track.junctions[0]
         msg.junction_b = track.junctions[1]
+        msg.length = track.length
         msg.id = track.name
         msg.trains.extend(list(track.trains.keys()))
         msg.condition = MessageConverter.track_condition_py_to_proto(track.condition)
@@ -86,7 +119,10 @@ class MessageConverter:
 
     
     @staticmethod
-    def track_msg_to_obj(msg: TrackNet_pb2.Track) -> Track:
+    def track_msg_to_obj(msg: TrackNet_pb2.Track, train_refs: "dict[str, Train]") -> Track:
+
+        # needs train objects
+        
         pass
 
 
@@ -94,13 +130,17 @@ class MessageConverter:
     def track_condition_py_to_proto(track_condition: TrackCondition) -> TrackNet_pb2.TrackCondition:
         return {
             TrackCondition.BAD: TrackNet_pb2.TrackCondition.BAD,
-            TrackCondition.GOOD: TrackNet_pb2.TrackCondition.GOOD
+            TrackCondition.GOOD: TrackNet_pb2.TrackCondition.GOOD,
         }[track_condition]
 
     
     @staticmethod
     def track_condition_proto_to_py(track_condition: TrackNet_pb2.TrackCondition) -> TrackCondition:
-        pass
+        return {
+            TrackNet_pb2.TrackCondition.BAD: TrackCondition.BAD,
+            TrackNet_pb2.TrackCondition.GOOD: TrackCondition.GOOD,
+        }[track_condition]
+
 
 
     @staticmethod
@@ -114,18 +154,16 @@ class MessageConverter:
         return msg
     
     @staticmethod
-    def train_msg_to_obj(msg: TrackNet_pb2.Train) -> Train:
+    def train_msg_to_obj(msg: TrackNet_pb2.Train, junction_refs: "dict[str, Junction]", track_refs: "dict[str, Track]") -> Train:
+
+        # needs junction objects for route
+        # needs track objects for location and route
+
+        # location
+
+        # route
+
         pass
-
-
-    # Railway
-        # Railmap
-            # Junctions
-                # Neighbours
-                # 
-        # Train
-            # Route
-                # Junction ID
 
 
     @staticmethod
@@ -142,7 +180,14 @@ class MessageConverter:
     
     @staticmethod
     def train_state_proto_to_py(train_state: TrackNet_pb2.Train.TrainState) -> TrainState:
-        pass
+        return {
+            TrackNet_pb2.Train.TrainState.RUNNING: TrainState.RUNNING,
+            TrackNet_pb2.Train.TrainState.SLOW: TrainState.SLOW,
+            TrackNet_pb2.Train.TrainState.STOPPED: TrainState.STOPPED,
+            TrackNet_pb2.Train.TrainState.PARKED: TrainState.PARKED,
+            TrackNet_pb2.Train.TrainState.PARKING: TrainState.PARKING,
+            TrackNet_pb2.Train.TrainState.UNPARKING: TrainState.UNPARKING, 
+        }[train_state]
 
 
     @staticmethod
@@ -156,7 +201,11 @@ class MessageConverter:
     
     @staticmethod
     def train_speed_proto_to_py(train_speed: TrackNet_pb2.TrainSpeed) -> TrainSpeed:
-        pass
+        return {
+            TrackNet_pb2.TrainSpeed.STOPPED: TrainSpeed.STOPPED,
+            TrackNet_pb2.TrainSpeed.SLOW: TrainSpeed.SLOW,
+            TrackNet_pb2.TrainSpeed.FAST: TrainSpeed.FAST,
+        }[train_speed]
 
 
     @staticmethod
@@ -172,7 +221,11 @@ class MessageConverter:
 
     
     @staticmethod
-    def location_msg_to_obj(msg: TrackNet_pb2.Location) -> Location:
+    def location_msg_to_obj(msg: TrackNet_pb2.Location, junction_refs: "dict[str, Junction]", track_refs: "dict[str, Track]") -> Location:
+
+        # need junction objects
+        # need track objects
+
         pass
 
 
@@ -186,9 +239,41 @@ class MessageConverter:
 
     
     @staticmethod
-    def route_msg_to_obj(msg: TrackNet_pb2.Route) -> Route:
-        
-        pass
+    def route_msg_to_obj(msg: TrackNet_pb2.Route, junction_refs: "dict[str, Junction]") -> Route:
+        route = Route()
+        for junction_name in msg.junctions:
+            route.junctions.append(junction_refs[junction_name])
+        route.current_junction_index = msg.current_junction_index
+        route.destination = route.junctions[len(route.junctions) - 1]
+
+        return route
+    
+
+    # railmap
+        # junctions
+            # id
+            # neighboring track id's (change proto)
+            # parked train id's (change proto)
+        # tracks
+            # junction_a id
+            # junction_b id
+            # id
+            # train id's (change proto)
+            # condition
+            # speed
+
+    # trains
+        # id
+        # length
+        # state
+        # location
+            #
+        # route
+            #
+        # destination junction id (change proto)
+        # speed
+
+    # train counter
         
 
 
