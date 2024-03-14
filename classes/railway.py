@@ -3,6 +3,8 @@ from .junction import *
 from .route import *
 from .train import *
 from .track import *
+import logging
+LOGGER = logging.getLogger(__name__)
 from message_converter import MessageConverter
 
 

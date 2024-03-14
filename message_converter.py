@@ -15,7 +15,7 @@ class MessageConverter:
     @staticmethod
     def railway_obj_and_ts_to_railway_update_msg(railway: Railway, timestamp: str) -> TrackNet_pb2.RailwayUpdate:
         msg = TrackNet_pb2.RailwayUpdate()
-        msg.railway = MessageConverter.railway_obj_to_msg(railway)
+        msg.railway.CopyFrom(MessageConverter.railway_obj_to_msg(railway))
         msg.timestamp = timestamp
         return msg
 
@@ -26,11 +26,10 @@ class MessageConverter:
         timestamp = msg.timestamp
         return (railway, timestamp)
 
-
     @staticmethod
     def railway_obj_to_msg(railway: Railway) -> TrackNet_pb2.Railway:
         msg = TrackNet_pb2.Railway()
-        msg.map = MessageConverter.railmap_obj_to_msg(railway.map)
+        msg.map.CopyFrom(MessageConverter.railmap_obj_to_msg(railway.map))
         for train_name, train in railway.trains.items():
             msg.trains[train_name] = MessageConverter.train_obj_to_msg(train)
         msg.train_counter = len(railway.trains)
@@ -39,7 +38,6 @@ class MessageConverter:
     
     @staticmethod
     def railway_msg_to_obj(msg: TrackNet_pb2.Railway) -> Railway:
-
         # junctions and tracks
         junctions = list(msg.map.junctions.keys())
         tracks = []
@@ -66,16 +64,16 @@ class MessageConverter:
             railway.update_train(train, train_state, location_msg)
 
         return railway
-        
+    
 
     
     @staticmethod
     def railmap_obj_to_msg(railmap: RailMap) -> TrackNet_pb2.Railmap:
         msg = TrackNet_pb2.Railmap()
         for junction_name, junction in railmap.junctions.items():
-            msg.junctions[junction_name] = MessageConverter.junction_obj_to_msg(junction)
+            msg.junctions[junction_name].CopyFrom(MessageConverter.junction_obj_to_msg(junction))
         for track_name, track in railmap.tracks.items():
-            msg.tracks[track_name] = MessageConverter.track_obj_to_msg(track)
+            msg.tracks[track_name].CopyFrom(MessageConverter.track_obj_to_msg(track))
         return msg
 
     
@@ -93,9 +91,11 @@ class MessageConverter:
 
     @staticmethod
     def junction_obj_to_msg(junction: Junction) -> TrackNet_pb2.Junction:
-        msg = TrackNet_pb2.junction()
+        msg = TrackNet_pb2.Junction()
         msg.id = junction.name
-        msg.neighbors.extend(list(junction.neighbors.keys()))
+        for junction_name, track_object in junction.neighbors.items():
+            msg.neighbors[junction_name] = track_object.name
+        
         msg.parked_trains.extend(list(junction.parked_trains.keys()))
         return msg
 

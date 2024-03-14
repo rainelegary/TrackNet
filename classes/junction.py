@@ -1,3 +1,6 @@
+import logging
+LOGGER = logging.getLogger(__name__)
+
 class Junction:
     """Represents a railway junction where tracks start or end.
     
