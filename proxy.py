@@ -195,6 +195,7 @@ class ProxyServer:
                         if ready[0]:
                             response = utils.receive(self.master_server_socket)
                             if response:
+                                # need to be updated incase receiving a non heartbeat message 
                                 print("Heartbeat acknowledged by master server.")
                             else:
                                 raise Exception("No heartbeat response from master server.")
