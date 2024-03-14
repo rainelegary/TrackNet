@@ -121,7 +121,8 @@ class Proxy:
         # remove new master from list of slaves
         self.remove_slave_socket(slave_socket)
 
-        ## start heartbeat thread with master
+        threading.Thread(target=self.send_heartbeat, args=(self.master_socket,), daemon=True).start()
+
 
     def notify_master_of_slaves(self):
         # Notify master of new slave server so it can connect to it
@@ -210,6 +211,56 @@ class Proxy:
                 # main proxy does not do anything here i think ?? 
                 break
 
+    def send_heartbeat(self, master_socket):
+        while not utils.exit_flag and self.master_socket == master_socket:
+            with self.lock:
+                if self.master_socket:
+                    try:
+                        heartbeat_message = proto.InitConnection()
+                        heartbeat_message.sender = TrackNet_pb2.InitConnection.Sender.PROXY
+                        heartbeat_message.is_heartbeat = True
+                        if not send(self.master_socket, heartbeat_message.SerializeToString()):
+                            LOGGER.warning(f"Failed to send heartbeat request to master server")
+                        
+                        # Wait for a response with a timeout
+                        ready = select.select([self.master_socket], [], [], self.heartbeat_timeout)
+                        if ready[0]:
+                            response = utils.receive(self.master_socket)
+                            if response:
+                                print("Heartbeat acknowledged by master server.")
+                            else:
+                                raise Exception("No heartbeat response from master server.")
+                        else:
+                            raise Exception("Heartbeat response timed out.")
+                        
+                    except Exception as e:
+                        print("Master server is not responding. Considered dead.")
+                        self.master_socket = None
+                        ## need to select a new master 
+                        ## need to notify the 
+                        if len(self.slave_sockets) > 0:
+                            # promote first slave to master 
+                            new_master_socket  = self.slave_server_sockets.pop()
+
+                            self.promote_slave_to_master(new_master_socket)
+
+                            #notify slave of promotion
+                            #new_master_message = proto.ServerAssignment()
+                            #new_master_message.isMaster = True
+                            #utils.send(new_master_server_socket, new_master_message.SerializeToString())
+                            #print("A new master server has been promoted.")
+                            # notify back up proxy of promotion 
+                            #self.master_socket = new_master_server_socket
+                            # start a heartbeat for the new master 
+                            #thread = threading.Thread(target=self.send_heartbeat, args=(self.master_socket,), daemon=True).start()
+
+                        else:
+                            LOGGER.info("No slave servers available to promote to master.")
+
+                        break
+
+            time.sleep(self.heartbeat_interval)
+
     def handle_connection(self, conn: socket.socket, address):
         try:
             # Convert address to a string key
@@ -286,50 +337,7 @@ class Proxy:
             conn.close()
 
 
-    def send_heartbeat(self, master_socket):
-        while not utils.exit_flag and self.master_server_socket == master_socket:
-            with self.lock:
-                if self.master_server_socket:
-                    try:
-                        heartbeat_message = proto.InitConnection()
-                        heartbeat_message.sender = TrackNet_pb2.InitConnection.Sender.PROXY
-                        heartbeat_message.isHeartBeat = True
-                        utils.send(self.master_server_socket, heartbeat_message.SerializeToString())
-                        
-                        # Wait for a response with a timeout
-                        ready = select.select([self.master_server_socket], [], [], self.heartbeat_timeout)
-                        if ready[0]:
-                            response = utils.receive(self.master_server_socket)
-                            if response:
-                                print("Heartbeat acknowledged by master server.")
-                            else:
-                                raise Exception("No heartbeat response from master server.")
-                        else:
-                            raise Exception("Heartbeat response timed out.")
-                    except Exception as e:
-                        print("Master server is not responding. Considered dead.")
-                        self.master_server_socket = None
-                        ## need to select a new master 
-                        ## need to notify the 
-                        if self.slave_server_sockets:
-                            # promote first slave to master 
-                            new_master_server_socket  = self.slave_server_sockets.pop()
-
-                            #notify slave of promotion
-                            new_master_message = proto.ServerAssignment()
-                            new_master_message.isMaster = True
-                            utils.send(new_master_server_socket, new_master_message.SerializeToString())
-                            print("A new master server has been promoted.")
-
-                            # notify back up proxy of promotion 
-
-                            self.master_server_socket = new_master_server_socket
-                            # start a heartbeat for the new master 
-                            thread = threading.Thread(target=self.send_heartbeat, args=(self.master_server_socket,), daemon=True).start()
-                        else:
-                            print("No slave servers available to promote to master.")
-                        break
-            time.sleep(self.heartbeat_interval)
+    
 
 
     def shutdown(self, proxy_listening_sock: socket.socket): 
