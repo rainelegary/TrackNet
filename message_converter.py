@@ -66,7 +66,20 @@ class MessageConverter:
         return railway
     
 
-    
+    @staticmethod
+    def railmap_obj_to_msg(railmap: RailMap) -> TrackNet_pb2.Railmap:
+        msg = TrackNet_pb2.Railmap()
+        for junction_name, junction in railmap.junctions.items():
+            jun = MessageConverter.junction_obj_to_msg(junction)
+            #msg.junctions[junction_name].CopyFrom(MessageConverter.junction_obj_to_msg(junction))
+            msg.junctions[junction_name].id = jun.id
+            for k, n in jun.neighbors:
+                msg.junctions[junction_name].neighbors[k] = n
+            msg.junctions[junction_name].parked_trains.CopyFrom(jun.parked_trains)
+        for track_name, track in railmap.tracks.items():
+            msg.tracks[track_name].CopyFrom(MessageConverter.track_obj_to_msg(track))
+        return msg
+    """
     @staticmethod
     def railmap_obj_to_msg(railmap: RailMap) -> TrackNet_pb2.Railmap:
         msg = TrackNet_pb2.Railmap()
@@ -87,7 +100,7 @@ class MessageConverter:
             track_msg.MergeFrom(MessageConverter.track_obj_to_msg(track))
             
         return msg
-
+    """
     @staticmethod
     def railmap_obj_to_msg2(railmap: RailMap) -> TrackNet_pb2.Railmap:
         msg = TrackNet_pb2.Railmap()
