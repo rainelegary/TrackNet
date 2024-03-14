@@ -15,7 +15,7 @@ class MessageConverter:
     @staticmethod
     def railway_obj_and_ts_to_railway_update_msg(railway: Railway, timestamp: str) -> TrackNet_pb2.RailwayUpdate:
         msg = TrackNet_pb2.RailwayUpdate()
-        msg.railway = MessageConverter.railway_obj_to_msg(railway)
+        msg.railway.CopyFrom(MessageConverter.railway_obj_to_msg(railway))
         msg.timestamp = timestamp
         return msg
 
@@ -29,7 +29,7 @@ class MessageConverter:
     @staticmethod
     def railway_obj_to_msg(railway: Railway) -> TrackNet_pb2.Railway:
         msg = TrackNet_pb2.Railway()
-        msg.map = MessageConverter.railmap_obj_to_msg(railway.map)
+        msg.map.CopyFrom(MessageConverter.railmap_obj_to_msg(railway.map))
         for train_name, train in railway.trains.items():
             msg.trains[train_name] = MessageConverter.train_obj_to_msg(train)
         msg.train_counter = len(railway.trains)
@@ -38,18 +38,42 @@ class MessageConverter:
     
     @staticmethod
     def railway_msg_to_obj(msg: TrackNet_pb2.Railway) -> Railway:
-        railway = Railway()
-        railway.map = MessageConverter.railmap_msg_to_obj(msg.map)
-        railway.trains
+        # junctions and tracks
+        junctions = list(msg.map.junctions.keys())
+        tracks = []
+        for track_name in msg.map.tracks.keys():
+            track_msg = msg.map.tracks[track_name]
+            junction_a = track_msg.junction_a
+            junction_b = track_msg.junction_b
+            length = track_msg.length
+            track = (junction_a, junction_b, length)
+            tracks.append(track)
+
+        railway = Railway(None, junctions, tracks)
+
+        # trains
+        for train_name in msg.trains.keys():
+            train_msg = msg.trains[train_name]
+            location_msg = train_msg.location
+
+            length = train_msg.length
+            filler_junction = railway.map.junctions.keys()[0]
+            train_state = MessageConverter.train_state_proto_to_py(train_msg.state)
+
+            train = railway.create_new_train(length, filler_junction)
+            railway.update_train(train, train_state, location_msg)
+
+        return railway
+    
 
     
     @staticmethod
     def railmap_obj_to_msg(railmap: RailMap) -> TrackNet_pb2.Railmap:
         msg = TrackNet_pb2.Railmap()
         for junction_name, junction in railmap.junctions.items():
-            msg.junctions[junction_name] = MessageConverter.junction_obj_to_msg(junction)
+            msg.junctions[junction_name].CopyFrom(MessageConverter.junction_obj_to_msg(junction))
         for track_name, track in railmap.tracks.items():
-            msg.tracks[track_name] = MessageConverter.track_obj_to_msg(track)
+            msg.tracks[track_name].CopyFrom(MessageConverter.track_obj_to_msg(track))
         return msg
 
     
@@ -143,7 +167,14 @@ class MessageConverter:
     
     @staticmethod
     def train_state_proto_to_py(train_state: TrackNet_pb2.Train.TrainState) -> TrainState:
-        pass
+        return {
+            TrackNet_pb2.Train.TrainState.RUNNING: TrainState.RUNNING,
+            TrackNet_pb2.Train.TrainState.SLOW: TrainState.SLOW,
+            TrackNet_pb2.Train.TrainState.STOPPED: TrainState.STOPPED,
+            TrackNet_pb2.Train.TrainState.PARKED: TrainState.PARKED,
+            TrackNet_pb2.Train.TrainState.PARKING: TrainState.PARKING,
+            TrackNet_pb2.Train.TrainState.UNPARKING: TrainState.UNPARKING, 
+        }[train_state]
 
 
     @staticmethod

@@ -29,6 +29,7 @@ message Track {
     repeated string trains = 4;
     optional TrackCondition condition = 5;
     optional TrainSpeed speed = 6;
+    
 }
 
 message Junction {
