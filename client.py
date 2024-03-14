@@ -1,3 +1,4 @@
+import socket
 import TrackNet_pb2
 import logging
 import signal 
@@ -145,8 +146,8 @@ class Client():
         self.train.location.set_track(self.train.route.get_next_track())
         LOGGER.debug(f"init track={self.train.route.get_next_track()}")
 
-    
-    def run(self):
+    #Made new function below
+    def run_old(self):
         """Initiates the client's main loop, continuously sending its state to the server and processing the server's response. It handles connection management, state serialization, and response deserialization. Based on the server's response, it adjusts the train's speed, reroutes, or stops as necessary.
 
         The method uses a loop that runs until an `exit_flag` is set. It manages the socket connection, sends the train's state, and processes responses from the server. The method also handles rerouting, speed adjustments, and stopping the train based on the server's instructions.
@@ -212,8 +213,99 @@ class Client():
                 LOGGER.warning(f"run(): {exc}")
                 
             time.sleep(2)
+
+    def run (self):
+        """Initiates the client's main loop, continuously sending its state to the server and processing the server's response. It handles connection management, state serialization, and response deserialization. Based on the server's response, it adjusts the train's speed, reroutes, or stops as necessary.
+
+        The method uses a loop that runs until an `exit_flag` is set. It manages the socket connection, sends the train's state, and processes responses from the server. The method also handles rerouting, speed adjustments, and stopping the train based on the server's instructions.
+        """
+        proxy_items = list(proxy_details.items())
+        self.current_proxy = proxy_items[0]  # First item
+        self.backup_proxy = proxy_items[1]  # Second item
+        connected_to_main_proxy = True
+
+        while not utils.exit_flag:
+            try:
+                # Attempt to connect or reconnect if necessary
+                if not self.sock:
+                    #set current proxy to 
+                    proxy_host, proxy_port = self.current_proxy
+                    self.sock = create_client_socket(proxy_host, proxy_port)
+                    client_ip, client_port = self.sock.getsockname()
+                    self.sock.settimeout(10)  # Set a 10-second timeout for the socket
+
+                    if not self.sock:  # If connection failed, switch to backup and retry
+                        print("Connection with main proxy failed, switching to backup proxy.")
+                        self.current_proxy = self.backup_proxy
+                        connected_to_main_proxy = False
+                        continue  # Skip the rest of this iteration
+
+                    client_state = TrackNet_pb2.ClientState()
+                        
+                    self.set_client_state_msg(client_state, client_ip, client_port)
+                    LOGGER.debug(f"state={client_state.location}")
+                    
+                    message = TrackNet_pb2.InitConnection()
+                    message.sender = TrackNet_pb2.InitConnection.Sender.CLIENT
+                    message.client_state.CopyFrom(client_state)
+
+                    if send(self.sock, message.SerializeToString()):
+                        try:
+                            data = receive(self.sock)
+                            resp = TrackNet_pb2.InitConnection()
+                            server_resp = TrackNet_pb2.ServerResponse()
+                            
+                            if data is not None:
+                                resp.ParseFromString(data)
+                                server_resp.CopyFrom(resp.server_response)
+                                self.handle_server_response (server_resp)
+
+                        except socket.timeout:
+                            LOGGER.warning("Socket timeout. Switching to backup proxy.")
+                            self.sock.close()
+                            self.sock = None
+                            if not connected_to_main_proxy:
+                                self.current_proxy = self.backup_proxy
+                                continue  # Retry with the backup proxy
+                            else:
+                                LOGGER.error("Both main and backup proxies failed. Exiting.")
+                                break
+                else:
+                    LOGGER.debug("No active connection. Retrying...")
+                    self.sock = None
+            except Exception as e:
+                LOGGER.error(f"Unexpected error in the main loop: {e}")
+                break  # Exit the loop on unexpected error
+
+
+    def handle_server_response (self, server_resp):
+        if self.train.name is None:
+            self.train.name = server_resp.train.id
+            LOGGER.debug(f"Initi. {self.train.name}")
+
+        if self.train.route is None: 
+            if not server_resp.HasField("new_route"):
+                LOGGER.warning(f"Server has not yet provided route for train.")
+                ## cannot take instructions until route is assigned
+                self.sock.close()
+                return
             
+        if server_resp.status == TrackNet_pb2.ServerResponse.UpdateStatus.CHANGE_SPEED:
+            LOGGER.debug(f"CHANGE_SPEED {self.train.name} to {server_resp.speed_change}")
+            self.train.set_speed(server_resp.speed_change)
             
+        elif server_resp.status == TrackNet_pb2.ServerResponse.UpdateStatus.REROUTE:
+            LOGGER.debug(f"REROUTING {self.train.name}")
+            self.set_route(server_resp.route)
+        
+        elif server_resp.status == TrackNet_pb2.ServerResponse.UpdateStatus.STOP:
+            LOGGER.debug(f"STOPPING {self.train.name}")
+            self.train.stop()
+        
+        elif server_resp.status == TrackNet_pb2.ServerResponse.UpdateStatus.CLEAR:
+            if self.train.state in [TrainState.PARKED, TrainState.STOPPED]:
+                LOGGER.debug("UNPARKING")
+                self.train.unpark(server_resp.speed)        
     
     
 if __name__ == '__main__':

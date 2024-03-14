@@ -213,7 +213,15 @@ def receive(sock: socket.socket) -> bytes:
         #    bytes_to_recv = bytes_to_recv - len(recv)
         #    data = data + recv
 
+
+    except socket.timeout:
+        raise TimeoutError("Socket receiving timed out.")
+    except Exception as e:
+        raise RuntimeError(f"Error receiving data: {e}")
     except:
         return None
+
+    if not data:
+        raise ValueError("Received data is empty.")
 
     return data
