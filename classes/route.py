@@ -1,4 +1,6 @@
 from classes.junction import Junction
+import logging
+LOGGER = logging.getLogger(__name__)
 
 class Route:
     """
