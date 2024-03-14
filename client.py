@@ -15,7 +15,7 @@ from classes.trainmovement import TrainMovement
 from datetime import datetime
 
 setup_logging() ## only need to call at main entry point of application
-LOGGER = logging.getLogger(__name__)
+LOGGER = logging.getLogger("Client")
 
 initial_config = {
     "junctions": ["A", "B", "C", "D"],
@@ -119,8 +119,8 @@ class Client():
         :param state: The `ClientState` message object to be populated with the train's current state.
         """
 
-        state.clientIP = clientIP
-        state.clientPort = f"{clientPort}"
+        state.client.host = clientIP
+        state.client.port = clientPort
     
         if self.train.name is not None:
             state.train.id = self.train.name
@@ -135,7 +135,7 @@ class Client():
                 junction_msg = state.route.junctions.add() 
                 junction_msg.id = junction_obj.name
             
-            state.route.destination.id = self.train.route.destination.name
+            state.route.destination = self.train.route.destination.name
 
     def set_route(self, route: TrackNet_pb2.Route):
         new_route = []
@@ -152,60 +152,65 @@ class Client():
         The method uses a loop that runs until an `exit_flag` is set. It manages the socket connection, sends the train's state, and processes responses from the server. The method also handles rerouting, speed adjustments, and stopping the train based on the server's instructions.
         """
         while not utils.exit_flag:
-            self.sock = create_client_socket(self.host, self.port)
-            client_ip, client_port = self.sock.getsockname()
-            
-            if self.sock is not None:
-                LOGGER.debug("Connected")
-                client_state = TrackNet_pb2.ClientState()
-                
-                self.set_client_state_msg(client_state, client_ip, client_port)
-                LOGGER.debug(f"state={client_state.location}")
-                
-                message = TrackNet_pb2.InitConnection()
-                message.sender = TrackNet_pb2.InitConnection.Sender.CLIENT
-                message.client_state.CopyFrom(client_state)
-                
-                if send(self.sock, message.SerializeToString()):
-                    data = receive(self.sock)
-                    resp = TrackNet_pb2.InitConnection()
-                    server_resp = TrackNet_pb2.ServerResponse()
+            try:
+                self.sock = create_client_socket(self.host, self.port)
+                client_ip, client_port = self.sock.getsockname()
+                print(f"{client_ip}:{client_port}")
+                if self.sock is not None:
+                    LOGGER.debug("Connected")
+                    client_state = TrackNet_pb2.ClientState()
                     
-                    if data is not None:
-                        resp.ParseFromString(data)
-                        server_resp.CopyFrom(resp.server_response)
+                    self.set_client_state_msg(client_state, client_ip, client_port)
+                    LOGGER.debug(f"state={client_state.location}")
+                    
+                    message = TrackNet_pb2.InitConnection()
+                    message.sender = TrackNet_pb2.InitConnection.Sender.CLIENT
+                    message.client_state.CopyFrom(client_state)
+                    
+                    if send(self.sock, message.SerializeToString()):
+                        data = receive(self.sock)
+                        resp = TrackNet_pb2.InitConnection()
+                        server_resp = TrackNet_pb2.ServerResponse()
+                        
+                        if data is not None:
+                            resp.ParseFromString(data)
+                            server_resp.CopyFrom(resp.server_response)
 
-                        if self.train.name is None:
-                            self.train.name = server_resp.train.id
-                            LOGGER.debug(f"Initi. {self.train.name}")
-              
-                        if self.train.route is None: 
-                            if not server_resp.HasField("new_route"):
-                                LOGGER.warning(f"Server has not yet provided route for train.")
-                                ## cannot take instructions until route is assigned
-                                self.sock.close()
-                                continue
+                            if self.train.name is None:
+                                self.train.name = server_resp.train.id
+                                LOGGER.debug(f"Initi. {self.train.name}")
+                
+                            if self.train.route is None: 
+                                if not server_resp.HasField("new_route"):
+                                    LOGGER.warning(f"Server has not yet provided route for train.")
+                                    ## cannot take instructions until route is assigned
+                                    self.sock.close()
+                                    continue
+                                
+                            if server_resp.status == TrackNet_pb2.ServerResponse.UpdateStatus.CHANGE_SPEED:
+                                LOGGER.debug(f"CHANGE_SPEED {self.train.name} to {server_resp.speed_change}")
+                                self.train.set_speed(server_resp.speed_change)
+                                
+                            elif server_resp.status == TrackNet_pb2.ServerResponse.UpdateStatus.REROUTE:
+                                LOGGER.debug(f"REROUTING {self.train.name}")
+                                self.set_route(server_resp.route)
                             
-                        if server_resp.status == TrackNet_pb2.ServerResponse.UpdateStatus.CHANGE_SPEED:
-                            LOGGER.debug(f"CHANGE_SPEED {self.train.name} to {server_resp.speed_change}")
-                            self.train.set_speed(server_resp.speed_change)
+                            elif server_resp.status == TrackNet_pb2.ServerResponse.UpdateStatus.STOP:
+                                LOGGER.debug(f"STOPPING {self.train.name}")
+                                self.train.stop()
                             
-                        elif server_resp.status == TrackNet_pb2.ServerResponse.UpdateStatus.REROUTE:
-                            LOGGER.debug(f"REROUTING {self.train.name}")
-                            self.set_route(server_resp.route)
-                        
-                        elif server_resp.status == TrackNet_pb2.ServerResponse.UpdateStatus.STOP:
-                            LOGGER.debug(f"STOPPING {self.train.name}")
-                            self.train.stop()
-                        
-                        elif server_resp.status == TrackNet_pb2.ServerResponse.UpdateStatus.CLEAR:
-                            if self.train.state in [TrainState.PARKED, TrainState.STOPPED]:
-                                LOGGER.debug("UNPARKING")
-                                self.train.unpark(server_resp.speed)
-                        
-                    #self.sock.close()
-            else:
-                LOGGER.debug(f"no connection")
+                            elif server_resp.status == TrackNet_pb2.ServerResponse.UpdateStatus.CLEAR:
+                                if self.train.state in [TrainState.PARKED, TrainState.STOPPED]:
+                                    LOGGER.debug("UNPARKING")
+                                    self.train.unpark(server_resp.speed)
+                            
+                        #self.sock.close()
+                else:
+                    LOGGER.debug(f"no connection")
+                    
+            except Exception as exc: 
+                LOGGER.warning(f"run(): {exc}")
+                
             time.sleep(2)
             
             
