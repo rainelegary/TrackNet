@@ -33,7 +33,7 @@ message Track {
 
 message Junction {
     optional string id = 1;
-    repeated string neighbors = 2;
+    map<string, string> neighbors = 2;
     repeated string parked_trains = 3;
 }
 

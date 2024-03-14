@@ -12,7 +12,7 @@ from datetime import datetime
 import time
 import threading
 from utils import initial_config, proxy_details
-
+from message_converter import MessageConverter
 
 setup_logging() ## only need to call at main entry point of application
 LOGGER = logging.getLogger("Server")
@@ -193,8 +193,9 @@ class Server():
             print("HERE")
             master_resp = TrackNet_pb2.InitConnection()
             master_resp.sender = TrackNet_pb2.InitConnection.SERVER_MASTER
-            master_resp.railway_update.CopyFrom(self.create_railway_update_message())
-            
+            master_resp.railway_update.CopyFrom(MessageConverter.railway_obj_and_ts_to_railway_update_msg(self.railway,datetime.utcnow().isoformat()))
+            print(master_resp)
+
             if not send(slave_socket, master_resp.SerializeToString()):
                 LOGGER.warning(f"Railway update message failed to sent to slave")
 

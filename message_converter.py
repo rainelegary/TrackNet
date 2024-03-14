@@ -26,7 +26,6 @@ class MessageConverter:
         timestamp = msg.timestamp
         return (railway, timestamp)
 
-
     @staticmethod
     def railway_obj_to_msg(railway: Railway) -> TrackNet_pb2.Railway:
         msg = TrackNet_pb2.Railway()
@@ -61,9 +60,11 @@ class MessageConverter:
 
     @staticmethod
     def junction_obj_to_msg(junction: Junction) -> TrackNet_pb2.Junction:
-        msg = TrackNet_pb2.junction()
+        msg = TrackNet_pb2.Junction()
         msg.id = junction.name
-        msg.neighbors.extend(list(junction.neighbors.keys()))
+        for junction_name, track_object in junction.neighbors.items():
+            msg.neighbors[junction_name] = track_object.name
+        
         msg.parked_trains.extend(list(junction.parked_trains.keys()))
         return msg
 
