@@ -185,6 +185,7 @@ class Server():
         LOGGER.debug(f"number of slaves: {len(self.slave_sockets)}")
         for _ , slave_socket in self.slave_sockets.items():
             # Prepare the client state message
+            print("HERE")
             master_resp = TrackNet_pb2.InitConnection()
             master_resp.sender = TrackNet_pb2.InitConnection.SERVER_MASTER
             master_resp.railway_update.CopyFrom(self.create_railway_update_message())
@@ -274,7 +275,7 @@ class Server():
         # Data also needs to include an update of a new slave
         proxy_resp = TrackNet_pb2.InitConnection() 
         proxy_resp.ParseFromString(data)
-        LOGGER.debug(f"Master received response from proxy:{proxy_resp}")
+        LOGGER.debug(f"Master received response from proxy\n{proxy_resp}")
 
         # Receive updates on new slaves connecting to the proxy
         if len(proxy_resp.slave_details) > 0:
@@ -285,21 +286,23 @@ class Server():
                     self.connect_to_slave(slave_details.ip, slave_details.port)
         
         # listen on proxy sock for client states
-        if proxy_resp.HasField("client_state"):
-            LOGGER.debug("Proxy sent a client state")
+        elif proxy_resp.HasField("client_state"):
             resp = self.analyze_client_state(proxy_resp.client_state)
-            LOGGER.debug(f"handled client state: {resp}")
+            master_response = TrackNet_pb2.InitConnection()
+            master_response.sender = TrackNet_pb2.InitConnection.Sender.SERVER_MASTER
+            master_response.server_response.CopyFrom(resp) 
+            print(master_response)                        
 
-            masterserverResponse = TrackNet_pb2.InitConnection()
-            masterserverResponse.sender = TrackNet_pb2.InitConnection.Sender.SERVER_MASTER
-            print(resp)
-            masterserverResponse.server_response.CopyFrom(resp)                          
-
-            if not send(sock, masterserverResponse.SerializeToString()):
+            if not send(sock, master_response.SerializeToString()):
                 LOGGER.warning(f"ServerResponse message failed to send to proxy.")
+            else:
+                print("sent server response to proxy")
 
             # Create a separate thread for talking to slaves
             threading.Thread(target=self.talk_to_slaves, daemon=True).start()
+            
+        else:
+            LOGGER.warning(f"Server received msg from proxy with missing co0ntent: {proxy_resp}")
 
     def listen_to_proxy(self, proxy_sock):
         try:

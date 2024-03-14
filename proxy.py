@@ -8,6 +8,7 @@ import traceback
 import TrackNet_pb2
 import logging
 import sys
+import time
 from utils import *
 
 
@@ -29,8 +30,9 @@ class ProxyServer:
         server_socket = create_server_socket(self.host, self.port)
         self.socket_list.append(server_socket)
         LOGGER.info(f"Proxy listening on {self.host}:{self.port}")
-
+ 
         try:
+
             while not exit_flag:
                 # select.select(socks to monitor for incoming data, socks to write to, socks to monitor for exceptions, timeout value)
                 read_sockets, _, _ = select.select(self.socket_list, [], [], 0.5) #
@@ -41,11 +43,11 @@ class ProxyServer:
                         threading.Thread(target=self.handle_connection, args=(client_socket, client_address), daemon=True).start() 
             
                 # check for a master if there is one start a new thread for making sure it is alive 
+
         except Exception as exc:
-            LOGGER.error(f"run(): {exc}")     
+            LOGGER.error(f"run(): ")     
                      
-        finally:
-            self.shutdown(server_socket)
+        self.shutdown(server_socket)
 
     def proxy_to_client(self, client_state: TrackNet_pb2.ClientState):
         with self.lock:
@@ -62,18 +64,16 @@ class ProxyServer:
                 
     def proxy_to_master(self, server_response: TrackNet_pb2.ServerResponse):
        with self.lock:
-            LOGGER.debug(f"Received message from master server, ip:{server_response.client.ip} port:{server_response.client.port}")
+            LOGGER.debug(f"Received message from master server, ip:{server_response.client.host} port:{server_response.client.port}")
 
             # Extract the target client's IP and port
-            target_client_key = f"{server_response.client.ip}:{int(server_response.client.port)}"
+            target_client_key = f"{server_response.client.host}:{server_response.client.port}"
             target_client_socket = self.client_sockets.get(target_client_key)
-            print("found client")
             
             relay_resp = proto.InitConnection()
             relay_resp.sender = proto.InitConnection.Sender.PROXY
-            print(f"about to copy: {server_response}")
             relay_resp.server_response.CopyFrom(server_response)
-            LOGGER.debug("server response message to client created")
+            LOGGER.debug("Relaying server response message to client ...")
             
             # Forward the server's message to the target client
             if target_client_socket:
@@ -139,40 +139,36 @@ class ProxyServer:
     def proxy_to_proxy(self):
         pass
 
-    def handle_connection(self, client_socket, client_address):
+    def handle_connection(self, client_socket: socket.socket, client_address):
         # Convert address to a string key
         client_key = f"{client_address[0]}:{client_address[1]}"
         with self.lock:
             self.client_sockets[client_key] = client_socket
 
-        LOGGER.debug("New connection handled in thread")
+        LOGGER.debug(f"New connection handled in thread {client_key}")
 
         while not exit_flag:
-            message = receive(client_socket)
-
-            if message is None:
-                break
-
+            data = receive(client_socket)
             try:
-                init_conn = proto.InitConnection()
-                init_conn.ParseFromString(message)
+                if data:
+                    init_conn = proto.InitConnection()
+                    init_conn.ParseFromString(data)
+                    #print(f"recv: {init_conn}")
 
-                if init_conn.sender == proto.InitConnection.Sender.CLIENT:
-                    self.proxy_to_client(init_conn.client_state)
+                    if init_conn.sender == proto.InitConnection.Sender.CLIENT:
+                        self.proxy_to_client(init_conn.client_state)
 
-                elif init_conn.sender == proto.InitConnection.Sender.SERVER_MASTER:
-                    
-                    if init_conn.HasField("server_response"):
-                        self.proxy_to_master(init_conn.server_response)
-                            
-                    elif init_conn.HasField("is_heartbeat"):
-                        pass 
-                    
-                    else:
-                        LOGGER.warning(f"Proxy received msg from master with missing content.")
+                    elif init_conn.sender == proto.InitConnection.Sender.SERVER_MASTER:
                         
-                elif init_conn.sender  == proto.InitConnection.Sender.SERVER_SLAVE:
-                    self.proxy_to_slave(client_socket)
+                        if init_conn.HasField("server_response"):
+                            self.proxy_to_master(init_conn.server_response) 
+                        elif init_conn.HasField("is_heartbeat"):
+                            print("heartbeat") 
+                        else:
+                            LOGGER.warning(f"Proxy received msg from master with missing content {init_conn}")
+                            
+                    elif init_conn.sender  == proto.InitConnection.Sender.SERVER_SLAVE:
+                        self.proxy_to_slave(client_socket)
                             
             except Exception as e:
                 print(traceback.format_exc())
@@ -188,7 +184,6 @@ class ProxyServer:
                 print("Master server connection lost.")
                 
             elif client_key.split(":")[0] in self.slave_sockets:
-
                 del self.slave_sockets[client_key.split(":")[0]]
                 print("Slave server connection lost.")
                 
@@ -227,11 +222,11 @@ class ProxyServer:
                     
                     if init_conn.HasField("server_response"):
                         with self.lock:
-                            print(f"Received message from master server, ip:{init_conn.server_response.client.ip} port:{init_conn.server_response.client.port}")
+                            print(f"Received message from master server, ip:{init_conn.server_response.client.host} port:{init_conn.server_response.client.port}")
                             print(init_conn)
 
                             # Extract the target client's IP and port
-                            target_client_key = f"{init_conn.server_response.client.ip}:{int(init_conn.server_response.client.port)}"
+                            target_client_key = f"{init_conn.server_response.client.host}:{int(init_conn.server_response.client.port)}"
                             target_client_socket = self.client_sockets.get(target_client_key)
                             print("found client")
                             new_message = proto.InitConnection()
@@ -338,8 +333,9 @@ class ProxyServer:
 
     def shutdown(self, server_socket: socket.socket): 
         with self.lock:
-            server_socket.shutdown(socket.SHUT_RDWR)
-            server_socket.close()
+            if server_socket is not None:
+                server_socket.shutdown(socket.SHUT_RDWR)
+                server_socket.close()
             for socket in self.socket_list:
                 socket.shutdown(socket.SHUT_RDWR)
                 socket.close()

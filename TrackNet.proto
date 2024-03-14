@@ -38,7 +38,7 @@ message Junction {
 }
 
 message Route {
-    repeated string junctions = 1;
+    repeated Junction junctions = 1;
     optional int32 current_junction_index = 2;
     optional string destination = 3;
 }
