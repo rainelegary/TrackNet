@@ -13,6 +13,7 @@ from classes.railmap import RailMap
 from classes.route import Route
 from classes.trainmovement import TrainMovement
 from datetime import datetime
+from message_converter import MessageConverter
 
 setup_logging() ## only need to call at main entry point of application
 LOGGER = logging.getLogger(__name__)
@@ -187,8 +188,8 @@ class Client():
                                 continue
                             
                         if server_resp.status == TrackNet_pb2.ServerResponse.UpdateStatus.CHANGE_SPEED:
-                            LOGGER.debug(f"CHANGE_SPEED {self.train.name} to {server_resp.speed_change}")
-                            self.train.set_speed(server_resp.speed_change)
+                            LOGGER.debug(f"CHANGE_SPEED {self.train.name} to {server_resp.speed}")
+                            self.train.set_speed(server_resp.speed)
                             
                         elif server_resp.status == TrackNet_pb2.ServerResponse.UpdateStatus.REROUTE:
                             LOGGER.debug(f"REROUTING {self.train.name}")

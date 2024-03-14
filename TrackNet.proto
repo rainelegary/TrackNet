@@ -141,12 +141,12 @@ message Response {
 }
 
 message InitConnection {
-     enum Sender {
+    enum Sender {
         SERVER_MASTER = 0;
         SERVER_SLAVE = 1;
         CLIENT = 2;
         PROXY = 3;
-     }
+    }
 
     optional bool isHeartBeat = 1;
     optional Sender sender = 2;

@@ -1,5 +1,7 @@
 
-from enums import TrainState
+from classes.enums import TrainState, TrainSpeed
+import TrackNet_pb2
+
 
 class CannotRerouteException(Exception):
     pass
@@ -27,9 +29,21 @@ class ImmediateTrackConflict(Conflict):
 
 
 class ConflictAnalyzer:
+    """
+    The class uses for detecting conflicts within the railway system
+    and issuing commands to trains to prevent collisions.
+
+    command format:
+        change speed
+            new speed (enum)
+        reroute
+            list of junctions (including most recently visited)
+        stop
+        clear
+    """
 
     @staticmethod
-    def resolve_conflicts(railway):
+    def resolve_conflicts(railway, commands):
         # priority queue of conflicts (address high priority ones first) (TODO for later demoes)
 
         # create a map from train id to conflict instance (TODO for later demoes)
@@ -55,35 +69,35 @@ class ConflictAnalyzer:
         pass # new reroute function TODO in later iterations
     
     
-    def reroute_train(self, train_name, avoid_track_name):
-        """
-        Previous implemenation as written in the server class
-        """
+    # def reroute_train(self, train_name, avoid_track_name):
+    #     """
+    #     Previous implemenation as written in the server class
+    #     """
 
 
-        """
-        Reroutes a train to avoid a specified track.
+    #     """
+    #     Reroutes a train to avoid a specified track.
 
-        :param train_name: The name of the train to reroute.
-        :param avoid_track_name: The name of the track to avoid.
-        """
-        train = self.trains[train_name]
-        if not train:
-            print(f"No train found with the name {train_name}.")
-            return
+    #     :param train_name: The name of the train to reroute.
+    #     :param avoid_track_name: The name of the track to avoid.
+    #     """
+    #     train = self.trains[train_name]
+    #     if not train:
+    #         print(f"No train found with the name {train_name}.")
+    #         return
 
-        # Destination is the last junction in the train's current route
-        destination_junction = train.route.tracks[-1]
+    #     # Destination is the last junction in the train's current route
+    #     destination_junction = train.route.tracks[-1]
 
-        # Find a new route from the train's current junction to the destination
-        new_route = self.map.find_shortest_path(train.current_junction, destination_junction, avoid_track_name)
+    #     # Find a new route from the train's current junction to the destination
+    #     new_route = self.map.find_shortest_path(train.current_junction, destination_junction, avoid_track_name)
 
-        if new_route:
-            # Update the train's route
-            train.set_route(new_route)
-            print(f"Train {train_name} rerouted successfully.")
-        else:
-            print(f"No alternative route found for Train {train_name}.")
+    #     if new_route:
+    #         # Update the train's route
+    #         train.set_route(new_route)
+    #         print(f"Train {train_name} rerouted successfully.")
+    #     else:
+    #         print(f"No alternative route found for Train {train_name}.")
     
 
     """
@@ -122,7 +136,19 @@ class ConflictAnalyzer:
                 # then it would be redundant to tell it to slow down again
                 # so skip over those cases.
             
-            # NOTE we'll need some sort of command data structure to represent commands
+            if any((
+                command.status == TrackNet_pb2.ServerResponse.UpdateStatus.CHANGE_SPEED 
+                and command.speed == TrainSpeed.SLOW.value
+            ) for command in commands[train.name]):
+                # If this condition is true, then this train has a command telling it to slow down.
+                for train_j in range(i + 1, len(sorted_trains)):
+
+                    
+            
+                    new_command = TrackNet_pb2.ServerResponse()
+                    new_command.status = TrackNet_pb2.ServerResponse.UpdateStatus.CHANGE_SPEED
+                    new_command.speed = TrainSpeed.SLOW.value
+                    commands[sorted_trains[train_j].name].append(new_command)
                 
             break # already told all following trains to slow down so can exit loop
         
