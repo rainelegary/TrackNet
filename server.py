@@ -138,6 +138,13 @@ class Server():
                         proxy_resp.ParseFromString(data)
                         print(proxy_resp)
 
+                        if proxy_resp.HasField("isHeartBeat"): # respond to heartbeat message                             
+                            masterserverResponse = TrackNet_pb2.InitConnection()
+                            masterserverResponse.sender = TrackNet_pb2.InitConnection.Sender.SERVER_MASTER
+                            masterserverResponse.isHeartBeat = True
+                            send(self.proxy_sock, masterserverResponse.SerializeToString())
+
+
                         #Receive updates on new slaves connecting to the proxy
                         if proxy_resp.HasField("slave_server_details"):
                             LOGGER.debug ("Received slave server details from proxy")

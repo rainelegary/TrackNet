@@ -186,6 +186,7 @@ class ProxyServer:
                 if self.master_server_socket:
                     try:
                         heartbeat_message = proto.InitConnection()
+                        heartbeat_message.sender = TrackNet_pb2.InitConnection.Sender.PROXY
                         heartbeat_message.isHeartBeat = True
                         utils.send(self.master_server_socket, heartbeat_message.SerializeToString())
                         
@@ -215,7 +216,7 @@ class ProxyServer:
                             print("A new master server has been promoted.")
 
                             # notify back up proxy of promotion 
-                            
+
                             self.master_server_socket = new_master_server_socket
                             # start a heartbeat for the new master 
                             thread = threading.Thread(target=self.send_heartbeat, args=(self.master_server_socket,), daemon=True).start()
