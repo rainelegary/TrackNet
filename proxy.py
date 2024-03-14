@@ -216,7 +216,7 @@ class ProxyServer:
                             utils.send(new_master_server_socket, new_master_message.SerializeToString())
                             print("A new master server has been promoted.")
 
-                            # notify back up proxy of promotion 
+                            # back up proxy will be notified by the heartbeats
 
                             self.master_server_socket = new_master_server_socket
                             # start a heartbeat for the new master 
