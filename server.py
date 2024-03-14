@@ -35,7 +35,7 @@ class Server():
         :ivar trains: A list of Train objects managed by the server.
         :ivar train_counter: A counter to assign unique IDs to trains.
         """
-        self.host = host
+        self.host = socket.gethostname()
         self.port = port
         ## UNUSED self.sock = None
 
@@ -51,6 +51,11 @@ class Server():
         )
 
         self.connect_to_proxy()
+        self.isMaster = False
+        self.proxy_host = "csx2.uc.ucalgary.ca"
+        self.proxy_port = 5555
+        self.connect_to_proxy (self.proxy_host, self.proxy_port)
+        #self.listen_on_socket ()
 
     def serialize_route(self, route_obj, route_pb):
         """Fills in the details of a Protobuf Route message from a Route object."""
@@ -202,6 +207,7 @@ class Server():
             LOGGER.debug (f"Added slave server {slave_host}:{slave_port}")
             # Start a new thread dedicated to this slave for communication
             # threading.Thread(target=self.handle_slave_communication, args=(slave_sock,), daemon=True).start()
+            
         except Exception as e:
             LOGGER.error(f"Could not connect to slave {slave_host}:{slave_port}: {e}")
 
