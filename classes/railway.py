@@ -3,7 +3,8 @@ from .junction import *
 from .route import *
 from .train import *
 from .track import *
-
+import logging
+LOGGER = logging.getLogger(__name__)
 
 # Example usage:
 # initial_config = {

@@ -15,7 +15,7 @@ from classes.trainmovement import TrainMovement
 from datetime import datetime
 
 setup_logging() ## only need to call at main entry point of application
-LOGGER = logging.getLogger(__name__)
+LOGGER = logging.getLogger("Client")
 
 initial_config = {
     "junctions": ["A", "B", "C", "D"],

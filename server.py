@@ -15,6 +15,7 @@ from utils import initial_config, proxy_details
 from message_converter import MessageConverter
 
 setup_logging() ## only need to call at main entry point of application
+
 LOGGER = logging.getLogger("Server")
 
 
@@ -208,7 +209,7 @@ class Server():
             LOGGER.debug (f"Added slave server {slave_host}:{slave_port}")
             # Start a new thread dedicated to this slave for communication
             # threading.Thread(target=self.handle_slave_communication, args=(slave_sock,), daemon=True).start()
-            
+
         except Exception as e:
             LOGGER.error(f"Could not connect to slave {slave_host}:{slave_port}: {e}")
 
