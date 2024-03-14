@@ -111,7 +111,7 @@ class ProxyServer:
                             print ("sending role assignment to server")
                             utils.send(client_socket,new_message.SerializeToString())
                             
-                        else: # currently jave a master so this is a slave server 
+                        else: # currently have a master so this is a slave server 
                             self.slave_server_sockets.append(client_socket)
                             print("Slave server added")
                             print("Already have a master, so assign as a salve")
