@@ -79,13 +79,6 @@ class MessageConverter:
     
     @staticmethod
     def railmap_msg_to_obj(msg: TrackNet_pb2.Railmap) -> RailMap:
-
-        # similar to generating railmap from initial config
-
-        # junctions
-
-        # tracks
-
         pass
 
 
@@ -101,7 +94,7 @@ class MessageConverter:
 
     
     @staticmethod
-    def junction_msg_to_obj(msg: TrackNet_pb2.Junction, track_refs: "dict[str, Track]") -> Junction:
+    def junction_msg_to_obj(msg: TrackNet_pb2.Junction) -> Junction:
         pass
     
 
@@ -110,7 +103,6 @@ class MessageConverter:
         msg = TrackNet_pb2.Track()
         msg.junction_a = track.junctions[0]
         msg.junction_b = track.junctions[1]
-        msg.length = track.length
         msg.id = track.name
         msg.trains.extend(list(track.trains.keys()))
         msg.condition = MessageConverter.track_condition_py_to_proto(track.condition)
@@ -119,10 +111,7 @@ class MessageConverter:
 
     
     @staticmethod
-    def track_msg_to_obj(msg: TrackNet_pb2.Track, train_refs: "dict[str, Train]") -> Track:
-
-        # needs train objects
-        
+    def track_msg_to_obj(msg: TrackNet_pb2.Track) -> Track:
         pass
 
 
@@ -130,17 +119,13 @@ class MessageConverter:
     def track_condition_py_to_proto(track_condition: TrackCondition) -> TrackNet_pb2.TrackCondition:
         return {
             TrackCondition.BAD: TrackNet_pb2.TrackCondition.BAD,
-            TrackCondition.GOOD: TrackNet_pb2.TrackCondition.GOOD,
+            TrackCondition.GOOD: TrackNet_pb2.TrackCondition.GOOD
         }[track_condition]
 
     
     @staticmethod
     def track_condition_proto_to_py(track_condition: TrackNet_pb2.TrackCondition) -> TrackCondition:
-        return {
-            TrackNet_pb2.TrackCondition.BAD: TrackCondition.BAD,
-            TrackNet_pb2.TrackCondition.GOOD: TrackCondition.GOOD,
-        }[track_condition]
-
+        pass
 
 
     @staticmethod
@@ -154,16 +139,18 @@ class MessageConverter:
         return msg
     
     @staticmethod
-    def train_msg_to_obj(msg: TrackNet_pb2.Train, junction_refs: "dict[str, Junction]", track_refs: "dict[str, Track]") -> Train:
-
-        # needs junction objects for route
-        # needs track objects for location and route
-
-        # location
-
-        # route
-
+    def train_msg_to_obj(msg: TrackNet_pb2.Train) -> Train:
         pass
+
+
+    # Railway
+        # Railmap
+            # Junctions
+                # Neighbours
+                # 
+        # Train
+            # Route
+                # Junction ID
 
 
     @staticmethod
@@ -201,11 +188,7 @@ class MessageConverter:
     
     @staticmethod
     def train_speed_proto_to_py(train_speed: TrackNet_pb2.TrainSpeed) -> TrainSpeed:
-        return {
-            TrackNet_pb2.TrainSpeed.STOPPED: TrainSpeed.STOPPED,
-            TrackNet_pb2.TrainSpeed.SLOW: TrainSpeed.SLOW,
-            TrackNet_pb2.TrainSpeed.FAST: TrainSpeed.FAST,
-        }[train_speed]
+        pass
 
 
     @staticmethod
@@ -221,11 +204,7 @@ class MessageConverter:
 
     
     @staticmethod
-    def location_msg_to_obj(msg: TrackNet_pb2.Location, junction_refs: "dict[str, Junction]", track_refs: "dict[str, Track]") -> Location:
-
-        # need junction objects
-        # need track objects
-
+    def location_msg_to_obj(msg: TrackNet_pb2.Location) -> Location:
         pass
 
 
@@ -239,41 +218,9 @@ class MessageConverter:
 
     
     @staticmethod
-    def route_msg_to_obj(msg: TrackNet_pb2.Route, junction_refs: "dict[str, Junction]") -> Route:
-        route = Route()
-        for junction_name in msg.junctions:
-            route.junctions.append(junction_refs[junction_name])
-        route.current_junction_index = msg.current_junction_index
-        route.destination = route.junctions[len(route.junctions) - 1]
-
-        return route
-    
-
-    # railmap
-        # junctions
-            # id
-            # neighboring track id's (change proto)
-            # parked train id's (change proto)
-        # tracks
-            # junction_a id
-            # junction_b id
-            # id
-            # train id's (change proto)
-            # condition
-            # speed
-
-    # trains
-        # id
-        # length
-        # state
-        # location
-            #
-        # route
-            #
-        # destination junction id (change proto)
-        # speed
-
-    # train counter
+    def route_msg_to_obj(msg: TrackNet_pb2.Route) -> Route:
+        
+        pass
         
 
 
