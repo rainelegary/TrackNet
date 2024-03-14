@@ -11,7 +11,8 @@ __all__ = [
     "create_server_socket",
     "send",
     "receive",
-    "slave_to_master_port"
+    "slave_to_master_port",
+    "proxy_details"
 ]
 
 initial_config = {
