@@ -120,7 +120,7 @@ class MessageConverter:
 
     
     @staticmethod
-    def junction_msg_to_obj(msg: TrackNet_pb2.Junction) -> Junction:
+    def junction_msg_to_obj(msg: TrackNet_pb2.Junction, track_refs: "dict[str, Track]") -> Junction:
         pass
     
 
@@ -151,7 +151,10 @@ class MessageConverter:
     
     @staticmethod
     def track_condition_proto_to_py(track_condition: TrackNet_pb2.TrackCondition) -> TrackCondition:
-        pass
+        return {
+            TrackNet_pb2.TrackCondition.BAD: TrackCondition.BAD,
+            TrackNet_pb2.TrackCondition.GOOD: TrackCondition.GOOD,
+        }[track_condition]
 
 
     @staticmethod
@@ -164,19 +167,18 @@ class MessageConverter:
         msg.route = MessageConverter.route_obj_to_msg(train.route)
         return msg
     
+
     @staticmethod
-    def train_msg_to_obj(msg: TrackNet_pb2.Train) -> Train:
+    def train_msg_to_obj(msg: TrackNet_pb2.Train, junction_refs: "dict[str, Junction]", track_refs: "dict[str, Track]") -> Train:
+
+        # needs junction objects for route
+        # needs track objects for location and route
+
+        # location
+
+        # route
+
         pass
-
-
-    # Railway
-        # Railmap
-            # Junctions
-                # Neighbours
-                # 
-        # Train
-            # Route
-                # Junction ID
 
 
     @staticmethod
@@ -214,7 +216,11 @@ class MessageConverter:
     
     @staticmethod
     def train_speed_proto_to_py(train_speed: TrackNet_pb2.TrainSpeed) -> TrainSpeed:
-        pass
+        return {
+            TrackNet_pb2.TrainSpeed.STOPPED: TrainSpeed.STOPPED,
+            TrackNet_pb2.TrainSpeed.SLOW: TrainSpeed.SLOW,
+            TrackNet_pb2.TrainSpeed.FAST: TrainSpeed.FAST,
+        }[train_speed]
 
 
     @staticmethod
@@ -230,7 +236,11 @@ class MessageConverter:
 
     
     @staticmethod
-    def location_msg_to_obj(msg: TrackNet_pb2.Location) -> Location:
+    def location_msg_to_obj(msg: TrackNet_pb2.Location, junction_refs: "dict[str, Junction]", track_refs: "dict[str, Track]") -> Location:
+
+        # need junction objects
+        # need track objects
+
         pass
 
 
@@ -244,9 +254,14 @@ class MessageConverter:
 
     
     @staticmethod
-    def route_msg_to_obj(msg: TrackNet_pb2.Route) -> Route:
-        
-        pass
+    def route_msg_to_obj(msg: TrackNet_pb2.Route, junction_refs: "dict[str, Junction]") -> Route:
+        route = Route()
+        for junction_name in msg.junctions:
+            route.junctions.append(junction_refs[junction_name])
+        route.current_junction_index = msg.current_junction_index
+        route.destination = route.junctions[len(route.junctions) - 1]
+
+        return route
         
 
 
