@@ -25,10 +25,11 @@ enum TrainSpeed {
 message Track {
     optional string junction_a = 1;
     optional string junction_b = 2;
-    optional string id = 3; 
-    repeated string trains = 4;
-    optional TrackCondition condition = 5;
-    optional TrainSpeed speed = 6;
+    optional int32 length = 3;
+    optional string id = 4; 
+    repeated string trains = 5;
+    optional TrackCondition condition = 6;
+    optional TrainSpeed speed = 7;
     
 }
 

@@ -78,8 +78,34 @@ class MessageConverter:
 
     
     @staticmethod
-    def railmap_msg_to_obj(msg: TrackNet_pb2.Railmap) -> RailMap:
-        pass
+    def railway_msg_to_obj(msg: TrackNet_pb2.Railway) -> Railway:
+
+        # junctions and tracks
+        junctions = list(msg.map.junctions.keys())
+        tracks = []
+        for track_name in msg.map.tracks.keys():
+            track_msg = msg.map.tracks[track_name]
+            junction_a = track_msg.junction_a
+            junction_b = track_msg.junction_b
+            length = track_msg.length
+            track = (junction_a, junction_b, length)
+            tracks.append(track)
+
+        railway = Railway(None, junctions, tracks)
+
+        # trains
+        for train_name in msg.trains.keys():
+            train_msg = msg.trains[train_name]
+            location_msg = train_msg.location
+
+            length = train_msg.length
+            filler_junction = railway.map.junctions.keys()[0]
+            train_state = MessageConverter.train_state_proto_to_py(train_msg.state)
+
+            train = railway.create_new_train(length, filler_junction)
+            railway.update_train(train, train_state, location_msg)
+
+        return railway
 
 
     @staticmethod
