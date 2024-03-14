@@ -1,23 +1,23 @@
 import logging
-from classes.enums import TrackCondition, TrackSpeed
+from classes.enums import TrackCondition, TrainSpeed
 
 class Track:
     """Represents a track connecting two junctions.
     
     Attributes:
-        start_junction (Junction): The starting junction of the track.
-        end_junction (Junction): The ending junction of the track.
+        start_junction (str): The starting junction of the track.
+        end_junction (str): The ending junction of the track.
         length (int): The length of the track.
         name (str): The name of the track, represented as 'Start->End'.
         trains (list): A list of trains currently running on this track.
     """
     def __init__(self, junction_a, junction_b, length):
-        self.junctions = tuple(sorted([junction_a, junction_b], key=lambda j: j.name))
+        self.junctions = tuple(sorted([junction_a, junction_b]))
         self.length = length
-        self.name = f"Track ({self.junctions[0].name}, {self.junctions[1].name})"
+        self.name = f"Track ({self.junctions[0]}, {self.junctions[1]})"
         self.trains = {} 
         self.condition = TrackCondition.GOOD
-        self.speed = TrackSpeed.FAST.value
+        self.speed = TrainSpeed.FAST
     
     def add_train(self, train):
         """Adds a train to the track."""

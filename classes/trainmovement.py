@@ -60,7 +60,7 @@ class TrainMovement(Train):
                 self.location.set_track(next_track)
                 self.prev_junction = self.next_junction
                 self.next_junction = self.route.get_next_junction()
-                self.current_speed = next_track.speed
+                self.current_speed = next_track.speed.value
                 self.state = TrainState.UNPARKING
                 
             else:

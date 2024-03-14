@@ -26,21 +26,21 @@ message Track {
     optional string junction_a = 1;
     optional string junction_b = 2;
     optional string id = 3; 
-    map<string, Train> trains = 4;
+    repeated string trains = 4;
     optional TrackCondition condition = 5;
     optional TrainSpeed speed = 6;
 }
 
 message Junction {
     optional string id = 1;
-    map<string, Track> neighbors = 2;
-    map<string, Train> parked_trains = 3;
+    repeated string neighbors = 2;
+    repeated string parked_trains = 3;
 }
 
 message Route {
-    repeated Junction junctions = 1;
+    repeated string junctions = 1;
     optional int32 current_junction_index = 2;
-    optional Junction destination = 3;
+    optional string destination = 3;
 }
 
 message Location {
@@ -66,8 +66,7 @@ message Train {
     optional TrainState state = 3;
     optional Location location = 4;
     optional Route route = 5;
-    optional Junction destination = 6;
-    optional int32 speed = 7; 
+    optional int32 speed = 6; 
 }
 
 message Railmap {
@@ -147,11 +146,21 @@ message InitConnection {
         PROXY = 3;
      }
 
+<<<<<<< HEAD
+     optional Sender sender = 1;
+     optional ClientState client_state = 2;
+     optional ServerResponse server_response = 3;
+     optional RailwayUpdate railway_update = 4;
+     optional ServerAssignment server_assignment = 5;
+     optional ServerDetails new_slave_server_details = 6;
+
+=======
     optional bool isHeartBeat = 1;
      optional Sender sender = 2;
      optional ClientState client_state = 3;
      optional ServerResponse server_response = 4;
      optional RailwayUpdate railway_update = 5;
      optional ServerDetails slave_server_details = 6;
+>>>>>>> main
 }
 

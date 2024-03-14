@@ -1,11 +1,10 @@
 import select
 import socket
 import threading
-import TrackNet_pb2 as proto
-import utils 
-import traceback
-from utils import *
 import TrackNet_pb2
+import TrackNet_pb2 as proto
+import utils
+import traceback
 
 class ProxyServer:
     def __init__(self, host, port):
@@ -139,7 +138,7 @@ class ProxyServer:
                                     resp.slave_server_details.host = slave_ip
                                     resp.slave_server_details.port = slave_port
                                     print ("Sending new slave details to master")
-                                    send(self.master_server_socket, resp.SerializeToString())
+                                    utils.send(self.master_server_socket, resp.SerializeToString())
 
                             print ("sent details of slave to master server")
                             # handle response of an acknowledgment 
@@ -172,7 +171,7 @@ class ProxyServer:
                 print("Slave server connection lost.")
         client_socket.close()
 
-    def shutdown(self, server_socket):
+    def shutdown(self, server_socket): #shutdown process
         with self.lock:
             server_socket.close()
             for socket in self.socket_list:
