@@ -130,7 +130,7 @@ message Response {
     }
 
     optional Code code = 1;
-    optional ServerDetails master_details = 2;
+    optional string master_host = 2;
 }
 
 message InitConnection {

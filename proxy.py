@@ -16,7 +16,7 @@ setup_logging() ## only need to call at main entry point of application
 LOGGER = logging.getLogger("Proxy")
 
 class Proxy:
-    def __init__(self, host, port, is_main=False, proxy_port=6666):
+    def __init__(self, host, port, is_main=False):
         self.host = host
         self.port = port
         self.master_socket = None
@@ -25,7 +25,6 @@ class Proxy:
         self.socket_list = []
         self.lock = threading.Lock()
         self.is_main = is_main
-        self.proxy_port = proxy_port
         self.main_proxy_host = None
 
         self.heartbeat_attempts = 0
@@ -118,6 +117,8 @@ class Proxy:
         # remove new master from list of slaves
         self.remove_slave_socket(slave_socket)
 
+        ## start heartbeat thread with master
+
     def notify_master_of_slaves(self):
         # Notify master of new slave server so it can connect to it
         resp = TrackNet_pb2.InitConnection()
@@ -158,7 +159,7 @@ class Proxy:
 
         if self.heartbeat_attempts >= self.max_heartbeat_attempts:
             self.is_main = True
-            ## TODO habdle main proxy failure
+            ## TODO handle main proxy failure
 
     def proxy_to_proxy(self):
         # if backup proxy
@@ -193,7 +194,7 @@ class Proxy:
                     if heartbeat.HasField("master_host"):
                         # if no master server or new master server
                         if self.master_socket is None or self.master_socket.getpeername()[0] != heartbeat.master_host:
-                            for slave in self.slave_sockets:
+                            for _, slave in self.slave_sockets.items():
                                 if slave.getpeername()[0] == heartbeat.master_host:
                                     self.master_socket = slave
                                     self.remove_slave_socket(slave)
@@ -225,13 +226,16 @@ class Proxy:
                             self.relay_client_state(init_conn.client_state)
 
                         elif init_conn.sender == proto.InitConnection.Sender.SERVER_MASTER:
+
+                            if self.master_socket.getpeername()[0] != conn.getpeername()[0]:
+                                LOGGER.warning(f"Received message with sender type master from NON master server.")
                             
                             if init_conn.HasField("server_response"):
                                 self.relay_server_response(init_conn.server_response) 
                                 
                             elif init_conn.HasField("is_heartbeat") and self.is_main:
                                 pass
-                                
+                                # send heartbeat
                             else:
                                 LOGGER.warning(f"Proxy received msg from master with missing content {init_conn}")
                                 
@@ -242,9 +246,12 @@ class Proxy:
                                     self.slave_role_assignment(conn)
 
                         elif init_conn.sender == proto.InitConnection.Sender.PROXY and self.is_main:
+                            ## add bool for backup is up
+                            
                             heartbeat = proto.Response()
                             heartbeat.code = proto.Response.Code.HEARTBEAT
 
+                            # nofity backup proxy who the master server is
                             if self.master_socket is not None:
                                 master_host, _ = self.master_socket.getpeername()
                                 heartbeat.master_host = master_host

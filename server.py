@@ -337,9 +337,6 @@ class Server():
                         slave_identification_msg = TrackNet_pb2.InitConnection()
                         #self.set_slave_identification_msg(slave_identification_msg)
                         slave_identification_msg.sender = TrackNet_pb2.InitConnection.SERVER_SLAVE
-                        #LOGGER.debug("Sending Slave Identification Message:")
-                        #LOGGER.debug(f"IP:   {slave_identification_msg.slave_server_details.host}")
-                        #LOGGER.debug(f"Port: {slave_identification_msg.slave_server_details.port}")
 
                         if send(proxy_sock, slave_identification_msg.SerializeToString()):
                             LOGGER.debug("Sent slave identification message to proxy")

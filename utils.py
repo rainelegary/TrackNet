@@ -24,6 +24,7 @@ initial_config = {
         ("A", "D", 40)
     ]
 }
+
 slave_to_master_port = 4444
 
 proxy_details = {
