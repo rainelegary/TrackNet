@@ -202,9 +202,15 @@ class Client():
                                 self.train.stop()
                             
                             elif server_resp.status == TrackNet_pb2.ServerResponse.UpdateStatus.CLEAR:
-                                if self.train.state in [TrainState.PARKED, TrainState.STOPPED]:
+                                if self.train.state == TrainState.PARKED:
                                     LOGGER.debug("UNPARKING")
                                     self.train.unpark(server_resp.speed)
+                                elif self.train.state == TrainState.STOPPED:
+                                    LOGGER.debug("RESUMING MOVEMENT")
+                                    self.train.resume_movement(server_resp.speed)
+                                elif self.train.state == TrainState.RUNNING and self.train.speed == TrainSpeed.SLOW.value:
+                                    LOGGER.debug("SPEEDING UP")
+                                    self.train.set_speed(TrainSpeed.FAST.value)
                             
                         #self.sock.close()
                 else:

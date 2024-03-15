@@ -67,6 +67,10 @@ class TrainMovement(Train):
     def stop(self):
         self.current_speed = 0
         self.state = TrainState.STOPPED
+
+    def resume_movement(self, speed):
+        self.current_speed = speed
+        self.state = TrainState.RUNNING
         
     def unpark(self, speed):
         self.current_speed = speed
