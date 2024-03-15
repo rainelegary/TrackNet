@@ -5,7 +5,7 @@ from .train import *
 from .track import *
 import logging
 LOGGER = logging.getLogger(__name__)
-from message_converter import MessageConverter
+#from message_converter import MessageConverter
 
 
 # Example usage:
@@ -42,7 +42,7 @@ class Railway:
             for train_name, train_length in trains.items():
                 self.add_train(train_name, train_length)
 
-    def create_new_train(self, len : int, origin_id: str):
+    def create_new_train(self, length : int, origin_id: str):
         """
         Creates a new Train object with the specified length and adds it to the list of trains.
 
@@ -52,7 +52,7 @@ class Railway:
         """
         new_name = "Train" + str(self.train_counter)
         self.train_counter += 1
-        new_train = Train(new_name, len)
+        new_train = Train(new_name, length)
         # add train to origin junction
         self.map.junctions[origin_id].park_train(new_train)
         self.trains[new_name] = new_train
@@ -101,8 +101,17 @@ class Railway:
 
         # update route
         train = self.trains[train.name]
-        train.route = MessageConverter.route_msg_to_obj(route_msg, self.map.junctions)
+        self.set_route_for_train(route_msg,train)
+        #train.route = MessageConverter.route_msg_to_obj(route_msg, self.map.junctions)
 
+    def set_route_for_train(self, route: TrackNet_pb2.Route, train: Train):
+        new_route = []
+        for junc in route.junctions:
+            new_route.append(self.railmap.junctions[junc])
+        train.route = Route(new_route)
+        train.location.set_track(self.train.route.get_next_track())
+        LOGGER.debug(f"init track={self.train.route.get_next_track()}")
+        
     def add_train_to_track(self, train_name, track_name):
         """Places an existing train on a specified track by name."""
         #*Modify to remove train from parked junction if on one*

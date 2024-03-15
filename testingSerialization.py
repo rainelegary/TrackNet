@@ -34,15 +34,19 @@ railway_system = Railway(
 )
 
 
+
+
 master_resp = TrackNet_pb2.InitConnection()
 master_resp.sender = TrackNet_pb2.InitConnection.SERVER_MASTER
 master_resp.railway_update.CopyFrom(MessageConverter.railway_obj_and_ts_to_railway_update_msg(railway_system,datetime.utcnow().isoformat()))
 print(master_resp)
 
-print(railway_system.print_map())
+railway_system.print_map()
 
 (deserialObj, ts) = MessageConverter.railway_update_msg_to_railway_obj_and_ts(master_resp.railway_update)
 
 print(deserialObj)
+deserialObj.print_map()
+
 
 

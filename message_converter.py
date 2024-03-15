@@ -66,9 +66,43 @@ class MessageConverter:
         return railway
     
 
-    
     @staticmethod
     def railmap_obj_to_msg(railmap: RailMap) -> TrackNet_pb2.Railmap:
+        msg = TrackNet_pb2.Railmap()
+        for junction_name, junction in railmap.junctions.items():
+            jun = MessageConverter.junction_obj_to_msg(junction)
+            #msg.junctions[junction_name].CopyFrom(MessageConverter.junction_obj_to_msg(junction))
+            msg.junctions[junction_name].id = jun.id
+            for k, n in jun.neighbors:
+                msg.junctions[junction_name].neighbors[k] = n
+            msg.junctions[junction_name].parked_trains.CopyFrom(jun.parked_trains)
+        for track_name, track in railmap.tracks.items():
+            msg.tracks[track_name].CopyFrom(MessageConverter.track_obj_to_msg(track))
+        return msg
+    """
+    @staticmethod
+    def railmap_obj_to_msg(railmap: RailMap) -> TrackNet_pb2.Railmap:
+        msg = TrackNet_pb2.Railmap()
+        
+        # For junctions: Assuming junctions is a map field where values are message types
+        for junction_name, junction in railmap.junctions.items():
+            # Create or get the message to modify
+            junction_msg = msg.junctions[junction_name]
+            # Since direct assignment isn't supported, use MergeFrom to copy the content
+            # This assumes you have a method that returns a new message object for a junction
+            junction_msg.MergeFrom(MessageConverter.junction_obj_to_msg(junction))
+        
+        # For tracks: Assuming tracks is a map field where values are message types
+        for track_name, track in railmap.tracks.items():
+            # Similar approach as with junctions
+            track_msg = msg.tracks[track_name]
+            # Use MergeFrom to copy the content
+            track_msg.MergeFrom(MessageConverter.track_obj_to_msg(track))
+            
+        return msg
+    """
+    @staticmethod
+    def railmap_obj_to_msg2(railmap: RailMap) -> TrackNet_pb2.Railmap:
         msg = TrackNet_pb2.Railmap()
         for junction_name, junction in railmap.junctions.items():
             msg.junctions[junction_name].CopyFrom(MessageConverter.junction_obj_to_msg(junction))
@@ -109,11 +143,16 @@ class MessageConverter:
 
 
     @staticmethod
-    def junction_obj_to_msg(junction: Junction) -> TrackNet_pb2.Junction:
+    def junction_obj_to_msg(junction: Junction, ) -> TrackNet_pb2.Junction:
         msg = TrackNet_pb2.Junction()
         msg.id = junction.name
         for junction_name, track_object in junction.neighbors.items():
-            msg.neighbors[junction_name] = track_object.name
+            print()
+            print("!!!!!!!!!!!!!!!!",track_object.name, ":",junction_name)
+            print(type(junction_name))
+            print(type(track_object.name))
+            print()
+            msg.neighbors[junction_name] = (track_object.name)
         
         msg.parked_trains.extend(list(junction.parked_trains.keys()))
         return msg
