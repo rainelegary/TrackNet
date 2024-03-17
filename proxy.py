@@ -25,7 +25,7 @@ class Proxy:
         self.client_sockets = {}  # Map client address (IP, port) to socket for direct access
         self.socket_list = []
         self.lock = threading.Lock()
-        self.heartbeat_interval = 30
+        self.heartbeat_interval = 20
         self.heartbeat_timeout = 10
 
         self.is_main = is_main
@@ -221,7 +221,8 @@ class Proxy:
                     heartbeat_message.is_heartbeat = True
                     if not send(self.master_socket, heartbeat_message.SerializeToString()):
                         LOGGER.warning(f"Failed to send heartbeat request to master server")
-                    
+                    else:
+                        LOGGER.info(f"Sent heartbeat request to master server")
                     # Wait for a response with a timeout
                     ready = select.select([self.master_socket], [], [], self.heartbeat_timeout)
                     if ready[0]:
@@ -254,7 +255,7 @@ class Proxy:
                         ## need to notify the 
                         if len(self.slave_sockets) > 0:
                             # promote first slave to master 
-                            new_master_socket  = self.slave_server_sockets.pop()
+                            new_master_socket  = self.slave_sockets.pop()
 
                             self.promote_slave_to_master(new_master_socket)
 
