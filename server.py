@@ -308,7 +308,17 @@ class Server():
 
             # Create a separate thread for talking to slaves
             threading.Thread(target=self.talk_to_slaves, daemon=True).start()
-            
+        
+        elif proxy_resp.hasField("is_heartbeat"):
+            master_response = TrackNet_pb2.InitConnection()
+            master_response.sender = TrackNet_pb2.InitConnection.Sender.SERVER_MASTER
+            master_response.is_heartbeat = True
+            if not send(sock, master_response.SerializeToString()):
+                LOGGER.warning(f"ServerResponse message failed to send to proxy.")
+            else:
+                print("sent server response to proxy")
+
+        
         else:
             LOGGER.warning(f"Server received msg from proxy with missing co0ntent: {proxy_resp}")
 
