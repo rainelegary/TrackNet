@@ -1,5 +1,6 @@
 
 from classes.enums import TrainState, TrainSpeed, TrackCondition
+from classes.train import Train
 import TrackNet_pb2
 
 
@@ -48,7 +49,17 @@ class ConflictAnalyzer:
         reroute
         clear
         fast
+
+    SAFETY_DISTANCE:
+        The following distance used by trains
+        Also how far to stop from a conflict site
+
+    JUNCTION_CAPACITY:
+        The maximum number of trains parked at a junction
     """
+
+    SAFETY_DISTANCE = 3
+    JUNCTION_CAPACITY = 2
 
     @staticmethod
     def resolve_conflicts(railway, commands):
@@ -71,18 +82,54 @@ class ConflictAnalyzer:
         # TODO reroute
 
         # TODO park
+            
+        # slow
+        for track_id in railway.tracks.keys():
+            commands = ConflictAnalyzer.resolve_bad_track_condition(railway, commands, track_id)
 
         # stop
-        for junction in railway.junctions:
-            commands = ConflictAnalyzer.resolve_immediate_junction_conflict(railway, commands, junction)
+        for junction_id in railway.junctions.keys():
+            commands = ConflictAnalyzer.resolve_immediate_junction_conflict(railway, commands, junction_id)
 
         # slow (without overriding stop) / stop
-        for track in railway.tracks:
-            commands = ConflictAnalyzer.resolve_current_track_conflict(railway, commands, track)
+        for track_id in railway.tracks.keys():
+            commands = ConflictAnalyzer.resolve_current_track_conflict(railway, commands, track_id)
         
         # returns a dictionary containing the commands to give to each train.
         return commands
     
+
+    @staticmethod
+    def may_enter_track(railway, commands, train_id):
+        train = railway.trains[train_id]
+        current_junction = train.location.front_cart["junction"]
+        next_track = train.route.get_next_track()
+        next_junction = train.route.get_next_junction()
+
+        # break ties by train id. wait for train with smaller id to go first
+        favored_train_id = sorted(list(filter(
+                lambda t: (railway.trains[t].route.get_next_track().name == next_track.name),
+                current_junction.trains.keys()
+            )))[0]
+
+        if favored_train_id != train_id:
+            return False
+
+        if len(next_track.trains) == 0: 
+            return True # track is empty
+
+        # At this point in the code, we have ruled out the possibility that the track is empty.
+        # Now determine direction of trains on track
+        track_heading = next(iter(next_track.trains.values())).next_junction.name
+        if track_heading != next_junction.name:
+            return False # existing trains are moving opposite direction
+        
+        # train that has made the least progress along the track
+        back_train = sorted(next_track.trains, key=lambda t: t.location.back_cart["position"])[0]
+
+        # only go if the back train is far enough along the track
+        return (back_train.location.back_cart["position"] > ConflictAnalyzer.SAFETY_DISTANCE)
+
 
     @staticmethod
     def reroute(railway, commands, train_id, junction_blacklist, track_blacklist): # throws CannotRerouteException
@@ -118,6 +165,19 @@ class ConflictAnalyzer:
     #         print(f"Train {train_name} rerouted successfully.")
     #     else:
     #         print(f"No alternative route found for Train {train_name}.")
+
+    @staticmethod
+    def resolve_bad_track_condition(railway, commands, track_id):
+        if railway.tracks[track_id].condition == TrackCondition.BAD:
+            for train in railway.tracks[track_id].trains.values():
+                # message creation inside the for loop as the messages must be separate objects, 
+                # as they may be overwritten in different ways in the future
+                command = TrackNet_pb2.ServerResponse() 
+                command.status = TrackNet_pb2.ServerResponse.UpdateStatus.CHANGE_SPEED
+                command.speed = TrainSpeed.SLOW.value
+                commands[train.name] = command
+        
+        return commands
     
 
     @staticmethod
@@ -136,21 +196,10 @@ class ConflictAnalyzer:
         """
         track = railway.tracks[track_id]
 
-        # Determine if in same direction
-        def get_heading(train):
-            return train.location.front_cart["junction"].name
-
-        train_heading = get_heading(next(iter(track.trains.values())))
-        same_direction = all(get_heading(train) == train_heading for train in track.trains)
+        train_heading = next(iter(track.trains.values())).next_junction
+        same_direction = all(train.next_junction == train_heading for train in track.trains.values())
         if not same_direction:
-            raise CollisionException() # TODO a collision hasn't necessarily occurred and we may recover if we reverse
-
-        if railway.tracks[track_id].condition == TrackCondition.BAD:
-            for train in railway.trains:
-                command = TrackNet_pb2.ServerResponse()
-                command.status = TrackNet_pb2.ServerResponse.UpdateStatus.CHANGE_SPEED
-                command.speed = TrainSpeed.SLOW.value
-                commands[train.name] = command
+            raise CollisionException("Trains moving opposite directions on the same track") # TODO a collision hasn't necessarily occurred and we may recover if we reverse
 
         # Sort trains front to back
         sorted_trains = sorted(track.trains, key=lambda train: train.location.back_cart["position"], reverse=True)
@@ -235,9 +284,6 @@ class ConflictAnalyzer:
         available_tracks = {} # all tracks that do not have trains heading towards this junction
         in_demand_tracks = {} # all tracks that at least one train wants to exit onto
 
-        def get_heading(train):
-            return train.location.front_cart["junction"].name
-
         # determine available and in-demand tracks, as well as involved trains
         
         for track in junction.neighbors.values():
@@ -249,12 +295,13 @@ class ConflictAnalyzer:
             # NOTE track heading is the junction that all trains on this track are heading to.
             # it is assumed to be the same for all trains on this track, meaning
             # they are all heading in the same direction.
-            # If this is not the case, the an exception will have been raised when resolving track conflicts.
+            # If this is not the case, the an exception will be raised when resolving track conflicts.
 
-            track_heading = get_heading(next(iter(trains.values())))
+            track_heading = next(iter(trains.values())).next_junction
             if track_heading == junction.name:
-                for train in track.trains:
-                    involved_trains[train.name] = train
+                for train in track.trains.values():
+                    if track.length - train.location.front_cart["position"] < ConflictAnalyzer.SAFETY_DISTANCE:
+                        involved_trains[train.name] = train
                     next_track = train.get_next_track()
                     in_demand_tracks[next_track.name] = next_track
             else:
@@ -262,24 +309,33 @@ class ConflictAnalyzer:
 
         # determine a few more in demand tracks and involved trains
         
-        for train in junction.parked_trains:
+        for train in junction.parked_trains.values():
             involved_trains[train.name] = train
             next_track = train.get_next_track()
             in_demand_tracks[next_track.name] = next_track
 
+        # TODO populate these dictionaries
+        parking_trains = {}
+        stay_parked_trains = {}
+        unparking_trains = {}
+        stopping_trains = {}
+        continuing_trains = {}
 
         # determine what to do for each train 
         for train in involved_trains:
 
-            # TODO POC - use some kind of command data structure
-
-            if train.get_next_track().name in available_tracks:
+            if train.route.get_next_track().name in available_tracks:
                 continue # keep going, or start moving if not moving yet
 
             if train.state in [TrainState.PARKED, TrainState.PARKING]:
-                continue # do nothing until desired track clears up (stay parked)
+                if not ConflictAnalyzer.may_enter_track(railway, commands, train.name):
+                    # cannot enter track yet
+                    command = TrackNet_pb2.ServerResponse()
+                    command.status = TrackNet_pb2.ServerResponse.UpdateStatus.PARK
+                    commands[train.name] = command
+                    continue # stay parked
 
-            if train.location.front_cart["track"] in in_demand_tracks:
+            if train.location.front_cart["track"].name in in_demand_tracks:
                 # if junction still has capacity
                     # issue "park" command
                 # otherwise
