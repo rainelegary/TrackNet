@@ -25,20 +25,22 @@ enum TrainSpeed {
 message Track {
     optional string junction_a = 1;
     optional string junction_b = 2;
-    optional string id = 3; 
-    repeated string trains = 4;
-    optional TrackCondition condition = 5;
-    optional TrainSpeed speed = 6;
+    optional int32 length = 3;
+    optional string id = 4; 
+    repeated string trains = 5;
+    optional TrackCondition condition = 6;
+    optional TrainSpeed speed = 7;
+    
 }
 
 message Junction {
     optional string id = 1;
-    repeated string neighbors = 2;
+    map<string, string> neighbors = 2;
     repeated string parked_trains = 3;
 }
 
 message Route {
-    repeated string junctions = 1;
+    repeated Junction junctions = 1;
     optional int32 current_junction_index = 2;
     optional string destination = 3;
 }
@@ -91,40 +93,34 @@ message ServerResponse {
 	    CHANGE_SPEED = 0;
 		REROUTE = 1;
 		STOP = 2;
-		CLEAR = 3; 
+        PARK = 3;
+		CLEAR = 4; 
 	}	
 
-    optional string clientIP = 1;
-    optional string clientPort = 2;
-    optional Train train = 3;
-	optional UpdateStatus status = 4;
-	optional Route new_route = 5;
-    optional int32 speed = 6;
+    optional ServerDetails client = 1;
+    optional Train train = 2;
+	optional UpdateStatus status = 3;
+	optional Route new_route = 4;
+    optional int32 speed = 5;
 }
 
 message ClientState {
-    optional string clientIP = 1;
-    optional string clientPort = 2;
-    optional Train train = 3;
-    optional float speed = 4;
-    optional Location location = 5;
-    optional TrackCondition condition = 6;
-    optional Route route = 7;
+    optional ServerDetails client = 1;
+    optional Train train = 2;
+    optional float speed = 3;
+    optional Location location = 4;
+    optional TrackCondition condition = 5;
+    optional Route route = 6;
 }
 
-//Proxy sends to slave upon initialization
-message RoleAssignment {
-    bool isMaster = 1; // True if the server is being assigned the role of master, false if slave.
-}
-
-//Sent to proxy upon initialization
+// Sent to proxy upon initialization
 message ServerDetails{
     string host = 1;  // The slave server's IP address
     int32 port = 2; // The slave server's port
 }
 
 message ServerAssignment {
-    optional bool isMaster = 1; 
+    optional bool is_master = 1; 
     repeated ServerDetails servers = 2;
 }
 
@@ -133,25 +129,26 @@ message Response {
         ACK = 0;
         NAK = 1;
         ERROR = 2;
+        HEARTBEAT = 3;
     }
 
     optional Code code = 1;
+    optional string master_host = 2;
 }
 
 message InitConnection {
-     enum Sender {
+    enum Sender {
         SERVER_MASTER = 0;
         SERVER_SLAVE = 1;
         CLIENT = 2;
         PROXY = 3;
-     }
+    }
 
-    optional bool isHeartBeat = 1;
-    optional Sender sender = 2;
-    optional ClientState client_state = 3;
-    optional ServerResponse server_response = 4;
-    optional RailwayUpdate railway_update = 5;
-    optional ServerDetails slave_server_details = 6;
-    optional ServerAssignment server_assignment = 7;
+     optional bool is_heartbeat = 1;
+     optional Sender sender = 2;
+     optional ClientState client_state = 3;
+     optional ServerResponse server_response = 4;
+     optional RailwayUpdate railway_update = 5;
+     repeated ServerDetails slave_details = 6;
 }
 

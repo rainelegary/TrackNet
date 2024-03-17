@@ -1,4 +1,6 @@
 from classes.junction import Junction
+import logging
+LOGGER = logging.getLogger(__name__)
 
 class Route:
     """
@@ -24,18 +26,30 @@ class Route:
         self.destination = junctions[len(junctions) - 1]
         
     def get_next_track(self):
+        """
+        Returns next track as an object
+        """
         return self.junctions[self.current_junction_index].neighbors[self.junctions[self.current_junction_index + 1].name]
     
     def get_next_junction(self):
+        """
+        Returns next junction as an object
+        """
         return self.junctions[self.current_junction_index + 1]
 
     def get_current_junction(self):
+        """
+        Returns current junction as an object
+        """
         return self.junctions[self.current_junction_index]
 
     def increment_junction_index(self):
         self.current_junction_index += 1
         
     def destination_reached(self):
+        """
+        Dertmines whether destination reached or not
+        """
         if self.current_junction_index >= len(self.junctions) - 1:
             return True
         return False

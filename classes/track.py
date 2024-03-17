@@ -1,5 +1,7 @@
-import logging
+
 from classes.enums import TrackCondition, TrainSpeed
+import logging
+LOGGER = logging.getLogger(__name__)
 
 class Track:
     """Represents a track connecting two junctions.

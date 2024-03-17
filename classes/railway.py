@@ -3,6 +3,9 @@ from .junction import *
 from .route import *
 from .train import *
 from .track import *
+import logging
+LOGGER = logging.getLogger(__name__)
+#from message_converter import MessageConverter
 
 
 # Example usage:
@@ -39,16 +42,17 @@ class Railway:
             for train_name, train_length in trains.items():
                 self.add_train(train_name, train_length)
 
-    def create_new_train(self, len : int, origin_id: str):
+    def create_new_train(self, length : int, origin_id: str):
         """
         Creates a new Train object with the specified length and adds it to the list of trains.
 
         :param len: The length of the new train.
+        :param origin_id: Name of the junction where the train starts
         :return: The newly created Train object.
         """
         new_name = "Train" + str(self.train_counter)
         self.train_counter += 1
-        new_train = Train(new_name, len)
+        new_train = Train(new_name, length)
         # add train to origin junction
         self.map.junctions[origin_id].park_train(new_train)
         self.trains[new_name] = new_train
@@ -61,7 +65,7 @@ class Railway:
         else:
             raise Exception(f"Train {name} already exists.")
 
-    def update_train(self, train, state, location_msg: TrackNet_pb2.Location):
+    def update_train(self, train, state, location_msg: TrackNet_pb2.Location, route_msg: TrackNet_pb2.Route):
         # check if new track
         if train.location.front_cart["track"] is None or train.location.front_cart["track"].name != location_msg.front_track_id:
             # add to new track
@@ -95,6 +99,19 @@ class Railway:
         self.trains[train.name].location.back_cart = {"track": self.map.tracks[location_msg.back_track_id], "junction": self.map.junctions[location_msg.back_junction_id], "position": location_msg.back_position}
         train.state = state
 
+        # update route
+        train = self.trains[train.name]
+        self.set_route_for_train(route_msg,train)
+        #train.route = MessageConverter.route_msg_to_obj(route_msg, self.map.junctions)
+
+    def set_route_for_train(self, route: TrackNet_pb2.Route, train: Train):
+        new_route = []
+        for junc in route.junctions:
+            new_route.append(self.railmap.junctions[junc])
+        train.route = Route(new_route)
+        train.location.set_track(self.train.route.get_next_track())
+        LOGGER.debug(f"init track={self.train.route.get_next_track()}")
+        
     def add_train_to_track(self, train_name, track_name):
         """Places an existing train on a specified track by name."""
         #*Modify to remove train from parked junction if on one*
@@ -122,31 +139,6 @@ class Railway:
             print(f"Train {train_name} parked at junction {junction_name}.")
         else:
             print(f"Train {train_name} not found or junction {junction_name} does not exist.")
-
-    def reroute_train(self, train_name, avoid_track_name):
-        """
-        Reroutes a train to avoid a specified track.
-
-        :param train_name: The name of the train to reroute.
-        :param avoid_track_name: The name of the track to avoid.
-        """
-        train = self.trains[train_name]
-        if not train:
-            print(f"No train found with the name {train_name}.")
-            return
-
-        # Destination is the last junction in the train's current route
-        destination_junction = train.route.tracks[-1]
-
-        # Find a new route from the train's current junction to the destination
-        new_route = self.map.find_shortest_path(train.current_junction, destination_junction, avoid_track_name)
-
-        if new_route:
-            # Update the train's route
-            train.set_route(new_route)
-            print(f"Train {train_name} rerouted successfully.")
-        else:
-            print(f"No alternative route found for Train {train_name}.")
 
 
     def print_map(self):

@@ -19,7 +19,6 @@ class ServerResponse_Status(Enum): # this is the status the server sends to clie
     STOP = 3
     CLEAR = 4
 
-
 class TrainState(Enum):
     RUNNING = 0
     SLOW = 1

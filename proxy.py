@@ -396,12 +396,21 @@ class Proxy:
 
 
 if __name__ == "__main__":
-    if sys.argv[1] == "main":
-        #csx2.uc.ucalgary.ca
-        proxy = Proxy("localhost", 5555, True)
-    else: 
-        proxy = Proxy("localhost", 5555)
-        
+
+    if len(sys.argv) <= 2:
+        if sys.argv[1] == "main":
+            #csx2.uc.ucalgary.ca
+            
+            proxy = Proxy("csx2.uc.ucalgary.ca", 5555, True)
+        else:
+            proxy = Proxy("localhost", 5555)
+    else:
+        if sys.argv[1] == "main":
+            #csx2.uc.ucalgary.ca
+            proxy = Proxy(sys.argv[2], 5555, True)
+        else:
+            proxy = Proxy(sys.argv[2], 5555)
+    
     try:
         proxy.run()
     except KeyboardInterrupt:

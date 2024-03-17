@@ -3,15 +3,33 @@ import logging
 import signal
 
 __all__ = [
+    "initial_config",
     "setup_logging",
     "exit_flag",
     "exit_gracefully",
-    "create_slave_socket",
     "create_client_socket",
     "create_server_socket",
     "send",
-    "receive"
+    "receive",
+    "slave_to_master_port",
+    "proxy_details"
 ]
+
+initial_config = {
+    "junctions": ["A", "B", "C", "D"],
+    "tracks": [
+        ("A", "B", 10),
+        ("B", "C", 10),
+        ("C", "D", 10),
+        ("A", "D", 40)
+    ]
+}
+
+slave_to_master_port = 4444
+
+proxy_details = {
+    "localhost": 5555
+}
 
 exit_flag = False
 
@@ -28,7 +46,7 @@ def exit_gracefully(signum, frame):
     exit_flag = True
 
 def setup_logging():
-    formatter = logging.Formatter('%(asctime)s %(levelname)s@%(name)s: %(message)s')
+    formatter = logging.Formatter('%(lineno)d %(asctime)s %(levelname)s@%(name)s: %(message)s')
     handler = logging.StreamHandler()
     handler.setLevel(logging.DEBUG)
     handler.setFormatter(formatter)
@@ -73,35 +91,6 @@ def bytes_to_int(value: bytes) -> int:
     assert type(value) == bytes
     return int.from_bytes(value, 'big')
 
-
-def create_slave_socket(ip: str, port: int):
-    """Create a TCP/IP socket at the specified port.
-
-    PARAMETERS
-    ==========
-    ip: A string representing the IP address to connect to.
-    port: An integer representing the port to connect to.
-
-    RETURNS
-    =======
-    If successful, a connected socket object.
-    Otherwise, return None.
-    """
-
-    assert type(ip) == str
-    assert type(port) == int
-
-    #socket.setdefaulttimeout(0.5)
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-    try:
-        sock.connect((ip, port))
-
-    except socket.error as err:
-        print(f"Failed to connect to proxy at {ip}:{port}, error: {err}")
-        return None
-
-    return sock
 
 def create_client_socket(ip: str, port: int):
     """Create a TCP/IP socket at the specified port.
@@ -224,7 +213,15 @@ def receive(sock: socket.socket) -> bytes:
         #    bytes_to_recv = bytes_to_recv - len(recv)
         #    data = data + recv
 
+
+    except socket.timeout:
+        raise TimeoutError("Socket receiving timed out.")
+    except Exception as e:
+        raise RuntimeError(f"Error receiving data: {e}")
     except:
         return None
+
+    if not data:
+        raise ValueError("Received data is empty.")
 
     return data
