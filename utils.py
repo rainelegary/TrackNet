@@ -27,8 +27,9 @@ initial_config = {
 
 slave_to_master_port = 4444
 
+#assumes master proxy is connected at csx1.ucalgary.ca
 proxy_details = {
-    "localhost": 5555
+    "csx1.ucalgary.ca": 5555
 }
 
 exit_flag = False

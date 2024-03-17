@@ -20,6 +20,7 @@ class Proxy:
     def __init__(self, host, port, is_main=False):
         self.host = host
         self.port = port
+        self.proxy_port = port 
         self.master_socket = None
         self.slave_sockets = {}
         self.client_sockets = {}  # Map client address (IP, port) to socket for direct access
@@ -27,6 +28,7 @@ class Proxy:
         self.lock = threading.Lock()
         self.heartbeat_interval = 30
         self.heartbeat_timeout = 10
+        self.listen_to_main_proxy_called = False
 
         self.is_main = is_main
         self.main_proxy_host = None
@@ -38,19 +40,27 @@ class Proxy:
         
         threading.Thread(target=self.proxy_to_proxy, daemon=True).start() 
         
+
+
     def set_main_proxy_host(self):
+        print ("in set_main_proxy_host")
         if self.is_main:
             self.main_proxy_host = self.host
+            #add to proxy_details.items () ??? 
         else:
             for proxy, _ in proxy_details.items():
                 if proxy != self.host:
                     self.main_proxy_host = proxy
+                else:
+                    print ("proxy found is the same as the host")
     
         ## case where only one proxy and command-line arg main missing
         if self.main_proxy_host is None:
             LOGGER.warning(f"Only one proxy? setting as main proxy")
             self.main_proxy_host = self.host
             self.is_main = True
+
+
 
     def add_slave_socket(self, slave_socket: socket.socket):
         self.slave_sockets[f"{slave_socket.getpeername()[0]}"] = slave_socket
@@ -166,7 +176,8 @@ class Proxy:
             self.is_main = True
             ## TODO handle main proxy failure
 
-    def proxy_to_proxy(self):
+    def proxy_to_proxy_old(self):
+        print ("in proxy to proxy")
         # if backup proxy
         while not exit_flag:
             if not self.is_main:
@@ -178,12 +189,13 @@ class Proxy:
                     self.handle_missed_proxy_heartbeat()
                     continue 
                 
+                LOGGER.debug ("Connected to main proxy")
                 # Send heartbeat request
                 heartbeat_request = proto.InitConnection()
                 heartbeat_request.sender = proto.InitConnection.Sender.PROXY
                 heartbeat_request.is_heartbeat = True
                 
-                if not send(heartbeat_request, proxy_sock.SerializeToString()):
+                if not send(proxy_sock, heartbeat_request.SerializeToString()):
                     LOGGER.warning("Failed to send heartbeat request to main proxy.")
                     
                 # receive heartbeat response
@@ -210,6 +222,83 @@ class Proxy:
             else:
                 # main proxy does not do anything here i think ?? 
                 break
+
+    def proxy_to_proxy(self):
+        print ("in proxy to proxy")
+        connected_to_proxy = False
+
+        if not self.is_main:
+            LOGGER.debug ("Before connecting to main proxy")
+            while not connected_to_proxy:
+                proxy_sock = create_client_socket(self.main_proxy_host, self.proxy_port)
+
+                if proxy_sock:
+                    connected_to_proxy = True
+                    LOGGER.debug ("Connected to main proxy")
+                    self.socket_list.append(proxy_sock)
+
+                else:
+                    LOGGER.warning(f"Failed to connect to main proxy. Trying again in 5 seconds ...")
+                    time.sleep(5)
+                    self.handle_missed_proxy_heartbeat()
+
+            # Send heartbeat request to main proxy through InitConnection message
+            heartbeat_request = proto.InitConnection()
+            heartbeat_request.sender = proto.InitConnection.Sender.PROXY
+            heartbeat_request.is_heartbeat = True
+            if send(proxy_sock, heartbeat_request.SerializeToString()):
+                LOGGER.debug("Sent heartbeat request to main proxy.")
+                #threading.Thread(target=self.listen_to_main_proxy, args=(proxy_sock,), daemon=True).start()
+                self.listen_to_main_proxy (proxy_sock)
+            else:
+                LOGGER.warning("Failed to send heartbeat request to main proxy.")
+
+        #main proxy responsibilities 
+        else:
+            pass
+
+    #called by backup proxy
+    #listen for heartbeats and send heartbeats back to main proxy
+    def listen_to_main_proxy (self, proxy_sock: socket.socket):
+        print ("in listen_to_main_proxy")
+        if self.listen_to_main_proxy_called == True:
+            LOGGER.debug ("listen_to_main_proxy already called")
+            return 
+        self.listen_to_main_proxy_called = True
+        #Listen to main proxy
+        while True: 
+            LOGGER.debug ("before receiving anything from main proxy")
+            data = receive(proxy_sock)
+            LOGGER.debug ("Received something from main proxy")
+            if data:
+                heartbeat = proto.Response()
+                heartbeat.ParseFromString(data)
+                
+                if heartbeat.code == proto.Response.Code.HEARTBEAT:
+                    self.handle_missed_proxy_heartbeat()
+
+                if heartbeat.HasField("master_host"):
+                     # if no master server or new master server
+                     if self.master_socket is None or self.master_socket.getpeername()[0] != heartbeat.master_host:
+                        for _, slave in self.slave_sockets.items():
+                            if slave.getpeername()[0] == heartbeat.master_host:
+                                self.master_socket = slave
+                                self.remove_slave_socket(slave)
+                            else:
+                                LOGGER.warning(f"BackUp Proxy doesn't have connections to master server ?")
+
+                LOGGER.debug ("before sleeping")
+                time.sleep (5)
+                LOGGER.debug ("after sleeping")
+
+                heartbeat_message = proto.InitConnection()
+                heartbeat_message.sender = TrackNet_pb2.InitConnection.Sender.PROXY
+                heartbeat_message.is_heartbeat = True
+                if send(proxy_sock, heartbeat_message.SerializeToString()):
+                    LOGGER.debug("Sent heartbeat message to main proxy.")
+                else:
+                    LOGGER.warning("Failed to send heartbeat message to main proxy.")
+
 
     def send_heartbeat(self, master_socket):
         while not utils.exit_flag and self.master_socket == master_socket:
@@ -261,6 +350,7 @@ class Proxy:
 
             time.sleep(self.heartbeat_interval)
 
+    #called by master proxy
     def handle_connection(self, conn: socket.socket, address):
         try:
             # Convert address to a string key
@@ -301,6 +391,8 @@ class Proxy:
                                     self.slave_role_assignment(conn)
 
                         elif init_conn.sender == proto.InitConnection.Sender.PROXY and self.is_main:
+                            LOGGER.debug ("Received heartbeat from backup proxy. Sending response...")
+
                             ## add bool for backup is up
                             
                             heartbeat = proto.Response()
@@ -310,8 +402,12 @@ class Proxy:
                             if self.master_socket is not None:
                                 master_host, _ = self.master_socket.getpeername()
                                 heartbeat.master_host = master_host
-
-                            if not send(conn, heartbeat.SerializeToString()):
+                            LOGGER.debug ("before sleeping 2")
+                            time.sleep (5)
+                            LOGGER.debug ("after sleeping 2")
+                            if send(conn, heartbeat.SerializeToString()):
+                                LOGGER.debug(f"Sent heartbeat response to backup proxy.")
+                            else:
                                 LOGGER.warning(f"Failed to send heartbeat to backup proxy.")
                                 
                 except Exception as e:
@@ -353,6 +449,7 @@ class Proxy:
             LOGGER.info(f"Proxy {self.host}{self.port} shut down")
 
     def run(self):
+        print ("in run function")
         while not exit_flag:
             proxy_listening_sock = create_server_socket(self.host, self.port)
             
@@ -383,12 +480,13 @@ class Proxy:
 
 
 if __name__ == "__main__":
-
+    
     if len(sys.argv) <= 2:
+        print ("argv[1]" , sys.argv[1])
         if sys.argv[1] == "main":
             #csx2.uc.ucalgary.ca
             
-            proxy = Proxy("csx2.uc.ucalgary.ca", 5555, True)
+            proxy = Proxy("csx1.uc.ucalgary.ca", 5555, True)
         else:
             proxy = Proxy("localhost", 5555)
     else:
