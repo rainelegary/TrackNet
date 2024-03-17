@@ -93,7 +93,8 @@ message ServerResponse {
 	    CHANGE_SPEED = 0;
 		REROUTE = 1;
 		STOP = 2;
-		CLEAR = 3; 
+        PARK = 3;
+		CLEAR = 4; 
 	}	
 
     optional ServerDetails client = 1;

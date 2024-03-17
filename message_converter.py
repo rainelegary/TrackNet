@@ -7,7 +7,7 @@ from classes.route import Route
 from classes.track import Track
 from classes.junction import Junction
 from classes.location import Location
-from classes.enums import TrackCondition, TrainSpeed, TrainState, ServerResponse_Status
+from classes.enums import TrackCondition, TrainSpeed, TrainState
 
 
 class MessageConverter:
