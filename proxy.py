@@ -213,41 +213,42 @@ class Proxy:
 
     def send_heartbeat(self, master_socket):
         while not utils.exit_flag and self.master_socket == master_socket:
-            with self.lock:
-                if self.master_socket:
-                    try:
-                        heartbeat_message = proto.InitConnection()
-                        heartbeat_message.sender = TrackNet_pb2.InitConnection.Sender.PROXY
-                        heartbeat_message.is_heartbeat = True
-                        if not send(self.master_socket, heartbeat_message.SerializeToString()):
-                            LOGGER.warning(f"Failed to send heartbeat request to master server")
-                        
-                        # Wait for a response with a timeout
-                        ready = select.select([self.master_socket], [], [], self.heartbeat_timeout)
-                        if ready[0]:
-                            response = utils.receive(self.master_socket)
-                            if response:
-                                init_conn = proto.InitConnection()
-                                init_conn.ParseFromString(response)
-                                if init_conn.sender == proto.InitConnection.Sender.SERVER_MASTER:
-                                    LOGGER.info("Master server is alive")
-                                    if self.master_socket.getpeername()[0] != master_socket.getpeername()[0]:
-                                        LOGGER.warning(f"Received message with sender type master from NON master server.")
+            
+            if self.master_socket:
+                try:
+                    heartbeat_message = proto.InitConnection()
+                    heartbeat_message.sender = TrackNet_pb2.InitConnection.Sender.PROXY
+                    heartbeat_message.is_heartbeat = True
+                    if not send(self.master_socket, heartbeat_message.SerializeToString()):
+                        LOGGER.warning(f"Failed to send heartbeat request to master server")
+                    
+                    # Wait for a response with a timeout
+                    ready = select.select([self.master_socket], [], [], self.heartbeat_timeout)
+                    if ready[0]:
+                        response = utils.receive(self.master_socket)
+                        if response:
+                            init_conn = proto.InitConnection()
+                            init_conn.ParseFromString(response)
+                            if init_conn.sender == proto.InitConnection.Sender.SERVER_MASTER:
+                                LOGGER.info("Master server is alive")
+                                if self.master_socket.getpeername()[0] != master_socket.getpeername()[0]:
+                                    LOGGER.warning(f"Received message with sender type master from NON master server.")
+                                
+                                if init_conn.HasField("server_response"):
+                                    self.relay_server_response(init_conn.server_response) 
                                     
-                                    if init_conn.HasField("server_response"):
-                                        self.relay_server_response(init_conn.server_response) 
-                                        
-                                    elif init_conn.HasField("is_heartbeat") and self.is_main:
-                                        LOGGER.info("Received heartbeat message")
-                                    else:
-                                        LOGGER.warning(f"Proxy received msg from master with missing content {init_conn}")     
-                            else:
-                                raise Exception("No heartbeat response from master server.")
+                                elif init_conn.HasField("is_heartbeat") and self.is_main:
+                                    LOGGER.info("Received heartbeat message")
+                                else:
+                                    LOGGER.warning(f"Proxy received msg from master with missing content {init_conn}")     
                         else:
-                            raise Exception("Heartbeat response timed out.")
-                        
-                    except Exception as e:
-                        print("Master server is not responding. Considered dead.")
+                            raise Exception("No heartbeat response from master server.")
+                    else:
+                        raise Exception("Heartbeat response timed out.")
+                    
+                except Exception as e:
+                    print("Master server is not responding. Considered dead.")
+                    with self.lock:
                         self.master_socket = None
                         ## need to select a new master 
                         ## need to notify the 

@@ -309,7 +309,7 @@ class Server():
             # Create a separate thread for talking to slaves
             threading.Thread(target=self.talk_to_slaves, daemon=True).start()
         
-        elif proxy_resp.hasField("is_heartbeat"):
+        elif proxy_resp.HasField("is_heartbeat"):
             master_response = TrackNet_pb2.InitConnection()
             master_response.sender = TrackNet_pb2.InitConnection.Sender.SERVER_MASTER
             master_response.is_heartbeat = True
