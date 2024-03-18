@@ -27,7 +27,7 @@ initial_config = {
 
 slave_to_master_port = 4444
 
-#assumes master proxy is connected at csx1.ucalgary.ca
+#assumes csx1.ucalgary.ca is the host
 proxy_details = {
     "csx1.ucalgary.ca": 5555
 }
@@ -51,7 +51,7 @@ def setup_logging():
     handler = logging.StreamHandler()
     handler.setLevel(logging.DEBUG)
     handler.setFormatter(formatter)
-    
+
     logging.root.setLevel(logging.DEBUG)
     logging.root.addHandler(handler)
 
@@ -206,7 +206,7 @@ def receive(sock: socket.socket) -> bytes:
     try:
         content_length = sock.recv(4)
         data = sock.recv(bytes_to_int(content_length))
-        
+
         # bytes_to_recv = bytes_to_int(content_length)
         #while bytes_to_recv > 0:
         #    recv = sock.recv(bytes_to_recv)
