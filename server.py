@@ -296,7 +296,12 @@ class Server():
                 self.is_master = True
 
                 for slave in proxy_resp.servers:
-                    pass
+                    slave_host = slave.host
+                    slave_port = slave.port
+                    LOGGER.debug ( f"Slave host: {slave_host}, Slave port: {slave_port}")
+                    # connect to slave in separate thread
+                    LOGGER.debug ("Connecting to slave")
+                    self.connect_to_slave(slave_host, slave_port)
 
             else:
                 LOGGER.info(f"{self.host}:{self.port} designated as a SLAVE.")
