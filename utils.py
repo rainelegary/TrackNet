@@ -204,6 +204,7 @@ def receive(sock: socket.socket) -> bytes:
     data = b''
 
     try:
+        sock.settimeout(10)
         content_length = sock.recv(4)
         data = sock.recv(bytes_to_int(content_length))
 
@@ -216,7 +217,7 @@ def receive(sock: socket.socket) -> bytes:
 
 
     except socket.timeout:
-        raise TimeoutError("Socket receiving timed out.")
+        return None
     except Exception as e:
         raise RuntimeError(f"Error receiving data: {e}")
     except:

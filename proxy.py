@@ -12,9 +12,10 @@ import sys
 import time
 from utils import *
 
-
 setup_logging() ## only need to call at main entry point of application
+
 LOGGER = logging.getLogger("Proxy")
+
 
 class Proxy:
     def __init__(self, host, port, is_main=False):
@@ -40,6 +41,7 @@ class Proxy:
 
         threading.Thread(target=self.proxy_to_proxy, daemon=True).start()
 
+
     def set_main_proxy_host(self):
         print ("in set_main_proxy_host ", self.is_main)
         if self.is_main:
@@ -57,6 +59,7 @@ class Proxy:
             LOGGER.warning(f"Only one proxy? setting as main proxy")
             self.main_proxy_host = self.host
             self.is_main = True
+        
 
     def add_slave_socket(self, slave_socket: socket.socket):
         self.slave_sockets[f"{slave_socket.getpeername()[0]}"] = slave_socket
@@ -103,7 +106,7 @@ class Proxy:
 
     def promote_slave_to_master(self, slave_socket: socket.socket):
         self.master_socket = slave_socket
-        LOGGER.info(f"{slave_socket.getpeername()} promoted to MASTER")
+        #LOGGER.info(f"{slave_socket.getpeername()} promoted to MASTER")
 
         # notify the newly promoted master server of its new role
         role_assignment = proto.ServerAssignment()
@@ -119,14 +122,17 @@ class Proxy:
             slave_details.port = slave_to_master_port
             #LOGGER.info(f"Adding {slave_ip}:{slave_to_master_port} to list of slaves")
 
-        if not send(slave_socket, role_assignment.SerializeToString()):
+        if send(slave_socket, role_assignment.SerializeToString()):
+            LOGGER.debug(f"Sent role assignmnet to newly elected master.")
+        else:
             LOGGER.warning(f"Failed to send role assignmnet to newly elected master.")
 
         ##TODO recv ACK
 
         # remove new master from list of slaves
-        self.remove_slave_socket(slave_socket)
+        #self.remove_slave_socket(slave_socket)
 
+        LOGGER.debug ("sending heartbeat to new master server")
         #threading.Thread(target=self.send_heartbeat, args=(self.master_socket,), daemon=True).start()
         self.send_heartbeat(self.master_socket)
 
@@ -325,7 +331,56 @@ class Proxy:
                 # main proxy does not do anything here i think ??
                 break
 
-    def send_heartbeat(self, master_socket):
+
+    def send_heartbeat (self, master_socket):
+        LOGGER.debug ("in send_heartbeat function")
+
+        # Start a timer
+        self.heartbeat_timer = threading.Timer(self.heartbeat_timeout, self.handle_heartbeat_timeout)
+        self.heartbeat_timer.start()
+        LOGGER.debug ("heartbeat timer started")
+
+        try:
+            if self.master_socket:
+                heartbeat_message = proto.InitConnection()
+                heartbeat_message.sender = TrackNet_pb2.InitConnection.Sender.PROXY
+                heartbeat_message.is_heartbeat = True
+                LOGGER.debug ("before sending heartbeat to master server")
+                if send(self.master_socket, heartbeat_message.SerializeToString()):
+                    LOGGER.debug("Sent heartbeat message to master server.")
+                else:
+                    LOGGER.warning(f"Failed to send heartbeat request to master server")
+        except Exception as e:
+            print("Error sending heartbeat:", e)
+            self.handle_heartbeat_timeout()  # Trigger timeout handling            
+
+
+    # Define a function for sleeping and sending heartbeat
+    def handle_heartbeat_response(self):
+        LOGGER.debug(f"In handle_heartbeat_response()")
+        print("Received heartbeat response from master server.")
+        # Cancel the timer if it's still running
+        if self.heartbeat_timer and self.heartbeat_timer.is_alive():
+            self.heartbeat_timer.cancel() 
+            LOGGER.debug("cancelling heartbeat timer")
+
+        LOGGER.debug(f"Sleeping for {self.heartbeat_interval} seconds")
+        time.sleep(self.heartbeat_interval)
+        self.send_heartbeat(self.master_socket)
+
+    def handle_heartbeat_timeout (self):
+        print("Heartbeat response timed out.")
+        # Take appropriate action here
+        if len(self.slave_sockets) > 0:
+            LOGGER.debug("Number of slave sockets: %d", len(self.slave_sockets))
+            new_master_socket_key, new_master_socket_value = self.slave_sockets.popitem()
+            self.promote_slave_to_master(new_master_socket_value)
+        else:
+            LOGGER.info("len (slave sockets) is 0")
+            LOGGER.info("No slave servers available to promote to master.")   
+
+
+    def send_heartbeat_old(self, master_socket):
         LOGGER.debug ("in send_heartbeat function")
         if self.master_socket:
             #while not utils.exit_flag and self.master_socket == master_socket:
@@ -412,7 +467,7 @@ class Proxy:
                             elif init_conn.HasField("is_heartbeat") and self.is_main:
                                 LOGGER.debug ("Received heartbeat from master server. Sending response...")
                                 # send heartbeat
-                                threading.Thread(target=self.sleep_and_send_heartbeat, daemon=True).start()
+                                threading.Thread(target=self.handle_heartbeat_response, daemon=True).start()
                             else:
                                 LOGGER.warning(f"Proxy received msg from master with missing content {init_conn}")
 
@@ -466,13 +521,6 @@ class Proxy:
         if conn is not None:
             conn.close()
 
-
-    # Define a function for sleeping and sending heartbeat
-    def sleep_and_send_heartbeat(self):
-        LOGGER.debug(f"In sleep_and_send_heartbeat()")
-        LOGGER.debug(f"Sleeping for {self.heartbeat_interval} seconds")
-        time.sleep(self.heartbeat_interval)
-        self.send_heartbeat(self.master_socket)
 
 
     def shutdown(self, proxy_listening_sock: socket.socket):

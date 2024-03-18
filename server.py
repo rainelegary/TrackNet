@@ -243,6 +243,30 @@ class Server():
     def handle_master_communication(self, conn):
         try:
             while self.connected_to_master:
+                try:
+                    data = receive(conn)  # Adjust buffer size as needed
+                    if data:
+                        master_resp = TrackNet_pb2.InitConnection()
+                        master_resp.ParseFromString(data)
+                        # Check if sender is master
+                        if master_resp.sender == TrackNet_pb2.InitConnection.SERVER_MASTER and master_resp.HasField("railway_update"):
+                            LOGGER.debug(f"Slave received a backup form the master: {master_resp.railway_update}")
+                            # need to store the backup
+                            LOGGER.debug(f"Received railway update from master at {master_resp.railway_update.timestamp}")
+                except socket.timeout:
+                    continue  # No data received within the timeout, continue loop
+                except Exception as e:
+                    LOGGER.error(f"Error communicating with master: {e}")
+                    print ("Setting connected to master to false")
+                    self.connected_to_master = False # Reset the flag to allow for a new connection
+                    break  # Break out of the loop on any other exception
+        finally:
+            LOGGER.debug("Closing connection to master")
+            conn.close()
+
+    def handle_master_communication_old(self, conn):
+        try:
+            while self.connected_to_master:
                 data = receive(conn)
                 if data:
                     master_resp = TrackNet_pb2.InitConnection()
@@ -253,12 +277,13 @@ class Server():
                         # need to store the backup
                         LOGGER.debug(f"Received railway update from master at {master_resp.railway_update.timestamp}")
         except Exception as e:
-            LOGGER.error(f"Error communicating with master: {e}")
-        finally:
+            LOGGER.debug(f"Error communicating with master: {e}")
+            LOGGER.debug("Closing connection to master")
             conn.close()
             self.connected_to_master = False # Reset the flag to allow for a new connection
 
     def slave_proxy_communication(self, data):
+        LOGGER.debug("slave recieved message from proxy")
         proxy_resp = TrackNet_pb2.ServerAssignment()
         proxy_resp.ParseFromString(data)
         LOGGER.debug(f"Slave received role assignment from proxy: {proxy_resp}")
@@ -279,7 +304,8 @@ class Server():
                 # Connect to master if not already
                 if not self.connected_to_master:
                     # listen to master instead of initiating connection
-                    self.listen_for_master(self.host, 4444)
+                    #self.listen_for_master(self.host, 4444)
+                    threading.Thread(target=self.listen_for_master, args=(self.host, 4444)).start()
 
     def master_proxy_communication(self, sock, data):
         # Data also needs to include an update of a new slave
