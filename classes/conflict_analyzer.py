@@ -322,9 +322,12 @@ class ConflictAnalyzer:
         continuing_trains = {}
 
         # determine what to do for each train 
-        for train in involved_trains:
+        for train_id, train in involved_trains.items():
 
-            if train.route.get_next_track().name in available_tracks:
+            if (
+                train.route.get_next_track().name in available_tracks
+                and ConflictAnalyzer.may_enter_track(railway, commands, train_id)
+            ):
                 continue # keep going, or start moving if not moving yet
 
             if train.state in [TrainState.PARKED, TrainState.PARKING]:
