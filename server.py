@@ -14,6 +14,7 @@ import time
 import threading
 from utils import initial_config, proxy_details
 from message_converter import MessageConverter
+import sys
 
 setup_logging() ## only need to call at main entry point of application
 
@@ -217,9 +218,11 @@ class Server():
 
     def listen_for_master(self, host, port):
         slave_to_master_sock = create_server_socket(host, port)
-        LOGGER.debug("Slave created listening socket, waiting for master backups")
 
-        if slave_to_master_sock is None:
+        if slave_to_master_sock:
+            LOGGER.debug ("Slave created listening socket, waiting for master backups")
+            LOGGER.debug ("Slave is listening for master on  " + host + ":" + str(port))
+        else:
             LOGGER.warning("Slave failed to create listening socket for master.")
             return
 
@@ -310,7 +313,8 @@ class Server():
                 if not self.connected_to_master:
                     # listen to master instead of initiating connection
                     #self.listen_for_master(self.host, 4444)
-                    threading.Thread(target=self.listen_for_master, args=(self.host, 4444)).start()
+                    #threading.Thread(target=self.listen_for_master, args=(self.host, 4444)).start()
+                    threading.Thread(target=self.listen_for_master, args=(self.host, self.port)).start()
 
     def master_proxy_communication(self, sock, data):
         # Data also needs to include an update of a new slave
@@ -478,12 +482,12 @@ class Server():
         except Exception as e:
             LOGGER.error(f"Error communicating with proxy: {e}")
             self.proxy_sock.close()
-            self.proxy_sock.close()
 
     def connect_to_slave (self, slave_host, slave_port):
         try:
             # for each slave create client sockets
-            slave_sock = create_client_socket(slave_host, 4444)
+            #slave_sock = create_client_socket(slave_host, 4444)
+            slave_sock = create_client_socket(slave_host, slave_port)
             self.socks_for_communicating_to_slaves.append(slave_sock)
             LOGGER.debug (f"Added slave server {slave_host}:{slave_port}")
             # Start a new thread dedicated to this slave for communication
@@ -802,6 +806,11 @@ class Server():
                 LOGGER.info("Restarting listening socket...")
                 self.sock = create_server_socket(self.host, self.port)
 
-
 if __name__ == '__main__':
-    Server()
+    #Pass host  and port as command line arguments
+    if len(sys.argv) == 2:
+        port = int(sys.argv[1])
+        print (" server port ", port)
+        Server(port=port)
+    else:
+        Server()

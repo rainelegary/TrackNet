@@ -352,6 +352,8 @@ class Proxy:
                     LOGGER.warning(f"Failed to send heartbeat request to master server")
         except Exception as e:
             print("Error sending heartbeat:", e)
+            print ("Calling handle_heartbeat_timeout")
+            self.heartbeat_timer.cancel()
             self.handle_heartbeat_timeout()  # Trigger timeout handling            
 
 
@@ -472,7 +474,7 @@ class Proxy:
                                 LOGGER.warning(f"Proxy received msg from master with missing content {init_conn}")
 
                         elif init_conn.sender == proto.InitConnection.Sender.SERVER_SLAVE:
-                                self.add_slave_socket(conn)
+                                #self.add_slave_socket(conn)
 
                                 if self.is_main:
                                     self.slave_role_assignment(conn, init_conn)
