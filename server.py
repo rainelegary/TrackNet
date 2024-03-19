@@ -481,6 +481,7 @@ class Server():
 
         except Exception as e:
             LOGGER.error(f"Error communicating with proxy: {e}")
+            LOGGER.error(f"Closing down proxy")
             self.proxy_sock.close()
 
     def connect_to_slave (self, slave_host, slave_port):
