@@ -54,7 +54,7 @@ class Server():
 
         self.connect_to_proxy()
         self.isMaster = False
-        self.proxy_host = "csx2.uc.ucalgary.ca"
+        self.proxy_host = "csx1.uc.ucalgary.ca"
         self.proxy_port = 5555
         self.connect_to_proxy (self.proxy_host, self.proxy_port)
         #self.listen_on_socket ()
@@ -172,7 +172,8 @@ class Server():
                 resp.speed = 200     ## TODO set slow speed
 
         # update train location
-        self.railway.update_train(train, TrainState(client_state.train.state), client_state.location)
+        #add 4th argument
+        self.railway.update_train(train, TrainState(client_state.train.state), client_state.location, client_state.route)
 
         # (TODO) use speed, location & route data to detect possible conflicts.
         resp.speed = 200
