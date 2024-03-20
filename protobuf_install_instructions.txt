@@ -9,5 +9,8 @@ Compiling Protocol Buffers:
 After modifying the TrackNet.proto file you need to compile it for the changes to take effect
  > protoc -I=$SRC_DIR --python_out=$DST_DIR $SRC_DIR/TrackNet.proto
 
+If compiling from working directory to working directory:
+> protoc -I=. --python_out=. ./TrackNet.proto
+
 
 Basics of Using Protocol Buffers in Python: https://protobuf.dev/getting-started/pythontutorial/
