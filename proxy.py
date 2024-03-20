@@ -578,19 +578,16 @@ class Proxy:
 
 if __name__ == "__main__":
 
-    if len(sys.argv) <= 2:
-        print ("argv[1]" , sys.argv[1])
+    if len(sys.argv) == 1:
+        proxy = Proxy("localhost", 5555)
+
+    elif len(sys.argv) == 2:
         if sys.argv[1] == "main":
-            #csx2.uc.ucalgary.ca
-            print ("setting host to csx1")
-            proxy = Proxy("csx1.uc.ucalgary.ca", 5555, True)
+            proxy = Proxy("localhost", 5555, True)
         else:
-            print ("setting host to localhost")
-            proxy = Proxy("localhost", 5555)
+            proxy = Proxy(sys.argv[1], 5555)       
     else:
-        print ("length args > 2")
         if sys.argv[1] == "main":
-            #csx2.uc.ucalgary.ca
             proxy = Proxy(sys.argv[2], 5555, True)
         else:
             proxy = Proxy(sys.argv[2], 5555)
