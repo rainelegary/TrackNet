@@ -386,6 +386,7 @@ class Proxy:
         else:
             LOGGER.info("len (slave sockets) is 0")
             LOGGER.info("No slave servers available to promote to master.")   
+            self.master_socket = None
 
 
     def send_heartbeat_old(self, master_socket):
