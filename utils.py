@@ -12,7 +12,8 @@ __all__ = [
     "send",
     "receive",
     "slave_to_master_port",
-    "proxy_details"
+    "proxy_details",
+    "proxy_port"
 ]
 
 initial_config = {
@@ -26,11 +27,12 @@ initial_config = {
 }
 
 slave_to_master_port = 4444
+proxy_port = 5555
 
 #assumes csx1.ucalgary.ca is the host
 proxy_details = {
     "csx1.ucalgary.ca": 5555,
-    "DESKTOP_BF2NK58": 5555
+    "DESKTOP-BF2NK58": 5555
 }
 
 exit_flag = False
