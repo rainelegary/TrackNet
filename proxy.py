@@ -579,7 +579,7 @@ class Proxy:
 if __name__ == "__main__":
 
     if len(sys.argv) == 2 and sys.argv[1] == "main":
-            proxy = Proxy(port=5555, is_main=True)      
+        proxy = Proxy(port=5555, is_main=True)      
     else:
         proxy = Proxy(port=5555)
 
