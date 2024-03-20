@@ -482,7 +482,7 @@ class Server():
             # Prepare the client state message
             master_resp = TrackNet_pb2.InitConnection()
             master_resp.sender = TrackNet_pb2.InitConnection.SERVER_MASTER
-            master_resp.railway_update.CopyFrom(self.create_railway_update_message())
+            #master_resp.railway_update.CopyFrom(self.create_railway_update_message())
             print("Railway update message created")
             success = send(slave_socket, master_resp.SerializeToString())
             print(f"Railway update message sent to slave successfully: {success}")
