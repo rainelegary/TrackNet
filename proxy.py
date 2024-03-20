@@ -41,17 +41,16 @@ class Proxy:
 
 
     def set_main_proxy_host(self):
-        print ("in set_main_proxy_host ", self.is_main)
         if self.is_main:
             self.main_proxy_host = self.host
         else:
             for proxy, _ in proxy_details.items():
-                if proxy != self.host:
+                if proxy != self.host and proxy != "DESKTOP-BF2NK58":
                     self.main_proxy_host = proxy
                 else:
-                    print ("proxy is the same as self.host")
+                    LOGGER.debug("proxy is the same as self.host")
 
-        print ("self main_proxy_host: ", self.main_proxy_host)
+        LOGGER.info(f"Main proxy hostname: {self.main_proxy_host}")
         ## case where only one proxy and command-line arg main missing
         if self.main_proxy_host is None:
             LOGGER.warning(f"Only one proxy? setting as main proxy")
@@ -411,11 +410,11 @@ class Proxy:
                             heartbeat.code = proto.Response.Code.HEARTBEAT
 
                             # nofity backup proxy who the master server is
-                            try:
-                                master_host, _ = self.master_socket.getpeername()
-                                heartbeat.master_host = master_host
-                            except socket.error:
-                                LOGGER.warning("Master server not connected?")
+                            #try:
+                            #    master_host, _ = self.master_socket.getpeername()
+                            #    heartbeat.master_host = master_host
+                            #except socket.error:
+                            #    LOGGER.warning("Master server not connected?")
 
                             time.sleep(5)
 
@@ -462,7 +461,6 @@ class Proxy:
             LOGGER.info(f"Proxy {self.host}{self.port} shut down")
 
     def run(self):
-        print ("in run")
         while not exit_flag:
             proxy_listening_sock = create_server_socket(self.host, self.port)
 
