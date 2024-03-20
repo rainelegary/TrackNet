@@ -584,7 +584,7 @@ if __name__ == "__main__":
 
     elif len(sys.argv) == 2:
         if sys.argv[1] == "main":
-            proxy = Proxy("localhost", 5555, True)
+            proxy = Proxy("csx1.ucalgary.ca", 5555, True)
         else:
             proxy = Proxy(sys.argv[1], 5555)       
     else:
