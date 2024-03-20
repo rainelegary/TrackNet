@@ -428,16 +428,15 @@ class ConflictAnalyzer:
         # train id's (change proto)
         # condition
         # speed
-
     # trains
-    # id
-    # length
-    # state
-    # location
-        #
-    # route
-        #
-    # destination junction id (change proto)
-    # speed
+        # id
+        # length
+        # state
+        # location
+            #
+        # route
+            #
+        # destination junction id (change proto)
+        # speed
 
     # train counter
