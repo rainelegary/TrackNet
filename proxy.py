@@ -23,7 +23,7 @@ class Proxy:
         self.port = port
         self.proxy_port = port
         self.master_socket = None
-        self.slave_sockets = {}
+        self.slave_sockets = {} 
         self.client_sockets = {}  # Map client address (IP, port) to socket for direct access
         self.socket_list = []
         self.lock = threading.Lock()
@@ -35,7 +35,7 @@ class Proxy:
         self.listen_to_proxy_called = False
 
         self.heartbeat_attempts = 0
-        self.max_heartbeat_attempts = 3
+        self.max_heartbeat_attempts = 0
 
         self.set_main_proxy_host()
 
@@ -76,7 +76,17 @@ class Proxy:
             if self.master_socket is not None:
                 new_message = proto.InitConnection()
                 new_message.sender = proto.InitConnection.Sender.PROXY
-                new_message.client_state.CopyFrom(client_state)
+                #Can't copy from entire client state 
+                #Have to copy each field individually
+                new_message.client_state.client.CopyFrom(client_state.client)
+                new_message.client_state.train.CopyFrom(client_state.train)
+                new_message.client_state.location.CopyFrom(client_state.location)
+                new_message.client_state.condition.CopyFrom(client_state.condition)
+                new_message.client_state.route.CopyFrom(client_state.route)
+                new_message.client_state.speed = client_state.speed
+                #new_message.client_state.CopyFrom(client_state)
+                if self.master_socket is None:
+                    print("MASTER NONE")
                 if not send(self.master_socket, new_message.SerializeToString()):
                     LOGGER.warning(f"Failed to send client state message to master.")
                 else:
@@ -179,10 +189,6 @@ class Proxy:
 
                 role_assignment = proto.ServerAssignment()
                 role_assignment.is_master = False
-                #master_ip, _ = self.master_socket.getpeername()
-                #master_details = role_assignment.servers.add()
-                #master_details.host = master_ip
-                #master_details.port = slave_to_master_port
 
                 if not send(slave_socket, role_assignment.SerializeToString()):
                     LOGGER.warning(f"Failed to send role assignmnet to slave.")
@@ -197,6 +203,7 @@ class Proxy:
 
         if self.heartbeat_attempts >= self.max_heartbeat_attempts:
             self.is_main = True
+            LOGGER.debug ("Setting self to main proxy")
             ## TODO handle main proxy failure
 
 
@@ -213,6 +220,7 @@ class Proxy:
                     connected_to_proxy = True
                     LOGGER.debug ("Connected to main proxy")
                     self.socket_list.append(proxy_sock)
+                    proxy_sock.settimeout(15)
 
                 else:
                     LOGGER.warning(f"Failed to connect to main proxy. Trying again in 5 seconds ...")
@@ -253,6 +261,7 @@ class Proxy:
                 heartbeat = proto.Response()
                 heartbeat.ParseFromString(data)
 
+                #comment out
                 if heartbeat.code == proto.Response.Code.HEARTBEAT:
                     LOGGER.debug ("received heartbeat")
                     self.handle_missed_proxy_heartbeat()
@@ -268,7 +277,6 @@ class Proxy:
                             else:
                                 LOGGER.warning(f"BackUp Proxy doesn't have connections to master server ?")
 
-
                 LOGGER.debug ("before sleeping 2")
                 time.sleep(5)
                 LOGGER.debug ("done sleeping 2")
@@ -282,6 +290,7 @@ class Proxy:
                     LOGGER.warning("Failed to send heartbeat message to main proxy.")
             else:
                 print ("no data received")
+                self.handle_missed_proxy_heartbeat()
 
     def proxy_to_proxy_old(self):
         print ("in proxy_to_proxy")
@@ -352,8 +361,6 @@ class Proxy:
                     LOGGER.warning(f"Failed to send heartbeat request to master server")
         except Exception as e:
             print("Error sending heartbeat:", e)
-            print ("Calling handle_heartbeat_timeout")
-            self.heartbeat_timer.cancel()
             self.handle_heartbeat_timeout()  # Trigger timeout handling            
 
 
@@ -380,6 +387,7 @@ class Proxy:
         else:
             LOGGER.info("len (slave sockets) is 0")
             LOGGER.info("No slave servers available to promote to master.")   
+            self.master_socket = None
 
 
     def send_heartbeat_old(self, master_socket):
@@ -486,9 +494,9 @@ class Proxy:
                             heartbeat.code = proto.Response.Code.HEARTBEAT
 
                             # nofity backup proxy who the master server is
-                            if self.master_socket is not None:
-                                master_host, _ = self.master_socket.getpeername()
-                                heartbeat.master_host = master_host
+                            # if self.master_socket is not None:
+                            #     master_host, _ = self.master_socket.getpeername()
+                            #     heartbeat.master_host = master_host
 
                             LOGGER.debug ("before sleeping 2")
                             time.sleep(5)
@@ -566,23 +574,21 @@ class Proxy:
                     LOGGER.error(f"run(): ")
 
         self.shutdown(proxy_listening_sock)
+        proxy_listening_sock.close()
 
 
 if __name__ == "__main__":
 
-    if len(sys.argv) <= 2:
-        print ("argv[1]" , sys.argv[1])
+    if len(sys.argv) == 1:
+        proxy = Proxy("localhost", 5555)
+
+    elif len(sys.argv) == 2:
         if sys.argv[1] == "main":
-            #csx2.uc.ucalgary.ca
-            print ("setting host to csx1")
-            proxy = Proxy("csx1.uc.ucalgary.ca", 5555, True)
+            proxy = Proxy("localhost", 5555, True)
         else:
-            print ("setting host to localhost")
-            proxy = Proxy("localhost", 5555)
+            proxy = Proxy(sys.argv[1], 5555)       
     else:
-        print ("length args > 2")
         if sys.argv[1] == "main":
-            #csx2.uc.ucalgary.ca
             proxy = Proxy(sys.argv[2], 5555, True)
         else:
             proxy = Proxy(sys.argv[2], 5555)

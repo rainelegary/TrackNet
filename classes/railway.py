@@ -100,14 +100,15 @@ class Railway:
         train.state = state
 
         # update route
-        train = self.trains[train.name]
-        self.set_route_for_train(route_msg,train)
+        #train = self.trains[train.name]
+        #possibly causing error
+        #self.set_route_for_train(route_msg,train)
         #train.route = MessageConverter.route_msg_to_obj(route_msg, self.map.junctions)
 
     def set_route_for_train(self, route: TrackNet_pb2.Route, train: Train):
         new_route = []
         for junc in route.junctions:
-            new_route.append(self.railmap.junctions[junc])
+            new_route.append(self.map.junctions[junc])
         train.route = Route(new_route)
         train.location.set_track(self.train.route.get_next_track())
         LOGGER.debug(f"init track={self.train.route.get_next_track()}")

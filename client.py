@@ -33,7 +33,7 @@ initial_config = {
 
 class Client():
     
-    def __init__(self, host: str ="csx2.uc.ucalgary.ca", port: int =5555):
+    def __init__(self, host: str ="csx1.uc.ucalgary.ca", port: int =5555):
         """ A client class responsible for simulating a train's interaction with a server, including sending its state and receiving updates.
 
         :param host: The hostname or IP address of the server to connect to.
@@ -148,7 +148,7 @@ class Client():
         LOGGER.debug(f"init track={self.train.route.get_next_track()}")
 
     #Made new function below
-    def run_old(self):
+    def run(self):
         """Initiates the client's main loop, continuously sending its state to the server and processing the server's response. It handles connection management, state serialization, and response deserialization. Based on the server's response, it adjusts the train's speed, reroutes, or stops as necessary.
 
         The method uses a loop that runs until an `exit_flag` is set. It manages the socket connection, sends the train's state, and processes responses from the server. The method also handles rerouting, speed adjustments, and stopping the train based on the server's instructions.
@@ -208,7 +208,7 @@ class Client():
                                 elif self.train.state == TrainState.STOPPED:
                                     LOGGER.debug("RESUMING MOVEMENT")
                                     self.train.resume_movement(server_resp.speed)
-                                elif self.train.state == TrainState.RUNNING and self.train.speed == TrainSpeed.SLOW.value:
+                                elif self.train.state == TrainState.RUNNING and self.train.current_speed == TrainSpeed.SLOW.value:
                                     LOGGER.debug("SPEEDING UP")
                                     self.train.set_speed(TrainSpeed.FAST.value)
                             
@@ -221,12 +221,13 @@ class Client():
                 
             time.sleep(2)
 
-    def run (self):
+    def run_alisha (self):
         """Initiates the client's main loop, continuously sending its state to the server and processing the server's response. It handles connection management, state serialization, and response deserialization. Based on the server's response, it adjusts the train's speed, reroutes, or stops as necessary.
 
         The method uses a loop that runs until an `exit_flag` is set. It manages the socket connection, sends the train's state, and processes responses from the server. The method also handles rerouting, speed adjustments, and stopping the train based on the server's instructions.
         """
         proxy_items = list(proxy_details.items())
+
         self.current_proxy = proxy_items[0]  # First item
         self.backup_proxy = proxy_items[1]  # Second item
         connected_to_main_proxy = True
@@ -298,8 +299,8 @@ class Client():
                 return
             
         if server_resp.status == TrackNet_pb2.ServerResponse.UpdateStatus.CHANGE_SPEED:
-            LOGGER.debug(f"CHANGE_SPEED {self.train.name} to {server_resp.speed_change}")
-            self.train.set_speed(server_resp.speed_change)
+            LOGGER.debug(f"CHANGE_SPEED {self.train.name} to {server_resp.speed}")
+            self.train.set_speed(server_resp.speed)
             
         elif server_resp.status == TrackNet_pb2.ServerResponse.UpdateStatus.REROUTE:
             LOGGER.debug(f"REROUTING {self.train.name}")
