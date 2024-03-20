@@ -81,7 +81,7 @@ class Proxy:
                 new_message.client_state.client.CopyFrom(client_state.client)
                 new_message.client_state.train.CopyFrom(client_state.train)
                 new_message.client_state.location.CopyFrom(client_state.location)
-                new_message.client_state.condition.CopyFrom(client_state.condition)
+                new_message.client_state.condition = client_state.condition
                 new_message.client_state.route.CopyFrom(client_state.route)
                 new_message.client_state.speed = client_state.speed
                 #new_message.client_state.CopyFrom(client_state)
@@ -578,8 +578,14 @@ class Proxy:
 
 if __name__ == "__main__":
 
-    if len(sys.argv) == 2 and sys.argv[1] == "main":
-        proxy = Proxy(port=5555, is_main=True)      
+    if len(sys.argv) == 1:
+        proxy = Proxy("localhost", 5555)
+
+    elif len(sys.argv) == 2:
+        if sys.argv[1] == "main":
+            proxy = Proxy("csx1.ucalgary.ca", 5555, True)
+        else:
+            proxy = Proxy(sys.argv[1], 5555)       
     else:
         proxy = Proxy(port=5555)
 
