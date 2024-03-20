@@ -416,6 +416,28 @@ class ConflictAnalyzer:
         # stop if cannot reroute
 
     
-        
+# railmap
+    # junctions
+        # id
+        # neighboring track id's (change proto)
+        # parked train id's (change proto)
+    # tracks
+        # junction_a id
+        # junction_b id
+        # id
+        # train id's (change proto)
+        # condition
+        # speed
 
+    # trains
+    # id
+    # length
+    # state
+    # location
+        #
+    # route
+        #
+    # destination junction id (change proto)
+    # speed
 
+    # train counter
