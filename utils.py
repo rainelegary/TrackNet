@@ -32,7 +32,7 @@ proxy_port = 5555
 #assumes csx1.ucalgary.ca is the host
 proxy_details = {
     "csx1.ucalgary.ca": 5555,
-    "DESKTOP-BF2NK58": 5555
+    "csx3.ucalgary.ca": 5555
 }
 
 exit_flag = False

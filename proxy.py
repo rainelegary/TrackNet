@@ -226,7 +226,7 @@ class Proxy:
             self.listen_to_main_proxy(proxy_sock)
 
     def listen_to_main_proxy(self, proxy_sock: socket.socket):
-        LOGGER.info("Keeping heartbeat with main proxy")
+        LOGGER.info("Keeping heartbeat with main proxy ...")
 
         while not self.is_main:
             heartbeat_message = proto.InitConnection()
@@ -417,9 +417,7 @@ class Proxy:
                             except socket.error:
                                 LOGGER.warning("Master server not connected?")
 
-                            LOGGER.debug ("before sleeping 2")
                             time.sleep(5)
-                            LOGGER.debug ("after sleeping 2")
 
                             if send(conn, heartbeat.SerializeToString()):
                                 LOGGER.debug("Sent heartbeat to backup proxy")
@@ -491,6 +489,7 @@ class Proxy:
                 except Exception as exc:
                     LOGGER.error(f"run(): ")
 
+        LOGGER.info("Shutting down...")
         self.shutdown(proxy_listening_sock)
         proxy_listening_sock.close()
 
