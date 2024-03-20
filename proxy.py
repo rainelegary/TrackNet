@@ -18,8 +18,8 @@ LOGGER = logging.getLogger("Proxy")
 
 
 class Proxy:
-    def __init__(self, host, port, is_main=False):
-        self.host = host
+    def __init__(self, port=proxy_port, is_main=False):
+        self.host = socket.gethostname()
         self.port = port
         self.proxy_port = port
         self.master_socket = None
@@ -146,7 +146,6 @@ class Proxy:
         #threading.Thread(target=self.send_heartbeat, args=(self.master_socket,), daemon=True).start()
         self.send_heartbeat(self.master_socket)
 
-
     def notify_master_of_new_slave(self, init_conn: TrackNet_pb2.InitConnection):
         # Notify master of new slave server so it can connect to it
         slave_host = init_conn.slave_details.host
@@ -162,7 +161,6 @@ class Proxy:
         LOGGER.debug("Sending slave details to master")
         if not send(self.master_socket, resp.SerializeToString()):
             LOGGER.warning(f"Failed to send slave details to master.")
-
 
     def notify_master_of_slaves(self):
         # Notify master of new slave server so it can connect to it
@@ -196,8 +194,6 @@ class Proxy:
                 #self.notify_master_of_slaves()
                 self.notify_master_of_new_slave(init_conn)
 
-
-
     def handle_missed_proxy_heartbeat(self):
         self.heartbeat_attempts += 1
 
@@ -205,7 +201,6 @@ class Proxy:
             self.is_main = True
             LOGGER.debug ("Setting self to main proxy")
             ## TODO handle main proxy failure
-
 
     def proxy_to_proxy(self):
         print ("in proxy to proxy")
@@ -227,18 +222,22 @@ class Proxy:
                     time.sleep(5)
                     self.handle_missed_proxy_heartbeat()
 
-            # Send heartbeat request to main proxy through InitConnection message
-            heartbeat_request = proto.InitConnection()
-            heartbeat_request.sender = proto.InitConnection.Sender.PROXY
-            heartbeat_request.is_heartbeat = True
-            if send(proxy_sock, heartbeat_request.SerializeToString()):
-                LOGGER.debug("Sent heartbeat request to main proxy.")
-                #listen to main_proxy
-                print ("calling listen to proxy thread")
-                #threading.Thread(target=self.listen_to_main_proxy, args=(proxy_sock,), daemon=True).start()
-                self.listen_to_main_proxy(proxy_sock)
-            else:
-                LOGGER.warning("Failed to send heartbeat request to main proxy.")
+            try:
+                # Send heartbeat request to main proxy through InitConnection message
+                heartbeat_request = proto.InitConnection()
+                heartbeat_request.sender = proto.InitConnection.Sender.PROXY
+                heartbeat_request.is_heartbeat = True
+                if send(proxy_sock, heartbeat_request.SerializeToString()):
+                    LOGGER.debug("Sent heartbeat request to main proxy.")
+                    #listen to main_proxy
+                    print ("calling listen to proxy thread")
+                    #threading.Thread(target=self.listen_to_main_proxy, args=(proxy_sock,), daemon=True).start()
+                    self.listen_to_main_proxy(proxy_sock)
+                else:
+                    LOGGER.warning("Failed to send heartbeat request to main proxy.")
+            except socket.error as exc:
+                LOGGER.warning(f"Could not talk to main proxy. exc: {exc}")
+
         #main proxy responsibilities
         else:
             pass
@@ -588,10 +587,7 @@ if __name__ == "__main__":
         else:
             proxy = Proxy(sys.argv[1], 5555)       
     else:
-        if sys.argv[1] == "main":
-            proxy = Proxy(sys.argv[2], 5555, True)
-        else:
-            proxy = Proxy(sys.argv[2], 5555)
+        proxy = Proxy(port=5555)
 
     try:
         proxy.run()
