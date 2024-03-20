@@ -33,7 +33,7 @@ initial_config = {
 
 class Client():
     
-    def __init__(self, host: str ="csx1.uc.ucalgary.ca", port: int =5555):
+    def __init__(self, host: str ="csx1.ucalgary.ca", port: int =5555):
         """ A client class responsible for simulating a train's interaction with a server, including sending its state and receiving updates.
 
         :param host: The hostname or IP address of the server to connect to.

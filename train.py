@@ -1,4 +1,4 @@
-from enums import ClientState_TrackCondition
+from classes.enums import ClientState_TrackCondition
 
 class Train:
 
