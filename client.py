@@ -208,7 +208,7 @@ class Client():
                                 elif self.train.state == TrainState.STOPPED:
                                     LOGGER.debug("RESUMING MOVEMENT")
                                     self.train.resume_movement(server_resp.speed)
-                                elif self.train.state == TrainState.RUNNING and self.train.speed == TrainSpeed.SLOW.value:
+                                elif self.train.state == TrainState.RUNNING and self.train.current_speed == TrainSpeed.SLOW.value:
                                     LOGGER.debug("SPEEDING UP")
                                     self.train.set_speed(TrainSpeed.FAST.value)
                             
@@ -299,8 +299,8 @@ class Client():
                 return
             
         if server_resp.status == TrackNet_pb2.ServerResponse.UpdateStatus.CHANGE_SPEED:
-            LOGGER.debug(f"CHANGE_SPEED {self.train.name} to {server_resp.speed_change}")
-            self.train.set_speed(server_resp.speed_change)
+            LOGGER.debug(f"CHANGE_SPEED {self.train.name} to {server_resp.speed}")
+            self.train.set_speed(server_resp.speed)
             
         elif server_resp.status == TrackNet_pb2.ServerResponse.UpdateStatus.REROUTE:
             LOGGER.debug(f"REROUTING {self.train.name}")

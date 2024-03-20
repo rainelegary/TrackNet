@@ -582,7 +582,7 @@ class Server():
         client_state = TrackNet_pb2.ClientState()
         data = receive(conn)
 
-        if data is not None:
+        if data:
             init_message = TrackNet_pb2.InitConnection()  # Assuming this is your wrapper message
             init_message.ParseFromString(data)
             LOGGER.debug(f"Received: {init_message}")

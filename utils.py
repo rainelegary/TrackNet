@@ -224,7 +224,7 @@ def receive(sock: socket.socket) -> bytes:
     except:
         return None
 
-    if not data:
-        raise ValueError("Received data is empty.")
+    #if not data:
+    #    raise ValueError("Received data is empty.")
 
     return data

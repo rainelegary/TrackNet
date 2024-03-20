@@ -76,7 +76,17 @@ class Proxy:
             if self.master_socket is not None:
                 new_message = proto.InitConnection()
                 new_message.sender = proto.InitConnection.Sender.PROXY
-                new_message.client_state.CopyFrom(client_state)
+                #Can't copy from entire client state 
+                #Have to copy each field individually
+                new_message.client_state.client.CopyFrom(client_state.client)
+                new_message.client_state.train.CopyFrom(client_state.train)
+                new_message.client_state.location.CopyFrom(client_state.location)
+                new_message.client_state.condition.CopyFrom(client_state.condition)
+                new_message.client_state.route.CopyFrom(client_state.route)
+                new_message.client_state.speed = client_state.speed
+                #new_message.client_state.CopyFrom(client_state)
+                if self.master_socket is None:
+                    print("MASTER NONE")
                 if not send(self.master_socket, new_message.SerializeToString()):
                     LOGGER.warning(f"Failed to send client state message to master.")
                 else:
