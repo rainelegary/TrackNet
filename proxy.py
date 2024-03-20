@@ -81,7 +81,7 @@ class Proxy:
                 new_message.client_state.client.CopyFrom(client_state.client)
                 new_message.client_state.train.CopyFrom(client_state.train)
                 new_message.client_state.location.CopyFrom(client_state.location)
-                new_message.client_state.condition.CopyFrom(client_state.condition)
+                new_message.client_state.condition = client_state.condition
                 new_message.client_state.route.CopyFrom(client_state.route)
                 new_message.client_state.speed = client_state.speed
                 #new_message.client_state.CopyFrom(client_state)
