@@ -29,7 +29,8 @@ slave_to_master_port = 4444
 
 #assumes csx1.ucalgary.ca is the host
 proxy_details = {
-    "csx1.ucalgary.ca": 5555
+    "csx1.ucalgary.ca": 5555,
+    "csx2.ucalgary.ca": 5555
 }
 
 exit_flag = False
