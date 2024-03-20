@@ -54,7 +54,7 @@ class Server():
 
         self.connect_to_proxy()
         self.isMaster = False
-        self.proxy_host = "csx1.uc.ucalgary.ca"
+        self.proxy_host = "csx1.ucalgary.ca"
         self.proxy_port = 5555
         self.connect_to_proxy (self.proxy_host, self.proxy_port)
         #self.listen_on_socket ()
