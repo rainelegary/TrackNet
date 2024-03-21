@@ -484,6 +484,7 @@ class Server():
             master_resp.sender = TrackNet_pb2.InitConnection.SERVER_MASTER
             #master_resp.railway_update.CopyFrom(self.create_railway_update_message())
             print("Railway update message created")
+            print ("type of slave socket: ", type(slave_socket))
             success = send(slave_socket, master_resp.SerializeToString())
             print(f"Railway update message sent to slave successfully: {success}")
 
