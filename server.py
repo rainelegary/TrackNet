@@ -185,7 +185,7 @@ class Server():
     def set_slave_identification_msg(self, slave_identification_msg: TrackNet_pb2.InitConnection):
         slave_identification_msg.sender = TrackNet_pb2.InitConnection.SERVER_SLAVE
         slave_identification_msg.slave_details.host = self.host
-        slave_identification_msg.slave_details.port = self.port
+        slave_identification_msg.slave_details.port = slave_to_master_port
 
     def talk_to_slaves_old(self):
         """Sends railway update  message to slaves """
@@ -394,7 +394,9 @@ class Server():
     def connect_to_slave (self, slave_host, slave_port):
         try:
             # for each slave create client sockets
+            print ("Before creating client socket, host: ", slave_host)
             slave_sock = create_client_socket(slave_host, 4444)
+            print ("Type of slave sock: ", type(slave_sock))
             self.socks_for_communicating_to_slaves.append(slave_sock)
             LOGGER.debug (f"Added slave server {slave_host}:{slave_port}")
             # Start a new thread dedicated to this slave for communication
