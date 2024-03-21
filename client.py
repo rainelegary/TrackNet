@@ -15,6 +15,7 @@ from classes.route import Route
 from classes.trainmovement import TrainMovement
 from datetime import datetime
 from message_converter import MessageConverter
+import random
 
 setup_logging() ## only need to call at main entry point of application
 LOGGER = logging.getLogger("Client")
@@ -63,6 +64,13 @@ class Client():
         print()
                     
         threading.Thread(target=self.update_position, args=(), daemon=True).start() 
+        proxy_items = list(proxy_details.items())
+
+        index = random.randint(0, len(proxy_items) - 1)
+        self.current_proxy = proxy_items[index]  # First item
+        self.backup_proxy = proxy_items[(index + 1) % (len(proxy_items))]  # Second item   
+        print (f"Current proxy: {self.current_proxy}")     
+        print (f"Backup proxy: {self.backup_proxy}")     
         self.run()
         
         
@@ -226,16 +234,14 @@ class Client():
 
         The method uses a loop that runs until an `exit_flag` is set. It manages the socket connection, sends the train's state, and processes responses from the server. The method also handles rerouting, speed adjustments, and stopping the train based on the server's instructions.
         """
-        proxy_items = list(proxy_details.items())
 
-        self.current_proxy = proxy_items[0]  # First item
-        self.backup_proxy = proxy_items[1]  # Second item
         connected_to_main_proxy = True
+        connected_to_proxy = False
 
         while not utils.exit_flag:
             try:
                 # Attempt to connect or reconnect if necessary
-                if not self.sock:
+                if not connected_to_proxy:
                     #set current proxy to 
                     proxy_host, proxy_port = self.current_proxy
                     self.sock = create_client_socket(proxy_host, proxy_port)
@@ -246,7 +252,12 @@ class Client():
                         print("Connection with main proxy failed, switching to backup proxy.")
                         self.current_proxy = self.backup_proxy
                         connected_to_main_proxy = False
+                        
                         continue  # Skip the rest of this iteration
+                    else:
+                        connected_to_proxy = True
+                else:
+                    connected_to_proxy = True
 
                     client_state = TrackNet_pb2.ClientState()
                         
@@ -272,15 +283,9 @@ class Client():
                             LOGGER.warning("Socket timeout. Switching to backup proxy.")
                             self.sock.close()
                             self.sock = None
-                            if not connected_to_main_proxy:
-                                self.current_proxy = self.backup_proxy
-                                continue  # Retry with the backup proxy
-                            else:
-                                LOGGER.error("Both main and backup proxies failed. Exiting.")
-                                break
-                else:
-                    LOGGER.debug("No active connection. Retrying...")
-                    self.sock = None
+                            connected_to_proxy = False
+                            self.current_proxy = self.backup_proxy
+
             except Exception as e:
                 LOGGER.error(f"Unexpected error in the main loop: {e}")
                 break  # Exit the loop on unexpected error
