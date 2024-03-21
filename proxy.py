@@ -252,7 +252,8 @@ class Proxy:
                             if slave.getpeername()[0] == heartbeat.master_host:
                                 self.master_socket = slave
                                 self.remove_slave_socket(slave)
-                                LOGGER.debug("Master server updated.")
+                                LOGGER.debug("Master server updated to %s", heartbeat.master_host)
+                                
                             else:
                                 LOGGER.warning(f"BackUp Proxy doesn't have connections to master server ?")
                 time.sleep(5)
@@ -414,6 +415,8 @@ class Proxy:
                             try:
                                 master_host, _ = self.master_socket.getpeername()
                                 heartbeat.master_host = master_host
+                                LOGGER.debug("Setting master host to %s", master_host)
+
                             except Exception as e:
                                 LOGGER.warning("Master server not connected?")
 
