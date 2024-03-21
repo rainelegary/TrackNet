@@ -179,9 +179,9 @@ class Server():
         resp.train.length        = train.length
         resp.client.CopyFrom(client_state.client)
 
-        if (datetime.now() - self.previous_conflict_analysis_time) > timedelta(seconds=self.conflict_analysis_interval):
+        #if (datetime.now() - self.previous_conflict_analysis_time) > timedelta(seconds=self.conflict_analysis_interval):
             # self.client_commands = ConflictAnalyzer.resolve_conflicts(self.railway, self.client_commands)
-            self.previous_conflict_analysis_time = datetime.now()
+        #    self.previous_conflict_analysis_time = datetime.now()
 
         # command = self.client_commands[train.name]
         # resp.status = command.status
