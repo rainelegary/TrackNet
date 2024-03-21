@@ -44,7 +44,7 @@ class Proxy:
         if self.is_main:
             self.main_proxy_host = self.host
         else:
-            self.main_proxy_host = list(proxy_details.items())[0]
+            self.main_proxy_host = list(proxy_details.items())[0][0]
             
             # for proxy, _ in proxy_details.items():
             #     if proxy != self.host and proxy != "DESKTOP-BF2NK58":
@@ -256,11 +256,12 @@ class Proxy:
                                 if slave.getpeername()[0] == heartbeat.master_host:
                                     foundMasterServer = True
                                     self.master_socket = slave
-                                    self.remove_slave_socket(slave)
                                     LOGGER.debug("Master server updated to %s", heartbeat.master_host)
                                 
                         if foundMasterServer == False:
                             LOGGER.warning(f"BackUp Proxy doesn't have connection to the master server ? {heartbeat.master_host}")
+                        else:
+                            self.remove_slave_socket(self.master_socket)
                                 
                 time.sleep(5)
             else:
