@@ -9,11 +9,12 @@ from  classes.enums import TrainState, TrackCondition
 from classes.railway import Railway
 from classes.train import Train
 import traceback
-from datetime import datetime
+from datetime import datetime, timedelta
 import time
 import threading
 from utils import initial_config, proxy_details
 from message_converter import MessageConverter
+from classes.conflict_analyzer import ConflictAnalyzer
 
 setup_logging() ## only need to call at main entry point of application
 
@@ -37,6 +38,13 @@ class Server():
         :ivar trains: A list of Train objects managed by the server.
         :ivar train_counter: A counter to assign unique IDs to trains.
         """
+
+        self.railway = Railway(
+            trains=None,
+            junctions=initial_config["junctions"],
+            tracks=initial_config["tracks"]
+        )
+
         self.host = socket.gethostname()
         self.port = port
 
@@ -46,18 +54,14 @@ class Server():
         self.proxy_sockets = {}
         self.socks_for_communicating_to_slaves = []
 
-        self.railway = Railway(
-            trains=None,
-            junctions=initial_config["junctions"],
-            tracks=initial_config["tracks"]
-        )
-
         self.connect_to_proxy()
         self.isMaster = False
         self.proxy_host = "csx1.ucalgary.ca"
         self.proxy_port = 5555
-        self.connect_to_proxy (self.proxy_host, self.proxy_port)
-        #self.listen_on_socket ()
+
+        self.conflict_analysis_interval = 1
+        self.previous_conflict_analysis_time = datetime.now()
+        self.client_commands = {}
 
     def serialize_route(self, route_obj, route_pb):
         """Fills in the details of a Protobuf Route message from a Route object."""
@@ -143,49 +147,58 @@ class Server():
                 return self.railway.create_new_train(train.length, origin_id)
 
             return train
+        
 
-    def analyze_client_state(self, client_state):
-        ## assumes that ClientSate.Location is always set
+    def handle_client_state(self, client_state):
+        self.apply_client_state(client_state)
+        resp = self.issue_client_command(client_state)
+        return resp
+    
 
-        #client_state = TrackNet_pb2.ClientState()
+    def apply_client_state(self, client_state):
+        # assume client_state location is set
 
-        #init_message = TrackNet_pb2.InitConnection()  # Assuming this is your wrapper message
-        #init_message.ParseFromString(data)
-        #LOGGER.debug(f"Received: {init_message}")
-
-        #client_state.ParseFromString(data)
-        resp = TrackNet_pb2.ServerResponse()
-
+        # set train info
         train = self.get_train(client_state.train, client_state.location.front_junction_id)
-        ## set train info in response message
-        resp.train.id            = train.name
-        resp.train.length        = train.length
-
-        resp.client.CopyFrom(client_state.client)
 
         # check train condition
         if client_state.location.HasField("front_track_id"):
             self.railway.map.set_track_condition(client_state.location.front_track_id, TrackCondition(client_state.condition))
 
-            if self.railway.map.has_bad_track_condition(client_state.location.front_track_id):
-                resp.status = TrackNet_pb2.ServerResponse.UpdateStatus.CHANGE_SPEED
-                resp.speed = 200     ## TODO set slow speed
-
         # update train location
-        #add 4th argument
         self.railway.update_train(train, TrainState(client_state.train.state), client_state.location, client_state.route)
 
-        # (TODO) use speed, location & route data to detect possible conflicts.
-        resp.speed = 200
-        resp.status = TrackNet_pb2.ServerResponse.UpdateStatus.CLEAR
-
+        # print map
         self.railway.print_map()
+
+
+    def issue_client_command(self, client_state):
+        train = self.get_train(client_state.train, client_state.location.front_junction_id)
+        resp = TrackNet_pb2.ServerResponse()
+        resp.train.id            = train.name
+        resp.train.length        = train.length
+        resp.client.CopyFrom(client_state.client)
+
+        if (datetime.now() - self.previous_conflict_analysis_time) > timedelta(seconds=self.conflict_analysis_interval):
+            self.client_commands = ConflictAnalyzer.resolve_conflicts(self.railway, self.client_commands)
+            self.previous_conflict_analysis_time = datetime.now()
+
+        command = self.client_commands[train.name]
+        resp.status = command.status
+        if command.HasField("new_route"):
+            resp.new_route = command.new_route
+        if command.HasField("speed"):
+            resp.speed = command.speed
+
         return resp
+        
+        
 
     def set_slave_identification_msg(self, slave_identification_msg: TrackNet_pb2.InitConnection):
         slave_identification_msg.sender = TrackNet_pb2.InitConnection.SERVER_SLAVE
         slave_identification_msg.slave_details.host = self.host
         slave_identification_msg.slave_details.port = self.port
+
 
     def talk_to_slaves_old(self):
         """Sends railway update  message to slaves """
@@ -320,7 +333,7 @@ class Server():
 
         # listen on proxy sock for client states
         elif proxy_resp.HasField("client_state"):
-            resp = self.analyze_client_state(proxy_resp.client_state)
+            resp = self.handle_client_state(proxy_resp.client_state)
             master_response = TrackNet_pb2.InitConnection()
             master_response.sender = TrackNet_pb2.InitConnection.Sender.SERVER_MASTER
             master_response.server_response.CopyFrom(resp)
@@ -348,7 +361,7 @@ class Server():
                 LOGGER.warning("Failed to send heartbeat message to main proxy.")
 
         else:
-            LOGGER.warning(f"Server received msg from proxy with missing co0ntent: {proxy_resp}")
+            LOGGER.warning(f"Server received msg from proxy with missing content: {proxy_resp}")
 
     def listen_to_proxy(self, proxy_sock):
         try:
@@ -546,75 +559,6 @@ class Server():
                 return self.railway.create_new_train(train.length, origin_id)
 
             return train
-
-    def handle_client_state(self, client_state):
-        resp = TrackNet_pb2.ServerResponse()
-
-        train = self.get_train(client_state.train, client_state.location.front_junction_id)
-        ## set train info in response message
-        resp.train.id            = train.name
-        resp.train.length        = train.length
-
-        resp.clientIP = client_state.clientIP
-        resp.clientPort = client_state.clientPort
-
-        # check train condition
-        if client_state.location.HasField("front_track_id"):
-            self.railway.map.set_track_condition(client_state.location.front_track_id, TrackCondition(client_state.condition))
-
-            if self.railway.map.has_bad_track_condition(client_state.location.front_track_id):
-                resp.status = TrackNet_pb2.ServerResponse.UpdateStatus.CHANGE_SPEED
-                resp.speed = 200     ## TODO set slow speed
-
-        # update train location
-        self.railway.update_train(train, TrainState(client_state.train.state), client_state.location)
-
-        # (TODO) use speed, location & route data to detect possible conflicts.
-        resp.speed = 200
-        resp.status = TrackNet_pb2.ServerResponse.UpdateStatus.CLEAR
-
-        self.railway.print_map()
-        return resp
-
-    def handle_connection(self, conn):
-        ## assumes that ClientSate.Location is always set
-
-        client_state = TrackNet_pb2.ClientState()
-        data = receive(conn)
-
-        if data:
-            init_message = TrackNet_pb2.InitConnection()  # Assuming this is your wrapper message
-            init_message.ParseFromString(data)
-            LOGGER.debug(f"Received: {init_message}")
-
-            client_state.ParseFromString(data)
-            resp = TrackNet_pb2.ServerResponse()
-
-            train = self.get_train(client_state.train, client_state.location.front_junction_id)
-            ## set train info in response message
-            resp.train.id            = train.name
-            resp.train.length        = train.length
-
-            # check train condition
-            if client_state.location.HasField("front_track_id"):
-                self.railway.map.set_track_condition(client_state.location.front_track_id, TrackCondition(client_state.condition))
-
-                if self.railway.map.has_bad_track_condition(client_state.location.front_track_id):
-                    resp.status = TrackNet_pb2.ServerResponse.UpdateStatus.CHANGE_SPEED
-                    resp.speed = 200     ## TODO set slow speed
-
-            # update train location
-            self.railway.update_train(train, TrainState(client_state.train.state), client_state.location, client_state.route)
-
-            # TODO Run conflict analyzer
-
-            resp.speed = 200
-            resp.status = TrackNet_pb2.ServerResponse.UpdateStatus.CLEAR
-
-            if not send(conn, resp.SerializeToString()):
-                LOGGER.error("response did not send.")
-
-        self.railway.print_map()
 
 
 if __name__ == '__main__':
