@@ -31,7 +31,7 @@ proxy_port = 5555
 
 #assumes csx1.ucalgary.ca is the host
 proxy_details = {
-    "csx1.uc.ucalgary.ca": 5555,
+    "csx2.uc.ucalgary.ca": 5555,
     "csx3.uc.ucalgary.ca": 5555
 }
 
