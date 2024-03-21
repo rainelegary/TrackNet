@@ -289,6 +289,8 @@ class Client():
                 LOGGER.error(f"Unexpected error in the main loop: {e}")
                 break  # Exit the loop on unexpected error
 
+            time.sleep(5)
+
 
     def handle_server_response (self, server_resp):
         if self.train.name is None:
