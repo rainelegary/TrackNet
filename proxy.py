@@ -410,11 +410,11 @@ class Proxy:
                             heartbeat.code = proto.Response.Code.HEARTBEAT
 
                             # nofity backup proxy who the master server is
-                            #try:
-                            #    master_host, _ = self.master_socket.getpeername()
-                            #    heartbeat.master_host = master_host
-                            #except socket.error:
-                            #    LOGGER.warning("Master server not connected?")
+                            try:
+                                master_host, _ = self.master_socket.getpeername()
+                                heartbeat.master_host = master_host
+                            except socket.error:
+                                LOGGER.warning("Master server not connected?")
 
                             time.sleep(5)
 
