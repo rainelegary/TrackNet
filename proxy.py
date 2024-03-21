@@ -494,11 +494,12 @@ class Proxy:
 
 if __name__ == "__main__":
 
-    if len(sys.argv) == 2 and sys.argv[1] == "main":    
-        proxy = Proxy(port=5555, is_main=True)      
-    else:
-        proxy = Proxy(port=5555)
-
+    if len(sys.argv) < 2:
+        raise Exception("Please specify 'main' or 'backup' in command line arguments")
+    elif sys.argv[1] == "main":
+        proxy = Proxy(port=5555, is_main=True)
+    elif sys.argv[1] == "backup":
+        proxy = Proxy(port=5555, is_main=False)
     try:
         proxy.run()
     except KeyboardInterrupt:
