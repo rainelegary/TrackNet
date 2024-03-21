@@ -100,11 +100,14 @@ class ConflictAnalyzer:
     
 
     @staticmethod
-    def may_enter_track(railway, commands, train_id):
+    def may_enter_next_track(railway, commands, train_id):
         train = railway.trains[train_id]
         current_junction = train.location.front_cart["junction"]
         next_track = train.route.get_next_track()
         next_junction = train.route.get_next_junction()
+
+        if Train.state not in [TrainState.PARKED, TrainState.PARKING]:
+            return True # train is moving on a track
 
         # break ties by train id. wait for train with smaller id to go first
         favored_train_id = sorted(list(filter(
@@ -314,36 +317,64 @@ class ConflictAnalyzer:
             next_track = train.get_next_track()
             in_demand_tracks[next_track.name] = next_track
 
-        # TODO populate these dictionaries
         parking_trains = {}
-        stay_parked_trains = {}
-        unparking_trains = {}
+        moving_trains = {} # unpark / keep moving
         stopping_trains = {}
-        continuing_trains = {}
 
         # determine what to do for each train 
-        for train in involved_trains:
+        for train_id, train in involved_trains.items():
 
-            if train.route.get_next_track().name in available_tracks:
-                continue # keep going, or start moving if not moving yet
+            may_enter_next_track = ConflictAnalyzer.may_enter_next_track(railway, commands, train_id)
 
-            if train.state in [TrainState.PARKED, TrainState.PARKING]:
-                if not ConflictAnalyzer.may_enter_track(railway, commands, train.name):
-                    # cannot enter track yet
-                    command = TrackNet_pb2.ServerResponse()
-                    command.status = TrackNet_pb2.ServerResponse.UpdateStatus.PARK
-                    commands[train.name] = command
-                    continue # stay parked
+            if (
+                train.route.get_next_track().name in available_tracks
+                and may_enter_next_track
+            ):
+                moving_trains[train_id] = train
+                continue 
 
-            if train.location.front_cart["track"].name in in_demand_tracks:
-                # if junction still has capacity
+            if train.state in [TrainState.PARKED, TrainState.PARKING] and not may_enter_next_track:
+                # cannot enter track yet; stay parked
+                parking_trains[train_id] = train
+                continue
+            
+            # can now assume train is moving and its next track is not available
+
+            if (
+                train.location.front_cart["track"].name in in_demand_tracks
+                and train.state not in [TrainState.PARKED, TrainState.PARKING]
+            ):
+                if len(parking_trains) < ConflictAnalyzer.JUNCTION_CAPACITY:
+                    # junction still has capacity
                     # issue "park" command
-                # otherwise
+                    parking_trains[train_id] = train
+                else:
+                    # junction is full 
                     # issue "stop" command
+                    stopping_trains[train_id] = train
                 continue
 
             # otherwise (desired track occupied and on low demand track)
             # issue "stop" command to this train
+            stopping_trains[train_id] = train
+
+
+        # populate commands
+        # each train has a different command object to allow for different references
+        for train_id, train in parking_trains:
+            command = TrackNet_pb2.ServerResponse()
+            command.status = TrackNet_pb2.ServerResponse.UpdateStatus.PARK
+            commands[train_id] = command
+        
+        for train_id, train in moving_trains:
+            command = TrackNet_pb2.ServerResponse()
+            command.status = TrackNet_pb2.ServerResponse.UpdateStatus.CLEAR
+            commands[train_id] = command
+        
+        for train_id, train in stopping_trains:
+            command = TrackNet_pb2.ServerResponse()
+            command.status = TrackNet_pb2.ServerResponse.UpdateStatus.STOP
+            commands[train_id] = command
 
         return commands
 
@@ -385,6 +416,27 @@ class ConflictAnalyzer:
         # stop if cannot reroute
 
     
-        
+# railmap
+    # junctions
+        # id
+        # neighboring track id's (change proto)
+        # parked train id's (change proto)
+    # tracks
+        # junction_a id
+        # junction_b id
+        # id
+        # train id's (change proto)
+        # condition
+        # speed
+    # trains
+        # id
+        # length
+        # state
+        # location
+            #
+        # route
+            #
+        # destination junction id (change proto)
+        # speed
 
-
+    # train counter

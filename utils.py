@@ -12,7 +12,8 @@ __all__ = [
     "send",
     "receive",
     "slave_to_master_port",
-    "proxy_details"
+    "proxy_details",
+    "proxy_port"
 ]
 
 initial_config = {
@@ -26,9 +27,12 @@ initial_config = {
 }
 
 slave_to_master_port = 4444
+proxy_port = 5555
 
+#assumes csx1.ucalgary.ca is the host
 proxy_details = {
-    "csx2.uc.ucalgary.ca": 5555
+    "csx1.uc.ucalgary.ca": 5555,
+    "csx3.uc.ucalgary.ca": 5555
 }
 
 exit_flag = False
@@ -50,7 +54,7 @@ def setup_logging():
     handler = logging.StreamHandler()
     handler.setLevel(logging.DEBUG)
     handler.setFormatter(formatter)
-    
+
     logging.root.setLevel(logging.DEBUG)
     logging.root.addHandler(handler)
 
@@ -203,9 +207,10 @@ def receive(sock: socket.socket) -> bytes:
     data = b''
 
     try:
+        sock.settimeout(10)
         content_length = sock.recv(4)
         data = sock.recv(bytes_to_int(content_length))
-        
+
         # bytes_to_recv = bytes_to_int(content_length)
         #while bytes_to_recv > 0:
         #    recv = sock.recv(bytes_to_recv)
@@ -213,16 +218,10 @@ def receive(sock: socket.socket) -> bytes:
         #    bytes_to_recv = bytes_to_recv - len(recv)
         #    data = data + recv
 
-
-    except socket.timeout:
-        raise TimeoutError("Socket receiving timed out.")
-    except Exception as e:
-        raise RuntimeError(f"Error receiving data: {e}")
     except:
         return None
 
-    if not data:
-        #raise ValueError("Received data is empty.")
-        return None
+    #if not data:
+    #    raise ValueError("Received data is empty.")
 
     return data

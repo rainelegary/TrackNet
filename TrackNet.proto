@@ -26,11 +26,11 @@ message Track {
     optional string junction_a = 1;
     optional string junction_b = 2;
     optional int32 length = 3;
-    optional string id = 4; 
+    optional string id = 4;
     repeated string trains = 5;
     optional TrackCondition condition = 6;
     optional TrainSpeed speed = 7;
-    
+
 }
 
 message Junction {
@@ -68,7 +68,7 @@ message Train {
     optional TrainState state = 3;
     optional Location location = 4;
     optional Route route = 5;
-    optional int32 speed = 6; 
+    optional int32 speed = 6;
 }
 
 message Railmap {
@@ -79,28 +79,28 @@ message Railmap {
 message Railway {
     optional Railmap map = 1;
     map<string, Train> trains = 2;
-    optional int32 train_counter = 3;  
+    optional int32 train_counter = 3;
 }
 
 message RailwayUpdate {
     optional Railway railway = 1;
-    optional string timestamp = 2; 
+    optional string timestamp = 2;
 }
 
 message ServerResponse {
-	
-	enum UpdateStatus {
-	    CHANGE_SPEED = 0;
-		REROUTE = 1;
-		STOP = 2;
+
+    enum UpdateStatus {
+        CHANGE_SPEED = 0;
+        REROUTE = 1;
+        STOP = 2;
         PARK = 3;
-		CLEAR = 4; 
-	}	
+        CLEAR = 4;
+    }
 
     optional ServerDetails client = 1;
     optional Train train = 2;
-	optional UpdateStatus status = 3;
-	optional Route new_route = 4;
+    optional UpdateStatus status = 3;
+    optional Route new_route = 4;
     optional int32 speed = 5;
 }
 
@@ -120,7 +120,7 @@ message ServerDetails{
 }
 
 message ServerAssignment {
-    optional bool is_master = 1; 
+    optional bool is_master = 1;
     repeated ServerDetails servers = 2;
 }
 
@@ -149,6 +149,5 @@ message InitConnection {
      optional ClientState client_state = 3;
      optional ServerResponse server_response = 4;
      optional RailwayUpdate railway_update = 5;
-     repeated ServerDetails slave_details = 6;
+     optional ServerDetails slave_details = 6;
 }
-
