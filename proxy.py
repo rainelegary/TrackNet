@@ -248,14 +248,17 @@ class Proxy:
                     if self.master_socket is None or self.master_socket.getpeername()[0] != heartbeat.master_host:
                         LOGGER.debug("Updating master server ...")
                         LOGGER.info(f"slave sockets: {self.slave_sockets}, items: {self.slave_sockets.items()}")
+                        foundMasterServer = False
                         for _, slave in self.slave_sockets.items():
                             if slave.getpeername()[0] == heartbeat.master_host:
+                                foundMasterServer = True
                                 self.master_socket = slave
                                 self.remove_slave_socket(slave)
                                 LOGGER.debug("Master server updated to %s", heartbeat.master_host)
                                 
-                            else:
-                                LOGGER.warning(f"BackUp Proxy doesn't have connections to master server ?")
+                        if foundMasterServer == False:
+                            LOGGER.warning(f"BackUp Proxy doesn't have connection to the master server ? {heartbeat.master_host}")
+                                
                 time.sleep(5)
             else:
                 LOGGER.debug("No data received from main")
@@ -404,6 +407,9 @@ class Proxy:
 
                                 if self.is_main:
                                     self.slave_role_assignment(conn, init_conn)
+                                else:
+                                    self.add_slave_socket(conn)
+
 
                         elif init_conn.sender == proto.InitConnection.Sender.PROXY and self.is_main:
                             ## add bool for backup is up
