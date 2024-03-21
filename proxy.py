@@ -44,11 +44,13 @@ class Proxy:
         if self.is_main:
             self.main_proxy_host = self.host
         else:
-            for proxy, _ in proxy_details.items():
-                if proxy != self.host and proxy != "DESKTOP-BF2NK58":
-                    self.main_proxy_host = proxy
-                else:
-                    LOGGER.debug("proxy is the same as self.host")
+            self.main_proxy_host = proxy_details.items()[0]
+            
+            # for proxy, _ in proxy_details.items():
+            #     if proxy != self.host and proxy != "DESKTOP-BF2NK58":
+            #         self.main_proxy_host = proxy
+            #     else:
+            #         LOGGER.debug("proxy is the same as self.host")
 
         LOGGER.info(f"Main proxy hostname: {self.main_proxy_host}")
         ## case where only one proxy and command-line arg main missing
@@ -249,12 +251,13 @@ class Proxy:
                         LOGGER.debug("Updating master server ...")
                         LOGGER.info(f"slave sockets: {self.slave_sockets}, items: {self.slave_sockets.items()}")
                         foundMasterServer = False
-                        for _, slave in self.slave_sockets.items():
-                            if slave.getpeername()[0] == heartbeat.master_host:
-                                foundMasterServer = True
-                                self.master_socket = slave
-                                self.remove_slave_socket(slave)
-                                LOGGER.debug("Master server updated to %s", heartbeat.master_host)
+                        with self.lock:
+                            for _, slave in self.slave_sockets.items():
+                                if slave.getpeername()[0] == heartbeat.master_host:
+                                    foundMasterServer = True
+                                    self.master_socket = slave
+                                    self.remove_slave_socket(slave)
+                                    LOGGER.debug("Master server updated to %s", heartbeat.master_host)
                                 
                         if foundMasterServer == False:
                             LOGGER.warning(f"BackUp Proxy doesn't have connection to the master server ? {heartbeat.master_host}")
