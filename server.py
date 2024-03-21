@@ -5,7 +5,7 @@ import socket
 import signal
 import threading
 from utils import *
-from  classes.enums import TrainState, TrackCondition
+from  classes.enums import *
 from classes.railway import Railway
 from classes.train import Train
 import traceback
@@ -138,7 +138,9 @@ class Server():
         :raises Exception: Logs an error if the train ID does not exist in the list of trains.
         """
         if not train.HasField("id"):
-            return self.railway.create_new_train(train.length, origin_id)
+            trainObject =  self.railway.create_new_train(train.length, origin_id)
+			train.id = trainObject.name
+			return trainObject
         else:
             try:
                 train = self.railway.trains[train.id]
@@ -161,6 +163,7 @@ class Server():
         # set train info
         train = self.get_train(client_state.train, client_state.location.front_junction_id)
 
+		
         # check train condition
         if client_state.location.HasField("front_track_id"):
             self.railway.map.set_track_condition(client_state.location.front_track_id, TrackCondition(client_state.condition))
@@ -178,6 +181,8 @@ class Server():
         resp.train.id            = train.name
         resp.train.length        = train.length
         resp.client.CopyFrom(client_state.client)
+		resp.speed = TrainSpeed.FAST.value
+		resp.status = TrackNet_pb2.ServerResponse.UpdateStatus.CLEAR
 
         #if (datetime.now() - self.previous_conflict_analysis_time) > timedelta(seconds=self.conflict_analysis_interval):
             # self.client_commands = ConflictAnalyzer.resolve_conflicts(self.railway, self.client_commands)
@@ -545,23 +550,7 @@ class Server():
 
 
 
-    def get_train(self, train: TrackNet_pb2.Train, origin_id: str):
-        """Retrieves a Train object based on its ID. If the train does not exist, it creates a new Train object.
-
-        :param train: The train identifier or a Train object with an unset ID to create a new Train.
-        :return: Returns the Train object matching the given ID, or a new Train object if the ID is not set.
-        :raises Exception: Logs an error if the train ID does not exist in the list of trains.
-        """
-        if not train.HasField("id"):
-            return self.railway.create_new_train(train.length, origin_id)
-        else:
-            try:
-                train = self.railway.trains[train.id]
-            except:
-                LOGGER.error(f"Train {train.id} does not exits in list of trains. Creating new train...")
-                return self.railway.create_new_train(train.length, origin_id)
-
-            return train
+    
 
 
 if __name__ == '__main__':
