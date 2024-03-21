@@ -89,13 +89,13 @@ message RailwayUpdate {
 
 message ServerResponse {
 
-        enum UpdateStatus {
-            CHANGE_SPEED = 0;
-            REROUTE = 1;
-            STOP = 2;
-            PARK = 3;
-            CLEAR = 4;
-        }
+    enum UpdateStatus {
+        CHANGE_SPEED = 0;
+        REROUTE = 1;
+        STOP = 2;
+        PARK = 3;
+        CLEAR = 4;
+    }
 
     optional ServerDetails client = 1;
     optional Train train = 2;
