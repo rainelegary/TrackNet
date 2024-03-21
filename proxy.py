@@ -413,7 +413,7 @@ class Proxy:
                             try:
                                 master_host, _ = self.master_socket.getpeername()
                                 heartbeat.master_host = master_host
-                            except socket.error:
+                            except Exception as e:
                                 LOGGER.warning("Master server not connected?")
 
                             time.sleep(5)
