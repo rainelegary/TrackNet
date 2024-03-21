@@ -219,11 +219,6 @@ def receive(sock: socket.socket) -> bytes:
         #    bytes_to_recv = bytes_to_recv - len(recv)
         #    data = data + recv
 
-
-    except socket.timeout:
-        return None
-    except Exception as e:
-        raise RuntimeError(f"Error receiving data: {e}")
     except:
         return None
 
