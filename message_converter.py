@@ -166,26 +166,29 @@ class MessageConverter:
     def junction_msg_to_obj(msg: TrackNet_pb2.Junction, track_refs: "dict[str, Track]") -> Junction:
         pass
     
-
+    # @luqman testing: Serialization & deserialization of track working except for trains
     @staticmethod
-    def track_obj_to_msg(track: Track, trackProto:TrackNet_pb2.Track) -> TrackNet_pb2.Track:
-        
+    def track_obj_to_msg(track: Track) -> TrackNet_pb2.Track:
         msg = TrackNet_pb2.Track()
-        trackProto.junction_a = track.junctions[0].name
-        trackProto.junction_b = track.junctions[1].name
-        trackProto.id = track.name
+        msg.junction_a = track.junctions[0]
+        msg.junction_b = track.junctions[1]
+        msg.length = track.length
+        msg.id = track.name
         for (runningTrains, _) in track.trains.items():
             #trackProto.trains.append(runningTrains)
             pass
-
-        trackProto.condition = MessageConverter.track_condition_py_to_proto(track.condition)
-        trackProto.speed = MessageConverter.train_speed_py_to_proto(track.speed)
+        msg.condition = MessageConverter.track_condition_py_to_proto(track.condition)
+        msg.speed = MessageConverter.train_speed_py_to_proto(track.speed)
         return msg
 
     
     @staticmethod
     def track_msg_to_obj(msg: TrackNet_pb2.Track) -> Track:
-        pass
+        #TODO add initiailizaiton of trains
+        condition = MessageConverter.track_condition_proto_to_py(msg.condition)
+        speed = MessageConverter.train_speed_proto_to_py(msg.speed)
+        track_obj = Track(msg.junction_a, msg.junction_b, msg.length, None, condition, speed)
+        return track_obj
 
 
     @staticmethod

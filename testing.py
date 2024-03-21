@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 
 from classes.railway import Railway
+from classes.track import Track
+import TrackNet_pb2
+from message_converter import MessageConverter
 
-
-print("Creating a railway...")
+print("Running tests")
 
 initial_config = {
     "junctions": ["A", "B", "C", "D"],
@@ -15,15 +17,22 @@ initial_config = {
     ]
 }
 
-railway_system = Railway(
-    trains=None,
-    junctions=initial_config["junctions"],
-    tracks=initial_config["tracks"]
-)
+print("Serialization and deserialization of Track object")
+track_obj = Track("A", "D", 40)
+print("Initial track object: ")
+track_obj.print_track()
 
-print(railway_system.map.find_shortest_path("B", "D"))
+print("\nConverted to protobuf message:")
+track_pb = MessageConverter.track_obj_to_msg(track_obj)
+print(track_pb)
 
-for junc in railway_system.map.junctions.values():
-    print(f"Junction: {junc.name} neighbors:  {junc.neighbors.keys()}")
+print("Convert protobuf message back to object:")
+track_obj2 = MessageConverter.track_msg_to_obj(track_pb)
+track_obj2.print_track()
 
-railway_system.print_map()
+
+
+
+
+
+
