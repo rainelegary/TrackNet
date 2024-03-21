@@ -139,8 +139,8 @@ class Server():
         """
         if not train.HasField("id"):
             trainObject =  self.railway.create_new_train(train.length, origin_id)
-			train.id = trainObject.name
-			return trainObject
+            train.id = trainObject.name
+            return trainObject
         else:
             try:
                 train = self.railway.trains[train.id]
@@ -181,8 +181,8 @@ class Server():
         resp.train.id            = train.name
         resp.train.length        = train.length
         resp.client.CopyFrom(client_state.client)
-		resp.speed = TrainSpeed.FAST.value
-		resp.status = TrackNet_pb2.ServerResponse.UpdateStatus.CLEAR
+        resp.speed = TrainSpeed.FAST.value
+        resp.status = TrackNet_pb2.ServerResponse.UpdateStatus.CLEAR
 
         #if (datetime.now() - self.previous_conflict_analysis_time) > timedelta(seconds=self.conflict_analysis_interval):
             # self.client_commands = ConflictAnalyzer.resolve_conflicts(self.railway, self.client_commands)
