@@ -257,7 +257,6 @@ class Client():
                     else:
                         connected_to_proxy = True
                 else:
-                    connected_to_proxy = True
 
                     client_state = TrackNet_pb2.ClientState()
                         
