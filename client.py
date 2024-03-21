@@ -148,7 +148,7 @@ class Client():
         LOGGER.debug(f"init track={self.train.route.get_next_track()}")
 
     #Made new function below
-    def run(self):
+    def run_working(self):
         """Initiates the client's main loop, continuously sending its state to the server and processing the server's response. It handles connection management, state serialization, and response deserialization. Based on the server's response, it adjusts the train's speed, reroutes, or stops as necessary.
 
         The method uses a loop that runs until an `exit_flag` is set. It manages the socket connection, sends the train's state, and processes responses from the server. The method also handles rerouting, speed adjustments, and stopping the train based on the server's instructions.
@@ -221,7 +221,7 @@ class Client():
                 
             time.sleep(2)
 
-    def run_alisha (self):
+    def run (self):
         """Initiates the client's main loop, continuously sending its state to the server and processing the server's response. It handles connection management, state serialization, and response deserialization. Based on the server's response, it adjusts the train's speed, reroutes, or stops as necessary.
 
         The method uses a loop that runs until an `exit_flag` is set. It manages the socket connection, sends the train's state, and processes responses from the server. The method also handles rerouting, speed adjustments, and stopping the train based on the server's instructions.
@@ -309,11 +309,17 @@ class Client():
         elif server_resp.status == TrackNet_pb2.ServerResponse.UpdateStatus.STOP:
             LOGGER.debug(f"STOPPING {self.train.name}")
             self.train.stop()
-        
+                            
         elif server_resp.status == TrackNet_pb2.ServerResponse.UpdateStatus.CLEAR:
-            if self.train.state in [TrainState.PARKED, TrainState.STOPPED]:
+            if self.train.state == TrainState.PARKED:
                 LOGGER.debug("UNPARKING")
-                self.train.unpark(server_resp.speed)        
+                self.train.unpark(server_resp.speed)
+            elif self.train.state == TrainState.STOPPED:
+                LOGGER.debug("RESUMING MOVEMENT")
+                self.train.resume_movement(server_resp.speed)
+            elif self.train.state == TrainState.RUNNING and self.train.current_speed == TrainSpeed.SLOW.value:
+                LOGGER.debug("SPEEDING UP")
+                self.train.set_speed(TrainSpeed.FAST.value)    
     
     
 if __name__ == '__main__':
