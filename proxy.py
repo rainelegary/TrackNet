@@ -247,7 +247,7 @@ class Proxy:
                     # if no master server or new master server
                     if self.master_socket is None or self.master_socket.getpeername()[0] != heartbeat.master_host:
                         LOGGER.debug("Updating master server ...")
-                        LOGGER.info("slave sockets:  ", self.slave_scokets, "items: ",self.slave_scokets.items())
+                        LOGGER.info("slave sockets:  ", self.slave_sockets, "items: ",self.slave_scokets.items())
                         for _, slave in self.slave_sockets.items():
                             if slave.getpeername()[0] == heartbeat.master_host:
                                 self.master_socket = slave
