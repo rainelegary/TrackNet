@@ -44,7 +44,7 @@ class Proxy:
         if self.is_main:
             self.main_proxy_host = self.host
         else:
-            self.main_proxy_host = proxy_details.items()[0]
+            self.main_proxy_host = list(proxy_details.items())[0]
             
             # for proxy, _ in proxy_details.items():
             #     if proxy != self.host and proxy != "DESKTOP-BF2NK58":
