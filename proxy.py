@@ -385,10 +385,7 @@ class Proxy:
                             except Exception as e:
                                 LOGGER.warning("Master server not connected. Unable to set master host")
 
-                            if send(conn, heartbeat.SerializeToString()):
-                                LOGGER.debug("Sent heartbeat to backup proxy")
-                                LOGGER.debug("waiting for response from backup proxy")
-                            else:
+                            if not send(conn, heartbeat.SerializeToString()):
                                 LOGGER.warning(f"Failed to send heartbeat to backup proxy.")
 
                 except Exception as e:
