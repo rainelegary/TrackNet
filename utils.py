@@ -64,6 +64,7 @@ def setup_logging():
     handler.setLevel(logging.DEBUG)
     handler.setFormatter(formatter)
 
+    logging.root.setLevel(logging.DEBUG)
     logging.root.addHandler(handler)
 
 
