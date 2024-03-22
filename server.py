@@ -316,7 +316,7 @@ class Server():
         # Data also needs to include an update of a new slave
         proxy_resp = TrackNet_pb2.InitConnection()
         proxy_resp.ParseFromString(data)
-        LOGGER.debug(f"Master received response from proxy\n{proxy_resp}")
+        #LOGGER.debug(f"Master server received response from proxy\n{proxy_resp}")
 
         # Receive updates on new slaves connecting to the proxy
         #if len(proxy_resp.slave_details) > 0:
