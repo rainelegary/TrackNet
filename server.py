@@ -15,6 +15,7 @@ import threading
 from utils import initial_config, proxy_details
 from message_converter import MessageConverter
 from classes.conflict_analyzer import ConflictAnalyzer
+import traceback
 
 setup_logging() ## only need to call at main entry point of application
 
@@ -381,7 +382,7 @@ class Server():
                         self.slave_proxy_communication(data)
 
         except Exception as e:
-            LOGGER.error(f"Error communicating with proxy: {e}")
+            LOGGER.error(f"Error communicating with proxy: {e}, {traceback.format_exc()}")
             proxy_sock.shutdown(socket.SHUT_RDWR)
             proxy_sock.close()
 
