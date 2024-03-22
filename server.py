@@ -54,14 +54,18 @@ class Server():
         self.proxy_sockets = {}
         self.socks_for_communicating_to_slaves = []
 
-        self.connect_to_proxy()
         self.isMaster = False
         self.proxy_host = "csx1.ucalgary.ca"
         self.proxy_port = 5555
 
         self.conflict_analysis_interval = 1
+        
         self.previous_conflict_analysis_time = datetime.now()
         self.client_commands = {}
+
+        self.connect_to_proxy()
+        
+        # Warning: this section of code is unreachable because self.connect_to_proxy() does not exit
 
     def serialize_route(self, route_obj, route_pb):
         """Fills in the details of a Protobuf Route message from a Route object."""
