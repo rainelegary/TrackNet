@@ -113,7 +113,10 @@ class Proxy:
                 LOGGER.warning(f"Target client {target_client_key} not found.")
 
     def promote_slave_to_master(self, slave_socket: socket.socket):
+        
         self.master_socket = slave_socket
+        self.remove_slave_socket(self.master_socket)
+        
         #LOGGER.info(f"{slave_socket.getpeername()} promoted to MASTER")
 
         # notify the newly promoted master server of its new role
@@ -316,61 +319,6 @@ class Proxy:
             LOGGER.info("len (slave sockets) is 0")
             LOGGER.info("No slave servers available to promote to master.")   
             self.master_socket = None
-
-    def send_heartbeat_old(self, master_socket):
-        LOGGER.debug ("in send_heartbeat function")
-        if self.master_socket:
-            #while not utils.exit_flag and self.master_socket == master_socket:
-                #with self.lock:
-                    try:
-                        heartbeat_message = proto.InitConnection()
-                        heartbeat_message.sender = TrackNet_pb2.InitConnection.Sender.PROXY
-                        heartbeat_message.is_heartbeat = True
-                        LOGGER.debug ("before sending heartbeat to master server")
-                        if send(self.master_socket, heartbeat_message.SerializeToString()):
-                            LOGGER.debug("Sent heartbeat message to master server.")
-                        else:
-                            LOGGER.warning(f"Failed to send heartbeat request to master server")
-
-                        # Wait for a response with a timeout
-                        LOGGER.debug("Waiting for master server's response.")
-                        #ready = select.select([self.master_socket], [], [], self.heartbeat_timeout)
-                        #if ready[0]:
-                        #    response = utils.receive(self.master_socket)
-                        #    if response:
-                        #        print("Heartbeat acknowledged by master server.")
-                        #        LOGGER.debug(f"Sleeping for {self.heartbeat_interval} seconds")
-                        #        time.sleep(self.heartbeat_interval)
-                        #    else:
-                        #        raise Exception("No heartbeat response from master server.")
-                        #else:
-                        #    raise Exception("Heartbeat response timed out.")
-
-                    except Exception as e:
-                        print("Master server is not responding. Considered dead.")
-                        self.master_socket = None
-                        ## need to select a new master
-                        ## need to notify the
-                        if len(self.slave_sockets) > 0:
-                            # promote first slave to master
-                            new_master_socket  = self.slave_server_sockets.pop()
-
-                            self.promote_slave_to_master(new_master_socket)
-
-                            #notify slave of promotion
-                            #new_master_message = proto.ServerAssignment()
-                            #new_master_message.isMaster = True
-                            #utils.send(new_master_server_socket, new_master_message.SerializeToString())
-                            #print("A new master server has been promoted.")
-                            # notify back up proxy of promotion
-                            #self.master_socket = new_master_server_socket
-                            # start a heartbeat for the new master
-                            #thread = threading.Thread(target=self.send_heartbeat, args=(self.master_socket,), daemon=True).start()
-
-                        else:
-                            LOGGER.info("No slave servers available to promote to master.")
-
-                        #break
 
     def handle_connection(self, conn: socket.socket, address):
         try:
