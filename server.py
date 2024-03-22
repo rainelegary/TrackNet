@@ -152,17 +152,16 @@ class Server():
         
 
     def handle_client_state(self, client_state):
-        self.apply_client_state(client_state)
-        resp = self.issue_client_command(client_state)
+        train = self.get_train(client_state.train, client_state.location.front_junction_id)
+        self.apply_client_state(client_state,train)
+        resp = self.issue_client_command(client_state,train)
         return resp
     
 
-    def apply_client_state(self, client_state):
+    def apply_client_state(self, client_state, train):
         # assume client_state location is set
 
         # set train info
-        train = self.get_train(client_state.train, client_state.location.front_junction_id)
-
 		
         # check train condition
         if client_state.location.HasField("front_track_id"):
@@ -175,8 +174,8 @@ class Server():
         self.railway.print_map()
 
 
-    def issue_client_command(self, client_state):
-        train = self.get_train(client_state.train, client_state.location.front_junction_id)
+    def issue_client_command(self, client_state, train):
+        
         resp = TrackNet_pb2.ServerResponse()
         resp.train.id            = train.name
         resp.train.length        = train.length
