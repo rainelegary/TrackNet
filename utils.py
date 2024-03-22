@@ -50,16 +50,19 @@ def exit_gracefully(signum, frame):
     print('Trying to exit gracefully. ' + sig_type)
     exit_flag = True
 
-DEBUGV = 9 
+DEBUGV= 9 
+def debugv(self, message, *args, **kws):
+    # Yes, logger takes its '*args' as 'args'.
+    self._log(DEBUGV, message, args, **kws) 
 
 def setup_logging():
     logging.addLevelName(DEBUGV, "DEBUGV")
+    logging.Logger.debugv = debugv
     formatter = logging.Formatter('%(lineno)d %(asctime)s %(levelname)s@%(name)s: %(message)s')
     handler = logging.StreamHandler()
-    handler.setLevel(logging.DEBUG)
+    handler.setLevel(DEBUGV)
     handler.setFormatter(formatter)
 
-    logging.root.setLevel(logging.DEBUG)
     logging.root.addHandler(handler)
 
 

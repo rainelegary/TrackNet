@@ -226,7 +226,7 @@ class Proxy:
 
                 if proxy_sock:
                     connected_to_proxy = True
-                    LOGGER.debug ("Connected to main proxy")
+                    LOGGER.debug("Connected to main proxy")
                     self.socket_list.append(proxy_sock)
                     proxy_sock.settimeout(self.heartbeat_timeout)
 
@@ -280,7 +280,7 @@ class Proxy:
                         else:
                             self.remove_slave_socket(self.master_socket)
                                 
-                time.sleep(5)
+                time.sleep(self.heartbeat_interval)
             else:
                 LOGGER.debug("No data received from main")
                 if self.handle_missed_proxy_heartbeat():
@@ -296,7 +296,7 @@ class Proxy:
                 heartbeat_message = proto.InitConnection()
                 heartbeat_message.sender = TrackNet_pb2.InitConnection.Sender.PROXY
                 heartbeat_message.is_heartbeat = True
-                #LOGGER.debugv("Sending... heartbeat to master server")
+                LOGGER.debugv("Sending... heartbeat to master server")
                 if not send(self.master_socket, heartbeat_message.SerializeToString()):
                     LOGGER.warning(f"Failed to send heartbeat request to master server")
 
@@ -354,7 +354,7 @@ class Proxy:
                                 self.relay_server_response(init_conn.server_response)
 
                             elif init_conn.HasField("is_heartbeat") and self.is_main:
-                                #LOGGER.debugv("Received heartbeat from master server. Sending response...")
+                                LOGGER.debugv("Received heartbeat from master server. Sending response...")
                                 # send heartbeat
                                 threading.Thread(target=self.handle_heartbeat_response, daemon=True).start()
                             else:
@@ -369,7 +369,7 @@ class Proxy:
 
                         elif init_conn.sender == proto.InitConnection.Sender.PROXY and self.is_main:
                             ## add bool for backup is up
-                            #LOGGER.debug("Received message from backup proxy")
+                            LOGGER.debugv("Received message from backup proxy")
                             heartbeat = proto.Response()
                             heartbeat.code = proto.Response.Code.HEARTBEAT
 
@@ -377,7 +377,7 @@ class Proxy:
                             try:
                                 master_host, _ = self.master_socket.getpeername()
                                 heartbeat.master_host = master_host
-                                LOGGER.debug("Setting master host to %s", master_host)
+                                LOGGER.debugv("Setting master host to %s", master_host)
 
                             except Exception as e:
                                 LOGGER.warning("Master server not connected. Unable to set master host")
