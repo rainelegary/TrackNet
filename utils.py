@@ -60,7 +60,8 @@ def setup_logging():
     logging.Logger.debugv = debugv
     formatter = logging.Formatter('%(lineno)d %(asctime)s %(levelname)s@%(name)s: %(message)s')
     handler = logging.StreamHandler()
-    handler.setLevel(DEBUGV)
+    #handler.setLevel(DEBUGV)
+    handler.setLevel(logging.DEBUG)
     handler.setFormatter(formatter)
 
     logging.root.addHandler(handler)

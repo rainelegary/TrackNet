@@ -73,6 +73,7 @@ class Proxy:
 
     def relay_client_state(self, client_state: TrackNet_pb2.ClientState):
         LOGGER.info("Received client state")
+        LOGGER.debug(f"{client_state}")
         with self.lock:
             if self.master_socket is not None:
                 new_message = proto.InitConnection()
