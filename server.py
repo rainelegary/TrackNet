@@ -194,6 +194,8 @@ class Server():
             resp.new_route = command.new_route
         if command.HasField("speed"):
             resp.speed = command.speed
+        
+        LOGGER.debug(f"speed command {resp.train.id}: {resp.speed}")
 
         return resp
         

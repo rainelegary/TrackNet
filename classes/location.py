@@ -109,5 +109,5 @@ class Location:
         
     def __str__(self):
         if self.front_cart["track"] is not None:
-            return f"{self.front_cart['track'].name} {self.front_cart['postion']:.2f}"
+            return f"{self.front_cart['track'].name} {self.front_cart['position']:.2f}"
         return f"{self.front_cart['junction'].name} "

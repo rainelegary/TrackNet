@@ -2,6 +2,9 @@
 from classes.enums import TrainState, TrainSpeed, TrackCondition
 from classes.train import Train
 import TrackNet_pb2
+import logging
+
+LOGGER = logging.getLogger(__name__)
 
 
 class CannotRerouteException(Exception):
@@ -72,8 +75,13 @@ class ConflictAnalyzer:
         # commands dictionary. maps: train id -> list of commands to give to that train.
         commands = {}
 
+        LOGGER.debug("Resolving Conflicts.")
+        LOGGER.debug(f"Trains:")
+        for train_id, train in railway.trains.items():
+            LOGGER.debug(f"{type(train_id), type(train)}")
+
         # fast and clear
-        for train in railway.trains:
+        for train in railway.trains.values():
             command = TrackNet_pb2.ServerResponse()
             command.status = TrackNet_pb2.ServerResponse.UpdateStatus.CLEAR
             command.speed = TrainSpeed.FAST.value
