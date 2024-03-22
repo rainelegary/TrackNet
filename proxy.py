@@ -22,6 +22,7 @@ class Proxy:
         self.port = port
         self.proxy_port = port
         self.master_socket = None
+        self.master_socket_hostIP = None
         self.slave_sockets = {} 
         self.client_sockets = {}  # Map client address (IP, port) to socket for direct access
         self.socket_list = []
@@ -116,6 +117,11 @@ class Proxy:
     def promote_slave_to_master(self, slave_socket: socket.socket):
         
         self.master_socket = slave_socket
+        try:
+            self.master_socket_hostIP = slave_socket.getpeername()[0] 
+        except Exception as e:
+            LOGGER.warning(f"Exception {e} was thrown when setting master_socket_hostIP ")
+
         self.remove_slave_socket(self.master_socket)
         
         #LOGGER.info(f"{slave_socket.getpeername()} promoted to MASTER")
@@ -252,18 +258,22 @@ class Proxy:
                     LOGGER.debug("Did not received heartbeat from main proxy?")
 
                 if heartbeat.HasField("master_host"):
+
                     # if no master server or new master server
-                    if self.master_socket is None or self.master_socket.getpeername()[0] != heartbeat.master_host:
+                    if self.master_socket is None or self.master_socket_hostIP != heartbeat.master_host:
                         LOGGER.debug("Updating master server ...")
                         LOGGER.info(f"slave sockets: {self.slave_sockets}, items: {self.slave_sockets.items()}")
                         foundMasterServer = False
                         with self.lock:
                             for _, slave in self.slave_sockets.items():
-                                if slave.getpeername()[0] == heartbeat.master_host:
-                                    foundMasterServer = True
-                                    self.master_socket = slave
-                                    LOGGER.debug("Master server updated to %s", heartbeat.master_host)
-                                
+                                try:
+                                    if slave.getpeername()[0] == heartbeat.master_host:
+                                        foundMasterServer = True
+                                        self.master_socket = slave                                        
+                                        self.master_socket_hostIP = slave.getpeername()[0] 
+                                        LOGGER.debug("Master server updated to %s", heartbeat.master_host)
+                                except Exception as e:
+                                        LOGGER.warning(f"Exception {e} was thrown when finding master server from slaves")
                         if foundMasterServer == False:
                             LOGGER.warning(f"BackUp Proxy doesn't have connection to the master server ? {heartbeat.master_host}")
                         else:
@@ -312,6 +322,7 @@ class Proxy:
 
     def handle_heartbeat_timeout(self):
         LOGGER.info("Heartbeat response timed out.")
+        self.master_socket = None
         # Take appropriate action here
         if len(self.slave_sockets) > 0:
             LOGGER.debug("Number of slave sockets: %d", len(self.slave_sockets))
@@ -320,7 +331,7 @@ class Proxy:
         else:
             LOGGER.info("len (slave sockets) is 0")
             LOGGER.info("No slave servers available to promote to master.")   
-            self.master_socket = None
+            
 
     def handle_connection(self, conn: socket.socket, address):
         try:
@@ -343,7 +354,7 @@ class Proxy:
 
                         elif init_conn.sender == proto.InitConnection.Sender.SERVER_MASTER:
 
-                            if self.master_socket.getpeername()[0] != conn.getpeername()[0]:
+                            if self.master_socket_hostIP != conn.getpeername()[0]:
                                 LOGGER.warning(f"Received message with sender type master from NON master server.")
 
                             if init_conn.HasField("server_response"):
@@ -376,7 +387,7 @@ class Proxy:
                                 LOGGER.debug("Setting master host to %s", master_host)
 
                             except Exception as e:
-                                LOGGER.warning("Master server not connected?")
+                                LOGGER.warning("Master server not connected. Unable to set master host")
 
                             time.sleep(5)
 
