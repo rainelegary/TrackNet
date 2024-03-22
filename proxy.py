@@ -436,8 +436,8 @@ class Proxy:
                 try:
                     # select.select(socks to monitor for incoming data, socks to write to, socks to monitor for exceptions, timeout value)
                     read_sockets, _, _ = select.select([proxy_listening_sock], [], [], 0.5) #
-                    
-                    if read_sockets[0]:                        
+
+                    if len(read_sockets) > 0:                        
                         conn, addr = proxy_listening_sock.accept()
                         # Pass both socket and address for easier client management
                         threading.Thread(target=self.handle_connection, args=(conn, addr), daemon=True).start()
