@@ -296,7 +296,7 @@ class Proxy:
                 heartbeat_message = proto.InitConnection()
                 heartbeat_message.sender = TrackNet_pb2.InitConnection.Sender.PROXY
                 heartbeat_message.is_heartbeat = True
-                LOGGER.debug("Sending... heartbeat to master server")
+                #LOGGER.debugv("Sending... heartbeat to master server")
                 if not send(self.master_socket, heartbeat_message.SerializeToString()):
                     LOGGER.warning(f"Failed to send heartbeat request to master server")
 
@@ -306,7 +306,7 @@ class Proxy:
 
     # Define a function for sleeping and sending heartbeat
     def handle_heartbeat_response(self):
-        LOGGER.info("Received heartbeat response from master server.")
+        #LOGGER.debugv("Received heartbeat response from master server.")
         # Cancel the timer if it's still running
         if self.heartbeat_timer and self.heartbeat_timer.is_alive():
             self.heartbeat_timer.cancel() 
@@ -354,7 +354,7 @@ class Proxy:
                                 self.relay_server_response(init_conn.server_response)
 
                             elif init_conn.HasField("is_heartbeat") and self.is_main:
-                                LOGGER.debug("Received heartbeat from master server. Sending response...")
+                                #LOGGER.debugv("Received heartbeat from master server. Sending response...")
                                 # send heartbeat
                                 threading.Thread(target=self.handle_heartbeat_response, daemon=True).start()
                             else:
@@ -369,7 +369,7 @@ class Proxy:
 
                         elif init_conn.sender == proto.InitConnection.Sender.PROXY and self.is_main:
                             ## add bool for backup is up
-                            LOGGER.debug("Received message from backup proxy")
+                            #LOGGER.debug("Received message from backup proxy")
                             heartbeat = proto.Response()
                             heartbeat.code = proto.Response.Code.HEARTBEAT
 
@@ -406,8 +406,6 @@ class Proxy:
 
         if conn is not None:
             conn.close()
-
-
 
     def shutdown(self, proxy_listening_sock: socket.socket):
         with self.lock:
