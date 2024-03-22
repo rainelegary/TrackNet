@@ -228,7 +228,7 @@ class Proxy:
                 if proxy_sock:
                     connected_to_proxy = True
                     LOGGER.debug("Connected to main proxy")
-                    self.socket_list.append(proxy_sock)
+                    #self.socket_list.append(proxy_sock)
                     proxy_sock.settimeout(self.heartbeat_timeout)
 
                 else:
@@ -435,12 +435,12 @@ class Proxy:
             while not exit_flag:
                 try:
                     # select.select(socks to monitor for incoming data, socks to write to, socks to monitor for exceptions, timeout value)
-                    read_sockets, _, _ = select.select(self.socket_list, [], [], 0.5) #
-                    for notified_socket in read_sockets:
-                        if notified_socket == proxy_listening_sock:
-                            conn, addr = proxy_listening_sock.accept()
-                            # Pass both socket and address for easier client management
-                            threading.Thread(target=self.handle_connection, args=(conn, addr), daemon=True).start()
+                    read_sockets, _, _ = select.select([proxy_listening_sock], [], [], 0.5) #
+                    
+                    if read_sockets[0]:                        
+                        conn, addr = proxy_listening_sock.accept()
+                        # Pass both socket and address for easier client management
+                        threading.Thread(target=self.handle_connection, args=(conn, addr), daemon=True).start()
 
                     # check for a master if there is one start a new thread for making sure it is alive
 
