@@ -70,6 +70,7 @@ class Proxy:
             pass
 
     def relay_client_state(self, client_state: TrackNet_pb2.ClientState):
+        LOGGER.info("Received client state")
         with self.lock:
             if self.master_socket is not None:
                 new_message = proto.InitConnection()
@@ -84,7 +85,7 @@ class Proxy:
                 new_message.client_state.speed = client_state.speed
                 #new_message.client_state.CopyFrom(client_state)
                 if self.master_socket is None:
-                    print("MASTER NONE")
+                    LOGGER.debug("MASTER NONE")
                 if not send(self.master_socket, new_message.SerializeToString()):
                     LOGGER.warning(f"Failed to send client state message to master.")
                 else:
@@ -293,14 +294,13 @@ class Proxy:
                 else:
                     LOGGER.warning(f"Failed to send heartbeat request to master server")
         except Exception as e:
-            print("Error sending heartbeat:", e)
+            LOGGER.warning("Error sending heartbeat:", e)
             self.handle_heartbeat_timeout()  # Trigger timeout handling            
 
 
     # Define a function for sleeping and sending heartbeat
     def handle_heartbeat_response(self):
-        LOGGER.debug(f"In handle_heartbeat_response()")
-        print("Received heartbeat response from master server.")
+        LOGGER.info("Received heartbeat response from master server.")
         # Cancel the timer if it's still running
         if self.heartbeat_timer and self.heartbeat_timer.is_alive():
             self.heartbeat_timer.cancel() 
@@ -311,7 +311,7 @@ class Proxy:
         self.send_heartbeat()
 
     def handle_heartbeat_timeout(self):
-        print("Heartbeat response timed out.")
+        LOGGER.info("Heartbeat response timed out.")
         # Take appropriate action here
         if len(self.slave_sockets) > 0:
             LOGGER.debug("Number of slave sockets: %d", len(self.slave_sockets))
@@ -350,15 +350,13 @@ class Proxy:
                                 self.relay_server_response(init_conn.server_response)
 
                             elif init_conn.HasField("is_heartbeat") and self.is_main:
-                                LOGGER.debug ("Received heartbeat from master server. Sending response...")
+                                LOGGER.debug("Received heartbeat from master server. Sending response...")
                                 # send heartbeat
                                 threading.Thread(target=self.handle_heartbeat_response, daemon=True).start()
                             else:
                                 LOGGER.warning(f"Proxy received msg from master with missing content {init_conn}")
 
                         elif init_conn.sender == proto.InitConnection.Sender.SERVER_SLAVE:
-                                #self.add_slave_socket(conn)
-
                                 if self.is_main:
                                     self.slave_role_assignment(conn, init_conn)
                                 else:
@@ -367,7 +365,7 @@ class Proxy:
 
                         elif init_conn.sender == proto.InitConnection.Sender.PROXY and self.is_main:
                             ## add bool for backup is up
-                            print ("received message from backup proxy")
+                            LOGGER.info("Received message from backup proxy")
                             heartbeat = proto.Response()
                             heartbeat.code = proto.Response.Code.HEARTBEAT
 
@@ -389,7 +387,7 @@ class Proxy:
                                 LOGGER.warning(f"Failed to send heartbeat to backup proxy.")
 
                 except Exception as e:
-                    print(traceback.format_exc())
+                    LOGGER.error(traceback.format_exc())
                     break
 
         except socket.timeout:
@@ -401,7 +399,7 @@ class Proxy:
 
             if conn == self.master_socket:
                 self.master_socket = None
-                print("Master server connection lost.")
+                LOGGER.warning("Master server connection lost.")
 
             elif client_key.split(":")[0] in self.slave_sockets:
                 del self.slave_sockets[client_key.split(":")[0]]
