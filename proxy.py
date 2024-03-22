@@ -299,10 +299,10 @@ class Proxy:
                 LOGGER.debug ("Sending... heartbeat to master server")
                 if not send(self.master_socket, heartbeat_message.SerializeToString()):
                     LOGGER.warning(f"Failed to send heartbeat request to master server")
+
         except Exception as e:
             LOGGER.warning("Error sending heartbeat:", e)
             self.handle_heartbeat_timeout()  # Trigger timeout handling            
-
 
     # Define a function for sleeping and sending heartbeat
     def handle_heartbeat_response(self):
@@ -310,9 +310,7 @@ class Proxy:
         # Cancel the timer if it's still running
         if self.heartbeat_timer and self.heartbeat_timer.is_alive():
             self.heartbeat_timer.cancel() 
-            LOGGER.debug("cancelling heartbeat timer")
 
-        LOGGER.debug(f"Sleeping for {self.heartbeat_interval} seconds")
         time.sleep(self.heartbeat_interval)
         self.send_heartbeat()
 
@@ -327,7 +325,6 @@ class Proxy:
         else:
             LOGGER.info("len (slave sockets) is 0")
             LOGGER.info("No slave servers available to promote to master.")   
-            
 
     def handle_connection(self, conn: socket.socket, address):
         try:
@@ -405,7 +402,7 @@ class Proxy:
 
             elif client_key.split(":")[0] in self.slave_sockets:
                 del self.slave_sockets[client_key.split(":")[0]]
-                print("Slave server connection lost.")
+                LOGGER.warning("Slave server connection lost.")
 
         if conn is not None:
             conn.close()
