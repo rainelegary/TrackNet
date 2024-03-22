@@ -158,22 +158,22 @@ class Server():
 
     def handle_client_state(self, client_state):
         train = self.get_train(client_state.train, client_state.location.front_junction_id)
-        self.apply_client_state(client_state,train)
-        resp = self.issue_client_command(client_state,train)
+        self.apply_client_state(client_state, train)
+        resp = self.issue_client_command(client_state, train)
         return resp
     
 
     def apply_client_state(self, client_state, train):
         # assume client_state location is set
-
-        # set train info
 		
         # check train condition
         if client_state.location.HasField("front_track_id"):
             self.railway.map.set_track_condition(client_state.location.front_track_id, TrackCondition(client_state.condition))
 
         # update train location
-        self.railway.update_train(train, TrainState(client_state.train.state), client_state.location, client_state.route)
+        location_obj = MessageConverter.location_msg_to_obj(client_state.location)
+        route_obj = MessageConverter.route_msg_to_obj(client_state.route)
+        self.railway.update_train(train, TrainState(client_state.train.state), location_obj, route_obj)
 
         # print map
         self.railway.print_map()
