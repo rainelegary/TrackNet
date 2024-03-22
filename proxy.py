@@ -145,7 +145,7 @@ class Proxy:
 
         LOGGER.debug ("sending heartbeat to new master server")
         #threading.Thread(target=self.send_heartbeat, args=(self.master_socket,), daemon=True).start()
-        self.send_heartbeat(self.master_socket)
+        self.send_heartbeat()
 
     def notify_master_of_new_slave(self, init_conn: TrackNet_pb2.InitConnection):
         # Notify master of new slave server so it can connect to it
@@ -201,6 +201,8 @@ class Proxy:
         if self.heartbeat_attempts >= self.max_heartbeat_attempts:
             self.is_main = True
             LOGGER.debug ("Setting self to main proxy")
+            LOGGER.info("Calling send heartbeat")
+            self.send_heartbeat()
             return True
         
         return False
@@ -272,7 +274,7 @@ class Proxy:
                 if self.handle_missed_proxy_heartbeat():
                     LOGGER.info("IS MAIN PROXY")
 
-    def send_heartbeat(self, master_socket):
+    def send_heartbeat(self):
         LOGGER.debug("in send_heartbeat function")
 
         # Start a timer
@@ -306,7 +308,7 @@ class Proxy:
 
         LOGGER.debug(f"Sleeping for {self.heartbeat_interval} seconds")
         time.sleep(self.heartbeat_interval)
-        self.send_heartbeat(self.master_socket)
+        self.send_heartbeat()
 
     def handle_heartbeat_timeout(self):
         print("Heartbeat response timed out.")
