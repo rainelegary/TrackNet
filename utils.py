@@ -37,6 +37,7 @@ proxy_details = {
 
 exit_flag = False
 
+
 def exit_gracefully(signum, frame):
     global exit_flag
 
@@ -49,9 +50,17 @@ def exit_gracefully(signum, frame):
     print('Trying to exit gracefully. ' + sig_type)
     exit_flag = True
 
+DEBUGV= 9 
+def debugv(self, message, *args, **kws):
+    # Yes, logger takes its '*args' as 'args'.
+    self._log(DEBUGV, message, args, **kws) 
+
 def setup_logging():
-    formatter = logging.Formatter('%(lineno)d %(asctime)s %(levelname)s@%(name)s: %(message)s')
+    logging.addLevelName(DEBUGV, "DEBUGV")
+    logging.Logger.debugv = debugv
+    formatter = logging.Formatter(fmt='%(lineno)d %(asctime)s %(levelname)s@%(name)s: %(message)s', datefmt='%H:%M:%S')
     handler = logging.StreamHandler()
+    #handler.setLevel(DEBUGV)
     handler.setLevel(logging.DEBUG)
     handler.setFormatter(formatter)
 

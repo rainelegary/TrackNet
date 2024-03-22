@@ -22,12 +22,13 @@ class Proxy:
         self.port = port
         self.proxy_port = port
         self.master_socket = None
+        self.master_socket_hostIP = None
         self.slave_sockets = {} 
         self.client_sockets = {}  # Map client address (IP, port) to socket for direct access
         self.socket_list = []
         self.lock = threading.Lock()
-        self.heartbeat_interval = 10
-        self.heartbeat_timeout = 10
+        self.heartbeat_interval = 2
+        self.heartbeat_timeout = 3
 
         self.is_main = is_main
         self.main_proxy_host = None
@@ -39,16 +40,17 @@ class Proxy:
 
         threading.Thread(target=self.proxy_to_proxy, daemon=True).start()
 
-
     def set_main_proxy_host(self):
         if self.is_main:
             self.main_proxy_host = self.host
         else:
-            for proxy, _ in proxy_details.items():
-                if proxy != self.host and proxy != "DESKTOP-BF2NK58":
-                    self.main_proxy_host = proxy
-                else:
-                    LOGGER.debug("proxy is the same as self.host")
+            self.main_proxy_host = list(proxy_details.items())[0][0]
+            
+            # for proxy, _ in proxy_details.items():
+            #     if proxy != self.host and proxy != "DESKTOP-BF2NK58":
+            #         self.main_proxy_host = proxy
+            #     else:
+            #         LOGGER.debug("proxy is the same as self.host")
 
         LOGGER.info(f"Main proxy hostname: {self.main_proxy_host}")
         ## case where only one proxy and command-line arg main missing
@@ -66,8 +68,12 @@ class Proxy:
             del self.slave_sockets[slave_socket.getpeername()[0]]
         except KeyError:
             pass
+        except Exception as exc: 
+            LOGGER.warning(f"Error removing slave socket from list of slaves: {exc}")
 
     def relay_client_state(self, client_state: TrackNet_pb2.ClientState):
+        LOGGER.info("Received client state")
+        LOGGER.debug(f"{client_state}")
         with self.lock:
             if self.master_socket is not None:
                 new_message = proto.InitConnection()
@@ -82,7 +88,7 @@ class Proxy:
                 new_message.client_state.speed = client_state.speed
                 #new_message.client_state.CopyFrom(client_state)
                 if self.master_socket is None:
-                    print("MASTER NONE")
+                    LOGGER.debug("MASTER NONE")
                 if not send(self.master_socket, new_message.SerializeToString()):
                     LOGGER.warning(f"Failed to send client state message to master.")
                 else:
@@ -111,7 +117,15 @@ class Proxy:
                 LOGGER.warning(f"Target client {target_client_key} not found.")
 
     def promote_slave_to_master(self, slave_socket: socket.socket):
+        
         self.master_socket = slave_socket
+        try:
+            self.master_socket_hostIP = slave_socket.getpeername()[0] 
+        except Exception as e:
+            LOGGER.warning(f"Exception {e} was thrown when setting master_socket_hostIP ")
+
+        self.remove_slave_socket(self.master_socket)
+        LOGGER.info(f"Promoting {self.master_socket_hostIP} to MASTER")
         #LOGGER.info(f"{slave_socket.getpeername()} promoted to MASTER")
 
         # notify the newly promoted master server of its new role
@@ -140,7 +154,7 @@ class Proxy:
 
         LOGGER.debug ("sending heartbeat to new master server")
         #threading.Thread(target=self.send_heartbeat, args=(self.master_socket,), daemon=True).start()
-        self.send_heartbeat(self.master_socket)
+        self.send_heartbeat()
 
     def notify_master_of_new_slave(self, init_conn: TrackNet_pb2.InitConnection):
         # Notify master of new slave server so it can connect to it
@@ -196,6 +210,8 @@ class Proxy:
         if self.heartbeat_attempts >= self.max_heartbeat_attempts:
             self.is_main = True
             LOGGER.debug ("Setting self to main proxy")
+            LOGGER.info("Calling send heartbeat")
+            self.send_heartbeat()
             return True
         
         return False
@@ -211,13 +227,13 @@ class Proxy:
 
                 if proxy_sock:
                     connected_to_proxy = True
-                    LOGGER.debug ("Connected to main proxy")
-                    self.socket_list.append(proxy_sock)
-                    proxy_sock.settimeout(15)
+                    LOGGER.debug("Connected to main proxy")
+                    #self.socket_list.append(proxy_sock)
+                    proxy_sock.settimeout(self.heartbeat_timeout)
 
                 else:
                     LOGGER.warning(f"Failed to connect to main proxy. Trying again in 5 seconds ...")
-                    time.sleep(5)
+                    time.sleep(self.heartbeat_interval)
                     if self.handle_missed_proxy_heartbeat():
                         LOGGER.info("IS MAIN PROXY")
                         return
@@ -244,60 +260,64 @@ class Proxy:
                     LOGGER.debug("Did not received heartbeat from main proxy?")
 
                 if heartbeat.HasField("master_host"):
+
                     # if no master server or new master server
-                    if self.master_socket is None or self.master_socket.getpeername()[0] != heartbeat.master_host:
+                    if self.master_socket is None or self.master_socket_hostIP != heartbeat.master_host:
                         LOGGER.debug("Updating master server ...")
-                        for _, slave in self.slave_sockets.items():
-                            if slave.getpeername()[0] == heartbeat.master_host:
-                                self.master_socket = slave
-                                self.remove_slave_socket(slave)
-                                LOGGER.debug("Master server updated.")
-                            else:
-                                LOGGER.warning(f"BackUp Proxy doesn't have connections to master server ?")
-                time.sleep(5)
+                        LOGGER.info(f"slave sockets: {self.slave_sockets}, items: {self.slave_sockets.items()}")
+                        foundMasterServer = False
+                        with self.lock:
+                            for _, slave in self.slave_sockets.items():
+                                try:
+                                    if slave.getpeername()[0] == heartbeat.master_host:
+                                        foundMasterServer = True
+                                        self.master_socket = slave                                        
+                                        self.master_socket_hostIP = slave.getpeername()[0] 
+                                        LOGGER.debug("Master server updated to %s", heartbeat.master_host)
+                                except Exception as e:
+                                        LOGGER.warning(f"Exception {e} was thrown when finding master server from slaves")
+                        if foundMasterServer == False:
+                            LOGGER.warning(f"BackUp Proxy doesn't have connection to the master server ? {heartbeat.master_host}")
+                        else:
+                            self.remove_slave_socket(self.master_socket)
+                                
+                time.sleep(self.heartbeat_interval)
             else:
                 LOGGER.debug("No data received from main")
                 if self.handle_missed_proxy_heartbeat():
                     LOGGER.info("IS MAIN PROXY")
 
-    def send_heartbeat(self, master_socket):
-        LOGGER.debug("in send_heartbeat function")
-
+    def send_heartbeat(self):
         # Start a timer
         self.heartbeat_timer = threading.Timer(self.heartbeat_timeout, self.handle_heartbeat_timeout)
         self.heartbeat_timer.start()
-        LOGGER.debug ("heartbeat timer started")
 
         try:
             if self.master_socket:
                 heartbeat_message = proto.InitConnection()
                 heartbeat_message.sender = TrackNet_pb2.InitConnection.Sender.PROXY
                 heartbeat_message.is_heartbeat = True
-                LOGGER.debug ("before sending heartbeat to master server")
-                if send(self.master_socket, heartbeat_message.SerializeToString()):
-                    LOGGER.debug("Sent heartbeat message to master server.")
-                else:
+                LOGGER.debugv("Sending... heartbeat to master server")
+                if not send(self.master_socket, heartbeat_message.SerializeToString()):
                     LOGGER.warning(f"Failed to send heartbeat request to master server")
-        except Exception as e:
-            print("Error sending heartbeat:", e)
-            self.handle_heartbeat_timeout()  # Trigger timeout handling            
 
+        except Exception as e:
+            LOGGER.warning("Error sending heartbeat:", e)
+            self.handle_heartbeat_timeout()  # Trigger timeout handling            
 
     # Define a function for sleeping and sending heartbeat
     def handle_heartbeat_response(self):
-        LOGGER.debug(f"In handle_heartbeat_response()")
-        print("Received heartbeat response from master server.")
+        #LOGGER.debugv("Received heartbeat response from master server.")
         # Cancel the timer if it's still running
         if self.heartbeat_timer and self.heartbeat_timer.is_alive():
             self.heartbeat_timer.cancel() 
-            LOGGER.debug("cancelling heartbeat timer")
 
-        LOGGER.debug(f"Sleeping for {self.heartbeat_interval} seconds")
         time.sleep(self.heartbeat_interval)
-        self.send_heartbeat(self.master_socket)
+        self.send_heartbeat()
 
     def handle_heartbeat_timeout(self):
-        print("Heartbeat response timed out.")
+        LOGGER.info("Heartbeat response timed out.")
+        self.master_socket = None
         # Take appropriate action here
         if len(self.slave_sockets) > 0:
             LOGGER.debug("Number of slave sockets: %d", len(self.slave_sockets))
@@ -306,62 +326,6 @@ class Proxy:
         else:
             LOGGER.info("len (slave sockets) is 0")
             LOGGER.info("No slave servers available to promote to master.")   
-            self.master_socket = None
-
-    def send_heartbeat_old(self, master_socket):
-        LOGGER.debug ("in send_heartbeat function")
-        if self.master_socket:
-            #while not utils.exit_flag and self.master_socket == master_socket:
-                #with self.lock:
-                    try:
-                        heartbeat_message = proto.InitConnection()
-                        heartbeat_message.sender = TrackNet_pb2.InitConnection.Sender.PROXY
-                        heartbeat_message.is_heartbeat = True
-                        LOGGER.debug ("before sending heartbeat to master server")
-                        if send(self.master_socket, heartbeat_message.SerializeToString()):
-                            LOGGER.debug("Sent heartbeat message to master server.")
-                        else:
-                            LOGGER.warning(f"Failed to send heartbeat request to master server")
-
-                        # Wait for a response with a timeout
-                        LOGGER.debug("Waiting for master server's response.")
-                        #ready = select.select([self.master_socket], [], [], self.heartbeat_timeout)
-                        #if ready[0]:
-                        #    response = utils.receive(self.master_socket)
-                        #    if response:
-                        #        print("Heartbeat acknowledged by master server.")
-                        #        LOGGER.debug(f"Sleeping for {self.heartbeat_interval} seconds")
-                        #        time.sleep(self.heartbeat_interval)
-                        #    else:
-                        #        raise Exception("No heartbeat response from master server.")
-                        #else:
-                        #    raise Exception("Heartbeat response timed out.")
-
-                    except Exception as e:
-                        print("Master server is not responding. Considered dead.")
-                        self.master_socket = None
-                        ## need to select a new master
-                        ## need to notify the
-                        if len(self.slave_sockets) > 0:
-                            # promote first slave to master
-                            new_master_socket  = self.slave_server_sockets.pop()
-
-                            self.promote_slave_to_master(new_master_socket)
-
-                            #notify slave of promotion
-                            #new_master_message = proto.ServerAssignment()
-                            #new_master_message.isMaster = True
-                            #utils.send(new_master_server_socket, new_master_message.SerializeToString())
-                            #print("A new master server has been promoted.")
-                            # notify back up proxy of promotion
-                            #self.master_socket = new_master_server_socket
-                            # start a heartbeat for the new master
-                            #thread = threading.Thread(target=self.send_heartbeat, args=(self.master_socket,), daemon=True).start()
-
-                        else:
-                            LOGGER.info("No slave servers available to promote to master.")
-
-                        #break
 
     def handle_connection(self, conn: socket.socket, address):
         try:
@@ -384,28 +348,29 @@ class Proxy:
 
                         elif init_conn.sender == proto.InitConnection.Sender.SERVER_MASTER:
 
-                            if self.master_socket.getpeername()[0] != conn.getpeername()[0]:
+                            if self.master_socket_hostIP != conn.getpeername()[0]:
                                 LOGGER.warning(f"Received message with sender type master from NON master server.")
 
                             if init_conn.HasField("server_response"):
                                 self.relay_server_response(init_conn.server_response)
 
                             elif init_conn.HasField("is_heartbeat") and self.is_main:
-                                LOGGER.debug ("Received heartbeat from master server. Sending response...")
+                                LOGGER.debugv("Received heartbeat from master server. Sending response...")
                                 # send heartbeat
                                 threading.Thread(target=self.handle_heartbeat_response, daemon=True).start()
                             else:
                                 LOGGER.warning(f"Proxy received msg from master with missing content {init_conn}")
 
                         elif init_conn.sender == proto.InitConnection.Sender.SERVER_SLAVE:
-                                #self.add_slave_socket(conn)
-
                                 if self.is_main:
                                     self.slave_role_assignment(conn, init_conn)
+                                else:
+                                    self.add_slave_socket(conn)
+
 
                         elif init_conn.sender == proto.InitConnection.Sender.PROXY and self.is_main:
                             ## add bool for backup is up
-                            print ("received message from backup proxy")
+                            LOGGER.debugv("Received message from backup proxy")
                             heartbeat = proto.Response()
                             heartbeat.code = proto.Response.Code.HEARTBEAT
 
@@ -413,19 +378,16 @@ class Proxy:
                             try:
                                 master_host, _ = self.master_socket.getpeername()
                                 heartbeat.master_host = master_host
+                                LOGGER.debugv("Setting master host to %s", master_host)
+
                             except Exception as e:
-                                LOGGER.warning("Master server not connected?")
+                                LOGGER.warning("Master server not connected. Unable to set master host")
 
-                            time.sleep(5)
-
-                            if send(conn, heartbeat.SerializeToString()):
-                                LOGGER.debug("Sent heartbeat to backup proxy")
-                                LOGGER.debug("waiting for response from backup proxy")
-                            else:
+                            if not send(conn, heartbeat.SerializeToString()):
                                 LOGGER.warning(f"Failed to send heartbeat to backup proxy.")
 
                 except Exception as e:
-                    print(traceback.format_exc())
+                    LOGGER.error(traceback.format_exc())
                     break
 
         except socket.timeout:
@@ -437,16 +399,14 @@ class Proxy:
 
             if conn == self.master_socket:
                 self.master_socket = None
-                print("Master server connection lost.")
+                LOGGER.warning("Master server connection lost.")
 
             elif client_key.split(":")[0] in self.slave_sockets:
                 del self.slave_sockets[client_key.split(":")[0]]
-                print("Slave server connection lost.")
+                LOGGER.warning("Slave server connection lost.")
 
         if conn is not None:
             conn.close()
-
-
 
     def shutdown(self, proxy_listening_sock: socket.socket):
         with self.lock:
@@ -475,17 +435,17 @@ class Proxy:
             while not exit_flag:
                 try:
                     # select.select(socks to monitor for incoming data, socks to write to, socks to monitor for exceptions, timeout value)
-                    read_sockets, _, _ = select.select(self.socket_list, [], [], 0.5) #
-                    for notified_socket in read_sockets:
-                        if notified_socket == proxy_listening_sock:
-                            conn, addr = proxy_listening_sock.accept()
-                            # Pass both socket and address for easier client management
-                            threading.Thread(target=self.handle_connection, args=(conn, addr), daemon=True).start()
+                    read_sockets, _, _ = select.select([proxy_listening_sock], [], [], 0.5) #
+
+                    if len(read_sockets) > 0:                        
+                        conn, addr = proxy_listening_sock.accept()
+                        # Pass both socket and address for easier client management
+                        threading.Thread(target=self.handle_connection, args=(conn, addr), daemon=True).start()
 
                     # check for a master if there is one start a new thread for making sure it is alive
 
                 except Exception as exc:
-                    LOGGER.error(f"run(): ")
+                    LOGGER.error(f"run(): {exc}")
 
         LOGGER.info("Shutting down...")
         self.shutdown(proxy_listening_sock)

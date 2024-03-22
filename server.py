@@ -5,7 +5,7 @@ import socket
 import signal
 import threading
 from utils import *
-from  classes.enums import TrainState, TrackCondition
+from  classes.enums import *
 from classes.railway import Railway
 from classes.train import Train
 import traceback
@@ -143,7 +143,9 @@ class Server():
         :raises Exception: Logs an error if the train ID does not exist in the list of trains.
         """
         if not train.HasField("id"):
-            return self.railway.create_new_train(train.length, origin_id)
+            trainObject =  self.railway.create_new_train(train.length, origin_id)
+            train.id = trainObject.name
+            return trainObject
         else:
             try:
                 train = self.railway.trains[train.id]
@@ -155,17 +157,17 @@ class Server():
         
 
     def handle_client_state(self, client_state):
-        self.apply_client_state(client_state)
-        resp = self.issue_client_command(client_state)
+        train = self.get_train(client_state.train, client_state.location.front_junction_id)
+        self.apply_client_state(client_state,train)
+        resp = self.issue_client_command(client_state,train)
         return resp
     
 
-    def apply_client_state(self, client_state):
+    def apply_client_state(self, client_state, train):
         # assume client_state location is set
 
         # set train info
-        train = self.get_train(client_state.train, client_state.location.front_junction_id)
-
+		
         # check train condition
         if client_state.location.HasField("front_track_id"):
             self.railway.map.set_track_condition(client_state.location.front_track_id, TrackCondition(client_state.condition))
@@ -177,12 +179,15 @@ class Server():
         self.railway.print_map()
 
 
-    def issue_client_command(self, client_state):
-        train = self.get_train(client_state.train, client_state.location.front_junction_id)
+    def issue_client_command(self, client_state, train):
+        
         resp = TrackNet_pb2.ServerResponse()
         resp.train.id            = train.name
         resp.train.length        = train.length
         resp.client.CopyFrom(client_state.client)
+        LOGGER.debug(f"trains speed being set to {TrainSpeed.FAST.value}")
+        resp.speed = TrainSpeed.FAST.value
+        resp.status = TrackNet_pb2.ServerResponse.UpdateStatus.CLEAR
 
         if (datetime.now() - self.previous_conflict_analysis_time) > timedelta(seconds=self.conflict_analysis_interval):
             self.client_commands = ConflictAnalyzer.resolve_conflicts(self.railway, self.client_commands)
@@ -319,7 +324,7 @@ class Server():
         # Data also needs to include an update of a new slave
         proxy_resp = TrackNet_pb2.InitConnection()
         proxy_resp.ParseFromString(data)
-        LOGGER.debug(f"Master received response from proxy\n{proxy_resp}")
+        #LOGGER.debug(f"Master server received response from proxy\n{proxy_resp}")
 
         # Receive updates on new slaves connecting to the proxy
         #if len(proxy_resp.slave_details) > 0:
@@ -357,14 +362,11 @@ class Server():
 
         #CHECK FOR HEARTBEAT HERE
         elif proxy_resp.HasField("is_heartbeat"):
-            LOGGER.debug(f"Received heartbeat from proxy: {proxy_resp.is_heartbeat}")
+            #LOGGER.debug(f"Received heartbeat from proxy: {proxy_resp.is_heartbeat}")
             heartbeat_message = proto.InitConnection()
             heartbeat_message.sender = TrackNet_pb2.InitConnection.Sender.SERVER_MASTER
             heartbeat_message.is_heartbeat = True
-            if send(sock, heartbeat_message.SerializeToString()):
-                LOGGER.debug("Sent heartbeat message to main proxy.")
-                LOGGER.debug("Waiting for main proxy to respond")
-            else:
+            if not send(sock, heartbeat_message.SerializeToString()):
                 LOGGER.warning("Failed to send heartbeat message to main proxy.")
 
         else:
@@ -552,23 +554,7 @@ class Server():
 
 
 
-    def get_train(self, train: TrackNet_pb2.Train, origin_id: str):
-        """Retrieves a Train object based on its ID. If the train does not exist, it creates a new Train object.
-
-        :param train: The train identifier or a Train object with an unset ID to create a new Train.
-        :return: Returns the Train object matching the given ID, or a new Train object if the ID is not set.
-        :raises Exception: Logs an error if the train ID does not exist in the list of trains.
-        """
-        if not train.HasField("id"):
-            return self.railway.create_new_train(train.length, origin_id)
-        else:
-            try:
-                train = self.railway.trains[train.id]
-            except:
-                LOGGER.error(f"Train {train.id} does not exits in list of trains. Creating new train...")
-                return self.railway.create_new_train(train.length, origin_id)
-
-            return train
+    
 
 
 if __name__ == '__main__':
