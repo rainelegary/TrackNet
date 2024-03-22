@@ -27,8 +27,8 @@ class Proxy:
         self.client_sockets = {}  # Map client address (IP, port) to socket for direct access
         self.socket_list = []
         self.lock = threading.Lock()
-        self.heartbeat_interval = 10
-        self.heartbeat_timeout = 10
+        self.heartbeat_interval = 2
+        self.heartbeat_timeout = 3
 
         self.is_main = is_main
         self.main_proxy_host = None
@@ -39,7 +39,6 @@ class Proxy:
         self.set_main_proxy_host()
 
         threading.Thread(target=self.proxy_to_proxy, daemon=True).start()
-
 
     def set_main_proxy_host(self):
         if self.is_main:
@@ -69,6 +68,8 @@ class Proxy:
             del self.slave_sockets[slave_socket.getpeername()[0]]
         except KeyError:
             pass
+        except Exception as exc: 
+            LOGGER.warning(f"Error removing slave socket from list of slaves: {exc}")
 
     def relay_client_state(self, client_state: TrackNet_pb2.ClientState):
         LOGGER.info("Received client state")
@@ -123,7 +124,7 @@ class Proxy:
             LOGGER.warning(f"Exception {e} was thrown when setting master_socket_hostIP ")
 
         self.remove_slave_socket(self.master_socket)
-        
+        LOGGER.info(f"Promoting {self.master_socket_hostIP} to MASTER")
         #LOGGER.info(f"{slave_socket.getpeername()} promoted to MASTER")
 
         # notify the newly promoted master server of its new role
@@ -286,22 +287,17 @@ class Proxy:
                     LOGGER.info("IS MAIN PROXY")
 
     def send_heartbeat(self):
-        LOGGER.debug("in send_heartbeat function")
-
         # Start a timer
         self.heartbeat_timer = threading.Timer(self.heartbeat_timeout, self.handle_heartbeat_timeout)
         self.heartbeat_timer.start()
-        LOGGER.debug ("heartbeat timer started")
 
         try:
             if self.master_socket:
                 heartbeat_message = proto.InitConnection()
                 heartbeat_message.sender = TrackNet_pb2.InitConnection.Sender.PROXY
                 heartbeat_message.is_heartbeat = True
-                LOGGER.debug ("before sending heartbeat to master server")
-                if send(self.master_socket, heartbeat_message.SerializeToString()):
-                    LOGGER.debug("Sent heartbeat message to master server.")
-                else:
+                LOGGER.debug ("Sending... heartbeat to master server")
+                if not send(self.master_socket, heartbeat_message.SerializeToString()):
                     LOGGER.warning(f"Failed to send heartbeat request to master server")
         except Exception as e:
             LOGGER.warning("Error sending heartbeat:", e)
@@ -388,8 +384,6 @@ class Proxy:
 
                             except Exception as e:
                                 LOGGER.warning("Master server not connected. Unable to set master host")
-
-                            time.sleep(5)
 
                             if send(conn, heartbeat.SerializeToString()):
                                 LOGGER.debug("Sent heartbeat to backup proxy")
