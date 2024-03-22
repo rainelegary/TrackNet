@@ -58,7 +58,7 @@ def debugv(self, message, *args, **kws):
 def setup_logging():
     logging.addLevelName(DEBUGV, "DEBUGV")
     logging.Logger.debugv = debugv
-    formatter = logging.Formatter('%(lineno)d %(asctime)s %(levelname)s@%(name)s: %(message)s')
+    formatter = logging.Formatter(fmt='%(lineno)d %(asctime)s %(levelname)s@%(name)s: %(message)s', datefmt='%H:%M:%S')
     handler = logging.StreamHandler()
     #handler.setLevel(DEBUGV)
     handler.setLevel(logging.DEBUG)
