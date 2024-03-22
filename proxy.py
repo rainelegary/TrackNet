@@ -445,7 +445,7 @@ class Proxy:
                     # check for a master if there is one start a new thread for making sure it is alive
 
                 except Exception as exc:
-                    LOGGER.error(f"run(): ")
+                    LOGGER.error(f"run(): {exc}")
 
         LOGGER.info("Shutting down...")
         self.shutdown(proxy_listening_sock)
