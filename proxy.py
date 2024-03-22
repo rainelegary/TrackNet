@@ -228,11 +228,11 @@ class Proxy:
                     connected_to_proxy = True
                     LOGGER.debug ("Connected to main proxy")
                     self.socket_list.append(proxy_sock)
-                    proxy_sock.settimeout(15)
+                    proxy_sock.settimeout(self.heartbeat_timeout)
 
                 else:
                     LOGGER.warning(f"Failed to connect to main proxy. Trying again in 5 seconds ...")
-                    time.sleep(5)
+                    time.sleep(self.heartbeat_interval)
                     if self.handle_missed_proxy_heartbeat():
                         LOGGER.info("IS MAIN PROXY")
                         return
@@ -296,7 +296,7 @@ class Proxy:
                 heartbeat_message = proto.InitConnection()
                 heartbeat_message.sender = TrackNet_pb2.InitConnection.Sender.PROXY
                 heartbeat_message.is_heartbeat = True
-                LOGGER.debug ("Sending... heartbeat to master server")
+                LOGGER.debug("Sending... heartbeat to master server")
                 if not send(self.master_socket, heartbeat_message.SerializeToString()):
                     LOGGER.warning(f"Failed to send heartbeat request to master server")
 
@@ -369,7 +369,7 @@ class Proxy:
 
                         elif init_conn.sender == proto.InitConnection.Sender.PROXY and self.is_main:
                             ## add bool for backup is up
-                            LOGGER.info("Received message from backup proxy")
+                            LOGGER.debug("Received message from backup proxy")
                             heartbeat = proto.Response()
                             heartbeat.code = proto.Response.Code.HEARTBEAT
 
