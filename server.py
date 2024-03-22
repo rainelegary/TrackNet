@@ -180,6 +180,7 @@ class Server():
         resp.train.id            = train.name
         resp.train.length        = train.length
         resp.client.CopyFrom(client_state.client)
+        LOGGER.debug(f"trains speed being set to {TrainSpeed.FAST.value}")
         resp.speed = TrainSpeed.FAST.value
         resp.status = TrackNet_pb2.ServerResponse.UpdateStatus.CLEAR
 
