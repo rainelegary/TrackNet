@@ -10,6 +10,7 @@ import logging
 import sys
 import time
 from utils import *
+import argparse
 
 setup_logging() ## only need to call at main entry point of application
 
@@ -454,6 +455,39 @@ class Proxy:
 
 
 if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser(description="Proxess Proxy args")
+
+    parser.add_argument('-proxy1', type=str, help='Address for proxy1')
+    parser.add_argument('-proxy2', type=str, help='Address for proxy2')
+    parser.add_argument('-port', type=int, help='Port number')
+    parser.add_argument('-listeningport', type=int, help='Listening port number')
+
+
+    # Add the flags for main and backup
+    parser.add_argument('-main', action='store_true', help='Set mode to main')
+    parser.add_argument('-backup', action='store_true', help='Set mode to backup')
+
+    args = parser.parse_args()
+
+    proxy1_address = args.proxy1
+    proxy2_address = args.proxy2
+    port_num = args.port
+    listening_port = args.listeningport
+
+    # Determine the mode based on the flags
+    isMain = args.main
+    isBackup = args.backup 
+
+    LOGGER.debug(f"Proxy 1 address {proxy1_address}")
+    LOGGER.debug(f"Prox 2 address {proxy2_address}")
+    LOGGER.debug(f"Port number {port_num}")
+    LOGGER.debug(f"Listening port {listening_port}")
+    LOGGER.debug(f"Main: {isMain} and Backup: {isBackup}")
+    
+                 
+                 
+
 
     if len(sys.argv) == 2 and sys.argv[1] == "main":    
         proxy = Proxy(port=5555, is_main=True)      
