@@ -13,11 +13,11 @@ class Track:
         name (str): The name of the track, represented as 'Start->End'.
         trains (list): A list of trains currently running on this track.
     """
-    def __init__(self, junction_a, junction_b, length, trains=None, condition=TrackCondition.GOOD, speed=TrainSpeed.FAST):
+    def __init__(self, junction_a, junction_b, length, condition=TrackCondition.GOOD, speed=TrainSpeed.FAST):
         self.junctions = tuple(sorted([junction_a, junction_b]))
         self.length = length
         self.name = f"Track ({self.junctions[0]}, {self.junctions[1]})"
-        self.trains = trains if trains else {}
+        self.trains = None
         self.condition = condition
         self.speed = speed
     

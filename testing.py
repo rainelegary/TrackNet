@@ -2,8 +2,18 @@
 
 from classes.railway import Railway
 from classes.track import Track
+from classes.train import Train
+from classes.junction import Junction
+from classes.route import Route
+from classes.location import Location
 import TrackNet_pb2
 from message_converter import MessageConverter
+from utils import *
+from  classes.enums import TrainState, TrackCondition
+from classes.railway import Railway
+from datetime import datetime
+from message_converter import MessageConverter
+from converter import Converter
 
 print("Running tests")
 
@@ -17,21 +27,46 @@ initial_config = {
     ]
 }
 
+railway = Railway(
+            trains=None,
+            junctions=initial_config["junctions"],
+            tracks=initial_config["tracks"]
+        )
+
 print("Serialization and deserialization of Track object")
-track_obj = Track("A", "D", 40)
-print("Initial track object: ")
-track_obj.print_track()
 
-print("\nConverted to protobuf message:")
-track_pb = MessageConverter.track_obj_to_msg(track_obj)
-print(track_pb)
+train = Train("Train1", 10, railway.map.junctions["A"], railway.map.junctions["B"], TrainState.PARKED, None, 100, railway.map.junctions["B"], railway.map.junctions["A"])
+train.route = Route(railway.map.find_shortest_path("A", "C"))
+train.route.current_junction_index = 1
 
-print("Convert protobuf message back to object:")
-track_obj2 = MessageConverter.track_msg_to_obj(track_pb)
-track_obj2.print_track()
+train.location.set_next_track_front_cart(railway.map.tracks["Track (A, B)"])
+train.location.front_cart["position"] = 100
+train.location.set_junction_front_cart(railway.map.junctions["B"])
+
+train.location.set_next_track_back_cart(railway.map.tracks["Track (B, C)"])
+train.location.back_cart["position"] = 90
+train.location.set_junction_back_cart(railway.map.junctions["C"])
+
+print("Printing the train object")
+train.print_train()
+print("**************************************************")
+
+trainpb = Converter.convert_train_obj_to_pb(train)
+print("Printing the protobuf object")
+print(trainpb)
+print("**************************************************")
+
+railwayConverted = Converter.convert_train_pb_to_obj(trainpb)
+print("Printing the train object")
 
 
 
+
+
+
+
+# create_railway_update_message()
+print()
 
 
 
