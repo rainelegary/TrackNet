@@ -12,16 +12,28 @@ import time
 from utils import *
 import argparse
 
+
+# Global Variables
+proxy1_address = None
+proxy2_address = None
+proxy_port_num = None
+listening_port = None
+isMain = None
+isBackup = None 
+
+
+
 setup_logging() ## only need to call at main entry point of application
 
 LOGGER = logging.getLogger("Proxy")
 
 
 class Proxy:
-    def __init__(self, port=proxy_port, is_main=False):
+    def __init__(self, proxy_port=5555, listening_port=5555,  is_main=False):
+        LOGGER.debug(f"port: {proxy_port} listening port {listening_port}")
         self.host = socket.gethostname()
-        self.port = port
-        self.proxy_port = port
+        self.port = listening_port
+        self.proxy_port = proxy_port
         self.master_socket = None
         self.master_socket_hostIP = None
         self.slave_sockets = {} 
@@ -44,6 +56,8 @@ class Proxy:
     def set_main_proxy_host(self):
         if self.is_main:
             self.main_proxy_host = self.host
+        elif proxy1_address != None:
+            self.main_proxy_host = proxy1_address
         else:
             self.main_proxy_host = list(proxy_details.items())[0][0]
             
@@ -460,8 +474,8 @@ if __name__ == "__main__":
 
     parser.add_argument('-proxy1', type=str, help='Address for proxy1')
     parser.add_argument('-proxy2', type=str, help='Address for proxy2')
-    parser.add_argument('-port', type=int, help='Port number')
-    parser.add_argument('-listeningport', type=int, help='Listening port number')
+    parser.add_argument('-proxyPort', type=int, help='Proxy port number')
+    parser.add_argument('-listeningPort', type=int, help='Listening port number')
 
 
     # Add the flags for main and backup
@@ -472,29 +486,32 @@ if __name__ == "__main__":
 
     proxy1_address = args.proxy1
     proxy2_address = args.proxy2
-    port_num = args.port
-    listening_port = args.listeningport
+    proxy_port_num = args.proxyPort
+    listening_port_num = args.listeningPort
 
     # Determine the mode based on the flags
     isMain = args.main
     isBackup = args.backup 
 
     LOGGER.debug(f"Proxy 1 address {proxy1_address}")
-    LOGGER.debug(f"Prox 2 address {proxy2_address}")
-    LOGGER.debug(f"Port number {port_num}")
-    LOGGER.debug(f"Listening port {listening_port}")
+    LOGGER.debug(f"Proxy 2 address {proxy2_address}")
+    LOGGER.debug(f"Proxy port number {proxy_port_num}")
+    LOGGER.debug(f"Listening port {listening_port_num}")
     LOGGER.debug(f"Main: {isMain} and Backup: {isBackup}")
     
                  
-                 
-
-
-    if len(sys.argv) == 2 and sys.argv[1] == "main":    
-        proxy = Proxy(port=5555, is_main=True)      
+    if isMain and isBackup:
+        print("Passed both -main and -backup. Proxy can not be both")    
     else:
-        proxy = Proxy(port=5555)
+        
+        if proxy_port_num == None:
+            port_num=5555
+        
+        if listening_port_num == None:
+            listening_port_num = 5555
 
-    try:
-        proxy.run()
-    except KeyboardInterrupt:
-        LOGGER.info("Shutting down proxy server.")
+        proxy = Proxy(proxy_port=proxy_port_num,listening_port=listening_port_num, is_main=isMain)
+        try:
+            proxy.run()
+        except KeyboardInterrupt:
+            LOGGER.info("Shutting down proxy server.")
