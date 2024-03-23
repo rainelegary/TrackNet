@@ -1,3 +1,4 @@
+import argparse
 import socket
 import TrackNet_pb2
 import logging
@@ -16,6 +17,16 @@ from classes.trainmovement import TrainMovement
 from datetime import datetime
 from message_converter import MessageConverter
 import random
+
+
+# Global Variables
+proxy1_address = None
+proxy2_address = None
+proxy1_port_num = None
+proxy2_port_num = None
+
+proxyDetailsProvided = False
+cmdLineProxyDetails = {}
 
 setup_logging() ## only need to call at main entry point of application
 LOGGER = logging.getLogger("Client")
@@ -64,7 +75,12 @@ class Client():
         print()
                     
         threading.Thread(target=self.update_position, args=(), daemon=True).start() 
-        proxy_items = list(proxy_details.items())
+        
+
+        if proxyDetailsProvided:
+            proxy_items = list(cmdLineProxyDetails.items())
+        else:
+            proxy_items = list(proxy_details.items())
 
         index = random.randint(0, len(proxy_items) - 1)
         self.current_proxy = proxy_items[index]  # First item
@@ -329,4 +345,42 @@ class Client():
     
     
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description="Process Server args")
+
+    parser.add_argument('-proxy1', type=str, help='Address for proxy1')
+    parser.add_argument('-proxy2', type=str, help='Address for proxy2')
+    parser.add_argument('-proxyPort1', type=int, help='Proxy 1 port number')
+    parser.add_argument('-proxyPort2', type=int, help='Proxy 2 port number')
+    
+    
+    args = parser.parse_args()
+
+    proxy1_address = args.proxy1
+    proxy2_address = args.proxy2
+    proxy1_port_num = args.proxyPort1
+    proxy2_port_num = args.proxyPort2
+    
+    LOGGER.debug(f"Proxy 1 address {proxy1_address}")
+    LOGGER.debug(f"Proxy 2 address {proxy2_address}")
+    LOGGER.debug(f"Proxy 1 port number {proxy1_port_num}")
+    LOGGER.debug(f"Proxy 2 port number {proxy2_port_num}")
+
+    if proxy1_port_num == None:
+        proxy1_port_num =5555
+    
+    if proxy2_port_num == None:
+        proxy2_port_num = 5555
+
+    if proxy1_address == None and proxy2_address == None:
+        #use proxydetails
+        proxyDetailsProvided = False
+        LOGGER.debug(f"Proxy details not provided, will use util values")
+    else:
+        proxyDetailsProvided = True
+        LOGGER.debug(f"Proxy details provided, Proxy 1: {proxy1_address}:{proxy1_port_num} and Proxy 2: {proxy2_address}:{proxy2_port_num}")
+        if proxy1_address != None:
+            cmdLineProxyDetails[proxy1_address] = proxy1_port_num
+        if proxy2_address != None:
+            cmdLineProxyDetails[proxy2_address] = proxy2_port_num
+            
     Client()

@@ -10,6 +10,17 @@ import logging
 import sys
 import time
 from utils import *
+import argparse
+
+
+# Global Variables
+proxy_address = None
+proxy_port_num = None
+listening_port_num = None
+isMain = None
+isBackup = None 
+
+
 
 setup_logging() ## only need to call at main entry point of application
 
@@ -17,10 +28,11 @@ LOGGER = logging.getLogger("Proxy")
 
 
 class Proxy:
-    def __init__(self, port=proxy_port, is_main=False):
+    def __init__(self, proxy_port=5555, listening_port=5555,  is_main=False, mainProxyAddress=list(proxy_details.items())[0][0]):
+        LOGGER.debug(f"port: {proxy_port} listening port {listening_port}")
         self.host = socket.gethostname()
-        self.port = port
-        self.proxy_port = port
+        self.port = listening_port
+        self.proxy_port = proxy_port
         self.master_socket = None
         self.master_socket_hostIP = None
         self.slave_sockets = {} 
@@ -31,18 +43,23 @@ class Proxy:
         self.heartbeat_timeout = 3
 
         self.is_main = is_main
-        self.main_proxy_host = None
+        if is_main:
+            self.main_proxy_host = self.host
+        else:
+            self.main_proxy_host = mainProxyAddress
 
         self.heartbeat_attempts = 0
         self.max_heartbeat_attempts = 0
 
-        self.set_main_proxy_host()
+        #self.set_main_proxy_host()
 
         threading.Thread(target=self.proxy_to_proxy, daemon=True).start()
 
     def set_main_proxy_host(self):
         if self.is_main:
             self.main_proxy_host = self.host
+        elif proxy_address != None:
+            self.main_proxy_host = proxy_address
         else:
             self.main_proxy_host = list(proxy_details.items())[0][0]
             
@@ -107,8 +124,9 @@ class Proxy:
             relay_resp = proto.InitConnection()
             relay_resp.sender = proto.InitConnection.Sender.PROXY
             relay_resp.server_response.CopyFrom(server_response)
+            
             LOGGER.debug("Relaying server response message to client ...")
-
+            LOGGER.debug(f"{relay_resp}")
             # Forward the server's message to the target client
             if target_client_socket:
                 if not send(target_client_socket, relay_resp.SerializeToString()):
@@ -381,7 +399,7 @@ class Proxy:
                                 LOGGER.debugv("Setting master host to %s", master_host)
 
                             except Exception as e:
-                                LOGGER.warning("Master server not connected. Unable to set master host")
+                                LOGGER.debugv("Master server not connected. Unable to set master host")
 
                             if not send(conn, heartbeat.SerializeToString()):
                                 LOGGER.warning(f"Failed to send heartbeat to backup proxy.")
@@ -454,13 +472,47 @@ class Proxy:
 
 if __name__ == "__main__":
 
-    if len(sys.argv) < 2:
-        raise Exception("Please specify 'main' or 'backup' in command line arguments")
-    elif sys.argv[1] == "main":
-        proxy = Proxy(port=5555, is_main=True)
-    elif sys.argv[1] == "backup":
-        proxy = Proxy(port=5555, is_main=False)
-    try:
-        proxy.run()
-    except KeyboardInterrupt:
-        LOGGER.info("Shutting down proxy server.")
+    parser = argparse.ArgumentParser(description="Proxess Proxy args")
+
+    
+    parser.add_argument('-proxy_addres', type=str, help='Address for proxy')
+    parser.add_argument('-proxyPort', type=int, help='Proxy port number')
+    parser.add_argument('-listeningPort', type=int, help='Listening port number')
+
+    # Add the flags for main and backup
+    parser.add_argument('-main', action='store_true', help='Set mode to main')
+    parser.add_argument('-backup', action='store_true', help='Set mode to backup')
+
+    args = parser.parse_args()
+
+
+    proxy_address = args.proxy_addres
+    proxy_port_num = args.proxyPort
+    listening_port_num = args.listeningPort
+
+    # Determine the mode based on the flags
+    isMain = args.main
+    isBackup = args.backup 
+
+    
+    LOGGER.debug(f"Proxy address {proxy_address}")
+    LOGGER.debug(f"Proxy port number {proxy_port_num}")
+    LOGGER.debug(f"Listening port {listening_port_num}")
+    LOGGER.debug(f"Main: {isMain} and Backup: {isBackup}")
+    
+                 
+    if isMain and isBackup:
+        print("Passed both -main and -backup. Proxy can not be both")    
+    else:
+        
+        if proxy_port_num == None:
+            proxy_port_num=5555
+        
+        if listening_port_num == None:
+            listening_port_num = 5555
+
+        proxy = Proxy(mainProxyAddress=proxy_address, proxy_port=proxy_port_num,listening_port=listening_port_num, is_main=isMain)
+        try:
+            proxy.run()
+        except KeyboardInterrupt:
+            LOGGER.info("Shutting down proxy server.")
