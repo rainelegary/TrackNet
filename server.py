@@ -26,7 +26,7 @@ proxy2_port_num = None
 listening_port_num = None
 
 proxyDetailsProvided = False
-cmdLineProxyDetails = {}
+cmdLineProxyDetails = []
 
 setup_logging() ## only need to call at main entry point of application
 
@@ -214,7 +214,8 @@ class Server():
     def set_slave_identification_msg(self, slave_identification_msg: TrackNet_pb2.InitConnection):
         slave_identification_msg.sender = TrackNet_pb2.InitConnection.SERVER_SLAVE
         slave_identification_msg.slave_details.host = self.host
-        slave_identification_msg.slave_details.port = slave_to_master_port
+        #slave_identification_msg.slave_details.port = slave_to_master_port
+        slave_identification_msg.slave_details.port = self.port
 
 
     def talk_to_slaves_old(self):
@@ -323,7 +324,7 @@ class Server():
                 if not self.connected_to_master:
                     # listen to master instead of initiating connection
                     #self.listen_for_master(self.host, 4444)
-                    threading.Thread(target=self.listen_for_master, args=(self.host, 4444)).start()
+                    threading.Thread(target=self.listen_for_master, args=(self.host, self.port)).start()
 
     def master_proxy_communication(self, sock, data):
         # Data also needs to include an update of a new slave
@@ -398,7 +399,7 @@ class Server():
     def connect_to_proxy(self):
         while not exit_flag:
             if proxyDetailsProvided:
-                for proxy_host, proxy_port in cmdLineProxyDetails.items():
+                for proxy_host, proxy_port in cmdLineProxyDetails:
                     key = f"{proxy_host}:{proxy_port}"
                     if key not in self.proxy_sockets or self.proxy_sockets[key] is None:
                         LOGGER.info(f"Connecting to proxy at {proxy_host}:{proxy_port}")
@@ -444,7 +445,7 @@ class Server():
         try:
             # for each slave create client sockets
             print ("Before creating client socket, host: ", slave_host)
-            slave_sock = create_client_socket(slave_host, 4444)
+            slave_sock = create_client_socket(slave_host, slave_port)
             print ("Type of slave sock: ", type(slave_sock))
             self.socks_for_communicating_to_slaves.append(slave_sock)
             LOGGER.debug (f"Added slave server {slave_host}:{slave_port}")
@@ -621,9 +622,9 @@ if __name__ == '__main__':
         proxyDetailsProvided = True
         LOGGER.debug(f"Proxy details provided, Proxy 1: {proxy1_address}:{proxy1_port_num} and Proxy 2: {proxy2_address}:{proxy2_port_num}")
         if proxy1_address != None:
-            cmdLineProxyDetails[proxy1_address] = proxy1_port_num
+            cmdLineProxyDetails.append((proxy1_address, proxy1_port_num))
         if proxy2_address != None:
-            cmdLineProxyDetails[proxy2_address] = proxy2_port_num
+            cmdLineProxyDetails.append((proxy2_address, proxy2_port_num))
 
             
     

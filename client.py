@@ -26,7 +26,7 @@ proxy1_port_num = None
 proxy2_port_num = None
 
 proxyDetailsProvided = False
-cmdLineProxyDetails = {}
+cmdLineProxyDetails = []
 
 setup_logging() ## only need to call at main entry point of application
 LOGGER = logging.getLogger("Client")
@@ -78,7 +78,7 @@ class Client():
         
 
         if proxyDetailsProvided:
-            proxy_items = list(cmdLineProxyDetails.items())
+            proxy_items = list(cmdLineProxyDetails)
         else:
             proxy_items = list(proxy_details.items())
 
@@ -359,7 +359,7 @@ if __name__ == '__main__':
     proxy2_address = args.proxy2
     proxy1_port_num = args.proxyPort1
     proxy2_port_num = args.proxyPort2
-    
+
     LOGGER.debug(f"Proxy 1 address {proxy1_address}")
     LOGGER.debug(f"Proxy 2 address {proxy2_address}")
     LOGGER.debug(f"Proxy 1 port number {proxy1_port_num}")
@@ -379,8 +379,7 @@ if __name__ == '__main__':
         proxyDetailsProvided = True
         LOGGER.debug(f"Proxy details provided, Proxy 1: {proxy1_address}:{proxy1_port_num} and Proxy 2: {proxy2_address}:{proxy2_port_num}")
         if proxy1_address != None:
-            cmdLineProxyDetails[proxy1_address] = proxy1_port_num
+            cmdLineProxyDetails.append((proxy1_address, proxy1_port_num))
         if proxy2_address != None:
-            cmdLineProxyDetails[proxy2_address] = proxy2_port_num
-            
+            cmdLineProxyDetails.append((proxy2_address, proxy2_port_num))
     Client()
