@@ -33,7 +33,7 @@ class TrainConverter:
     def convert_route_obj_to_pb(route_obj: Route) -> TrackNet_pb2.Route:
         route_pb = TrackNet_pb2.Route()
         for junction in route_obj.junctions:
-            route_pb.junctions_ids.append(junction.name)
+            route_pb.junction_ids.append(junction.name)
         route_pb.current_junction_index = route_obj.current_junction_index
         return route_pb
 
@@ -113,14 +113,14 @@ class TrainConverter:
     ) -> Route | None:
 
         route = None
-        if route_pb.junctions_ids:
+        if route_pb.junction_ids:
             route_junctions = []
             route_current_junction_index = (
                 route_pb.current_junction_index
                 if route_pb.current_junction_index
                 else 0
             )
-            for junction_id in route_pb.junctions_ids:
+            for junction_id in route_pb.junction_ids:
                 route_junctions.append(junctions[junction_id])
 
             route = Route(

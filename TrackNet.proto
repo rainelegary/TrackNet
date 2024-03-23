@@ -39,9 +39,9 @@ message Junction {
     repeated string parked_trains_ids = 2;
 }
 // TODO: Handle renames:
-//     - renamed junctions to junctions_ids
+//     - renamed junctions to junction_ids
 message Route {
-    repeated string junctions_ids = 1;
+    repeated string junction_ids = 1;
     optional int32 current_junction_index = 2;
 }
 
