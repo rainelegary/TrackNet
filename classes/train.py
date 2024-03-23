@@ -104,4 +104,4 @@ class Train:
         print("\n=========END=========")
 
     def __repr__(self):
-        return f"Train({self.name}, Location: {self.location}, Speed: {self.current_speed} km/h)"
+        return f"Train({self.name}, Speed: {self.current_speed} km/h)"

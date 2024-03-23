@@ -80,7 +80,7 @@ message Railmap {
 
 message Railway {
     optional Railmap map = 1;
-    map<string, Train> trains = 2;
+    repeated Train trains = 2;
     optional int32 train_counter = 3;
 }
 
