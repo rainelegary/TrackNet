@@ -14,10 +14,9 @@ import argparse
 
 
 # Global Variables
-proxy1_address = None
-proxy2_address = None
+proxy_address = None
 proxy_port_num = None
-listening_port = None
+listening_port_num = None
 isMain = None
 isBackup = None 
 
@@ -29,7 +28,7 @@ LOGGER = logging.getLogger("Proxy")
 
 
 class Proxy:
-    def __init__(self, proxy_port=5555, listening_port=5555,  is_main=False):
+    def __init__(self, proxy_port=5555, listening_port=5555,  is_main=False, mainProxyAddress=list(proxy_details.items())[0][0]):
         LOGGER.debug(f"port: {proxy_port} listening port {listening_port}")
         self.host = socket.gethostname()
         self.port = listening_port
@@ -44,20 +43,23 @@ class Proxy:
         self.heartbeat_timeout = 3
 
         self.is_main = is_main
-        self.main_proxy_host = None
+        if is_main:
+            self.main_proxy_host = self.host
+        else:
+            self.main_proxy_host = mainProxyAddress
 
         self.heartbeat_attempts = 0
         self.max_heartbeat_attempts = 0
 
-        self.set_main_proxy_host()
+        #self.set_main_proxy_host()
 
         threading.Thread(target=self.proxy_to_proxy, daemon=True).start()
 
     def set_main_proxy_host(self):
         if self.is_main:
             self.main_proxy_host = self.host
-        elif proxy1_address != None:
-            self.main_proxy_host = proxy1_address
+        elif proxy_address != None:
+            self.main_proxy_host = proxy_address
         else:
             self.main_proxy_host = list(proxy_details.items())[0][0]
             
@@ -397,7 +399,7 @@ class Proxy:
                                 LOGGER.debugv("Setting master host to %s", master_host)
 
                             except Exception as e:
-                                LOGGER.warning("Master server not connected. Unable to set master host")
+                                LOGGER.debugv("Master server not connected. Unable to set master host")
 
                             if not send(conn, heartbeat.SerializeToString()):
                                 LOGGER.warning(f"Failed to send heartbeat to backup proxy.")
@@ -472,11 +474,10 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Proxess Proxy args")
 
-    parser.add_argument('-proxy1', type=str, help='Address for proxy1')
-    parser.add_argument('-proxy2', type=str, help='Address for proxy2')
+    
+    parser.add_argument('-proxy_addres', type=str, help='Address for proxy')
     parser.add_argument('-proxyPort', type=int, help='Proxy port number')
     parser.add_argument('-listeningPort', type=int, help='Listening port number')
-
 
     # Add the flags for main and backup
     parser.add_argument('-main', action='store_true', help='Set mode to main')
@@ -484,8 +485,8 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    proxy1_address = args.proxy1
-    proxy2_address = args.proxy2
+
+    proxy_address = args.proxy_addres
     proxy_port_num = args.proxyPort
     listening_port_num = args.listeningPort
 
@@ -493,8 +494,8 @@ if __name__ == "__main__":
     isMain = args.main
     isBackup = args.backup 
 
-    LOGGER.debug(f"Proxy 1 address {proxy1_address}")
-    LOGGER.debug(f"Proxy 2 address {proxy2_address}")
+    
+    LOGGER.debug(f"Proxy address {proxy_address}")
     LOGGER.debug(f"Proxy port number {proxy_port_num}")
     LOGGER.debug(f"Listening port {listening_port_num}")
     LOGGER.debug(f"Main: {isMain} and Backup: {isBackup}")
@@ -505,12 +506,12 @@ if __name__ == "__main__":
     else:
         
         if proxy_port_num == None:
-            port_num=5555
+            proxy_port_num=5555
         
         if listening_port_num == None:
             listening_port_num = 5555
 
-        proxy = Proxy(proxy_port=proxy_port_num,listening_port=listening_port_num, is_main=isMain)
+        proxy = Proxy(mainProxyAddress=proxy_address, proxy_port=proxy_port_num,listening_port=listening_port_num, is_main=isMain)
         try:
             proxy.run()
         except KeyboardInterrupt:

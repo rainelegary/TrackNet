@@ -23,7 +23,10 @@ proxy1_address = None
 proxy2_address = None
 proxy1_port_num = None
 proxy2_port_num = None
-listening_port = None
+listening_port_num = None
+
+proxyDetailsProvided = False
+cmdLineProxyDetails = {}
 
 setup_logging() ## only need to call at main entry point of application
 
@@ -394,25 +397,47 @@ class Server():
 
     def connect_to_proxy(self):
         while not exit_flag:
-            for proxy_host, proxy_port in proxy_details.items():
-                key = f"{proxy_host}:{proxy_port}"
-                if key not in self.proxy_sockets or self.proxy_sockets[key] is None:
-                    LOGGER.info(f"Connecting to proxy at {proxy_host}:{proxy_port}")
-                    proxy_sock = create_client_socket(proxy_host, proxy_port)
+            if proxyDetailsProvided:
+                for proxy_host, proxy_port in cmdLineProxyDetails.items():
+                    key = f"{proxy_host}:{proxy_port}"
+                    if key not in self.proxy_sockets or self.proxy_sockets[key] is None:
+                        LOGGER.info(f"Connecting to proxy at {proxy_host}:{proxy_port}")
+                        proxy_sock = create_client_socket(proxy_host, proxy_port)
 
-                    if proxy_sock:
-                        LOGGER.info(f"Connected to proxy at {proxy_host}:{proxy_port}")
-                        self.proxy_sockets[key] = proxy_details
-                        # Send proxy init message to identify itself as a slave
-                        slave_identification_msg = TrackNet_pb2.InitConnection()
-                        self.set_slave_identification_msg(slave_identification_msg)
+                        if proxy_sock:
+                            LOGGER.info(f"Connected to proxy at {proxy_host}:{proxy_port}")
+                            self.proxy_sockets[key] = cmdLineProxyDetails
+                            # Send proxy init message to identify itself as a slave
+                            slave_identification_msg = TrackNet_pb2.InitConnection()
+                            self.set_slave_identification_msg(slave_identification_msg)
 
-                        if send(proxy_sock, slave_identification_msg.SerializeToString()):
-                            LOGGER.debug("Sent slave identification message to proxy")
-                            threading.Thread(target=self.listen_to_proxy, args=(proxy_sock,), daemon=True).start()
-                    else:
-                        LOGGER.warning(f"Couldn't connect to proxy at {proxy_host}:{proxy_port}")
-            time.sleep(10)
+                            if send(proxy_sock, slave_identification_msg.SerializeToString()):
+                                LOGGER.debug("Sent slave identification message to proxy")
+                                threading.Thread(target=self.listen_to_proxy, args=(proxy_sock,), daemon=True).start()
+                        else:
+                            LOGGER.warning(f"Couldn't connect to proxy at {proxy_host}:{proxy_port}")
+                time.sleep(10)
+            else:
+                for proxy_host, proxy_port in proxy_details.items():
+                    key = f"{proxy_host}:{proxy_port}"
+                    if key not in self.proxy_sockets or self.proxy_sockets[key] is None:
+                        LOGGER.info(f"Connecting to proxy at {proxy_host}:{proxy_port}")
+                        proxy_sock = create_client_socket(proxy_host, proxy_port)
+
+                        if proxy_sock:
+                            LOGGER.info(f"Connected to proxy at {proxy_host}:{proxy_port}")
+                            self.proxy_sockets[key] = proxy_details
+                            # Send proxy init message to identify itself as a slave
+                            slave_identification_msg = TrackNet_pb2.InitConnection()
+                            self.set_slave_identification_msg(slave_identification_msg)
+
+                            if send(proxy_sock, slave_identification_msg.SerializeToString()):
+                                LOGGER.debug("Sent slave identification message to proxy")
+                                threading.Thread(target=self.listen_to_proxy, args=(proxy_sock,), daemon=True).start()
+                        else:
+                            LOGGER.warning(f"Couldn't connect to proxy at {proxy_host}:{proxy_port}")
+                time.sleep(10)
+
 
 
     def connect_to_slave (self, slave_host, slave_port):
@@ -586,14 +611,20 @@ if __name__ == '__main__':
         proxy1_port_num =5555
     
     if proxy2_port_num == None:
-        proxy2_port_num = 5555
+        proxy2_port_num = 5555 
 
     if proxy1_address == None and proxy2_address == None:
         #use proxydetails
-        print()
+        proxyDetailsProvided = False
+        LOGGER.debug(f"Proxy details not provided, will use util values")
     else:
-        #dont use proxy details
-        print()
+        proxyDetailsProvided = True
+        LOGGER.debug(f"Proxy details provided, Proxy 1: {proxy1_address}:{proxy1_port_num} and Proxy 2: {proxy2_address}:{proxy2_port_num}")
+        if proxy1_address != None:
+            cmdLineProxyDetails[proxy1_address] = proxy1_port_num
+        if proxy2_address != None:
+            cmdLineProxyDetails[proxy2_address] = proxy2_port_num
+
             
     
     Server(port=listening_port_num)
