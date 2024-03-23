@@ -52,17 +52,32 @@ class Train:
     def get_speed(self):
         return self.current_speed
     
+    # This function is for testing. It prints all the attributes of the train object:
     def print_train(self):
-        print(f"Name: {self.name}, Length: {self.length}, Speed: {self.current_speed} km/h, State: {self.state}, Next Junction: {self.next_junction.name if self.next_junction else "None"}, Prev Junction: {self.prev_junction.name if self.prev_junction else "None"}")
+        next_junction = self.next_junction.name if self.next_junction else "None"
+        prev_junction = self.prev_junction.name if self.prev_junction else "None"
+        print("=========START=========\n")
+        print(f"Name: {self.name}, Length: {self.length}, Speed: {self.current_speed} km/h, State: {self.state}, Next Junction: {next_junction}, Prev Junction: {prev_junction}")
         print(f"Printing Location: ")
-        print(f"Front: Track: {self.location.front_cart["track"].name}, Junction: {self.location.front_cart["junction"].name}, Position: {self.location.front_cart["position"]}")
-        print(f"Back: Track: {self.location.back_cart["track"].name}, Junction: {self.location.back_cart["junction"].name}, Position: {self.location.back_cart["position"]}")
+        front_cart_track = self.location.front_cart["track"].name if self.location.front_cart["track"] else "None"
+        front_cart_junction = self.location.front_cart["junction"].name if self.location.front_cart["junction"] else "None"
+        front_cart_position = self.location.front_cart["position"]
+        back_cart_track = self.location.back_cart["track"].name if self.location.back_cart["track"] else "None"
+        back_cart_junction = self.location.back_cart["junction"].name if self.location.back_cart["junction"] else "None"
+        back_cart_position = self.location.back_cart["position"]
+        print(f"    Front: Track: {front_cart_track}, Junction: {front_cart_junction}, Position: {front_cart_position}")
+        print(f"    Back: Track: {back_cart_track}, Junction: {back_cart_junction}, Position: {back_cart_position}")
         print(f"Printing Route: ")
-        track = ""
-        for junction in self.route.junctions:
-            track += junction.name + " -> "
-        print(track)
-        print(f"Route's 'Current Junction Index': {self.route.current_junction_index}")
+        
+        if(self.route is None):
+            print("   Route is None")
+        else:
+            track = "   "
+            for junction in self.route.junctions:
+                track += junction.name + " -> "
+            print(track)
+            print(f"    Route's 'Current Junction Index': {self.route.current_junction_index}")
+        print("\n=========END=========")
 
 
         
