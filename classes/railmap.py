@@ -98,8 +98,14 @@ class Railmap:
         print("Junctions:")
         for junction in self.junctions.values():
             print(
-                f"Junction: {junction.name}. Trains parked: {len(junction.parked_trains)}"
+                f"  Junction: {junction.name}. Trains parked: {len(junction.parked_trains)}"
             )
             for parker_train in junction.parked_trains.values():
-                print(f"    {parker_train.name}")
+                print(f"        {parker_train.name}")
         print("\nTracks:")
+        for track in self.tracks.values():
+            print(
+                f"  Track: {track.name}. Length: {track.length}. Condition: {track.condition}. Speed: {track.speed}. Trains on track: {len(track.trains) if track.trains else 0}"
+            )
+            for train in track.trains.values():
+                print(f"        {train.name}")

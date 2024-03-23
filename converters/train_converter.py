@@ -2,24 +2,12 @@ import TrackNet_pb2
 from classes.train import Train
 from classes.route import Route
 from classes.location import Location
-from classes.enums import TrainState
+from converters.enum_converter import EnumConverter
 
 
 class TrainConverter:
 
     # SECTION: Serialization
-    @staticmethod
-    def convert_train_state_obj_to_pb(
-        train_state: TrainState,
-    ) -> TrackNet_pb2.Train.TrainState:
-        return {
-            TrainState.RUNNING: TrackNet_pb2.Train.TrainState.RUNNING,
-            TrainState.SLOW: TrackNet_pb2.Train.TrainState.SLOW,
-            TrainState.STOPPED: TrackNet_pb2.Train.TrainState.STOPPED,
-            TrainState.PARKED: TrackNet_pb2.Train.TrainState.PARKED,
-            TrainState.PARKING: TrackNet_pb2.Train.TrainState.PARKING,
-            TrainState.UNPARKING: TrackNet_pb2.Train.TrainState.UNPARKING,
-        }[train_state]
 
     @staticmethod
     def convert_location_obj_to_pb(location_obj: Location) -> TrackNet_pb2.Location:
@@ -59,9 +47,7 @@ class TrainConverter:
             train_pb.length = train_obj.length
 
         if train_obj.state:
-            train_pb.state = TrainConverter.convert_train_state_obj_to_pb(
-                train_obj.state
-            )
+            train_pb.state = EnumConverter.train_state_enum_to_pb(train_obj.state)
 
         if train_obj.current_speed:
             train_pb.speed = train_obj.current_speed
@@ -92,7 +78,7 @@ class TrainConverter:
         train_name = train_pb.id if train_pb.id else None
         train_length = train_pb.length if train_pb.length else 0
         train_state = (
-            TrainConverter.convert_train_state_pb_to_obj(train_pb.state)
+            EnumConverter.train_state_pb_to_enum(train_pb.state)
             if train_pb.state
             else None
         )
@@ -181,16 +167,3 @@ class TrainConverter:
             back_position=location_back_position,
         )
         return location_obj
-
-    @staticmethod
-    def convert_train_state_pb_to_obj(
-        train_state: TrackNet_pb2.Train.TrainState,
-    ) -> TrainState:
-        return {
-            TrackNet_pb2.Train.TrainState.RUNNING: TrainState.RUNNING,
-            TrackNet_pb2.Train.TrainState.SLOW: TrainState.SLOW,
-            TrackNet_pb2.Train.TrainState.STOPPED: TrainState.STOPPED,
-            TrackNet_pb2.Train.TrainState.PARKED: TrainState.PARKED,
-            TrackNet_pb2.Train.TrainState.PARKING: TrainState.PARKING,
-            TrackNet_pb2.Train.TrainState.UNPARKING: TrainState.UNPARKING,
-        }[train_state]
