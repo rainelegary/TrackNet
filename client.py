@@ -142,10 +142,7 @@ class Client:
 
         if self.train.route is not None:
             for junction_obj in self.train.route.junctions:
-                junction_msg = state.route.junctions.add()
-                junction_msg.id = junction_obj.name
-
-            state.route.destination = self.train.route.destination.name
+                state.route.junction_ids.append(junction_obj.name)
 
     def set_route(self, route: TrackNet_pb2.Route):
         new_route = []
