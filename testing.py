@@ -13,7 +13,7 @@ from classes.enums import TrainState, TrackCondition
 from classes.railway import Railway
 from datetime import datetime
 from message_converter import MessageConverter
-from converter import Converter
+from converters.train_converter import TrainConverter
 
 print("Running tests")
 
@@ -31,7 +31,7 @@ print("Serialization and deserialization of Track object")
 train = Train(
     name="Train1",
     length=100,
-    state=TrainState.PARKED,
+    state=TrainState.SLOW,
     location=Location(),
     route=Route(railway.map.find_shortest_path("A", "C")),
     current_speed=0,
@@ -53,12 +53,12 @@ print("Printing the train object")
 train.print_train()
 print("**************************************************")
 
-trainpb = Converter.convert_train_obj_to_pb(train)
+trainpb = TrainConverter.convert_train_obj_to_pb(train)
 print("Printing the protobuf object")
 print(trainpb)
 print("**************************************************")
 
-trainConverted = Converter.convert_train_pb_to_obj(
+trainConverted = TrainConverter.convert_train_pb_to_obj(
     trainpb, railway.map.junctions, railway.map.tracks
 )
 print("Printing the train object")

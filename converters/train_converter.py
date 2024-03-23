@@ -1,35 +1,25 @@
 import TrackNet_pb2
-from classes.railway import Railway
-from classes.railmap import RailMap
 from classes.train import Train
 from classes.route import Route
-from classes.track import Track
-from classes.junction import Junction
 from classes.location import Location
-from classes.enums import TrackCondition, TrainSpeed, TrainState
-from message_converter import MessageConverter
+from classes.enums import TrainState
 
 
-class Converter:
+class TrainConverter:
 
     # SECTION: Serialization
     @staticmethod
-    def convert_railway_obj_to_pb(railway_obj: Railway) -> TrackNet_pb2.Railway:
-        railway_pb = TrackNet_pb2.Railway()
-
-        # Serialize Train
-
-        # Serialize Junctions
-        for junction_name, junction_obj in railway_obj.map.junctions.items():
-            print(junction_name, junction_obj)
-            junction_pb = railway_pb.railway.map.junctions[
-                junction_name
-            ]  # Access the junction by key to modify it directly.
-            junction_pb.id = junction_name
-            for trainID in junction_obj.parked_trains.keys():
-                junction_pb.parked_trains_ids.append(trainID)
-
-        return railway_pb
+    def convert_train_state_obj_to_pb(
+        train_state: TrainState,
+    ) -> TrackNet_pb2.Train.TrainState:
+        return {
+            TrainState.RUNNING: TrackNet_pb2.Train.TrainState.RUNNING,
+            TrainState.SLOW: TrackNet_pb2.Train.TrainState.SLOW,
+            TrainState.STOPPED: TrackNet_pb2.Train.TrainState.STOPPED,
+            TrainState.PARKED: TrackNet_pb2.Train.TrainState.PARKED,
+            TrainState.PARKING: TrackNet_pb2.Train.TrainState.PARKING,
+            TrainState.UNPARKING: TrackNet_pb2.Train.TrainState.UNPARKING,
+        }[train_state]
 
     @staticmethod
     def convert_location_obj_to_pb(location_obj: Location) -> TrackNet_pb2.Location:
@@ -69,7 +59,9 @@ class Converter:
             train_pb.length = train_obj.length
 
         if train_obj.state:
-            train_pb.state = MessageConverter.train_state_py_to_proto(train_obj.state)
+            train_pb.state = TrainConverter.convert_train_state_obj_to_pb(
+                train_obj.state
+            )
 
         if train_obj.current_speed:
             train_pb.speed = train_obj.current_speed
@@ -82,12 +74,12 @@ class Converter:
 
         # Serialize the train's Location
         if train_obj.location:
-            location_pb = Converter.convert_location_obj_to_pb(train_obj.location)
+            location_pb = TrainConverter.convert_location_obj_to_pb(train_obj.location)
             train_pb.location.CopyFrom(location_pb)
 
             # Serialize the train's Route
         if train_obj.route:
-            route_pb = Converter.convert_route_obj_to_pb(train_obj.route)
+            route_pb = TrainConverter.convert_route_obj_to_pb(train_obj.route)
             train_pb.route.CopyFrom(route_pb)
 
         return train_pb
@@ -100,7 +92,7 @@ class Converter:
         train_name = train_pb.id if train_pb.id else None
         train_length = train_pb.length if train_pb.length else 0
         train_state = (
-            MessageConverter.train_state_proto_to_py(train_pb.state)
+            TrainConverter.convert_train_state_pb_to_obj(train_pb.state)
             if train_pb.state
             else None
         )
@@ -111,8 +103,8 @@ class Converter:
         prev_junction = (
             junctions[train_pb.prev_junction_id] if train_pb.prev_junction_id else None
         )
-        route = Converter.convert_route_pb_to_obj(train_pb.route, junctions)
-        location = Converter.convert_location_pf_to_obj(
+        route = TrainConverter.convert_route_pb_to_obj(train_pb.route, junctions)
+        location = TrainConverter.convert_location_pb_to_obj(
             train_pb.location, junctions, tracks
         )
 
@@ -152,7 +144,7 @@ class Converter:
         return route
 
     @staticmethod
-    def convert_location_pf_to_obj(
+    def convert_location_pb_to_obj(
         location_pb: TrackNet_pb2.Location, junctions, tracks
     ) -> Location:
         location_front_junction = (
@@ -190,26 +182,15 @@ class Converter:
         )
         return location_obj
 
-    ##########
-
-    # def convert_railway_pb_to_obj(railway_pb: TrackNet_pb2.Railway):
-    #     railway = Railway(
-    #             trains=None,
-    #             junctions=initial_config["junctions"],
-    #             tracks=initial_config["tracks"]
-    #         )
-
-    #     # Add trains
-
-    #         # Add location
-    #         # Add Route:
-    #             # Add junctions to route & add current_junction_index
-    #     # Track: Add trains, update condition and speed
-
-    #     # Junction: Add parked trains to junction.
-    #     for junction in railway_pb.railway.map.junctions:
-    #         railway.map.junctions[junction.id] = junction
-    #         for trainID in junction.parked_trains_ids:
-    #             train = Train(trainID, 10)
-    #             railway.map.junctions[junction.id].park_train(train)
-    #     return railway
+    @staticmethod
+    def convert_train_state_pb_to_obj(
+        train_state: TrackNet_pb2.Train.TrainState,
+    ) -> TrainState:
+        return {
+            TrackNet_pb2.Train.TrainState.RUNNING: TrainState.RUNNING,
+            TrackNet_pb2.Train.TrainState.SLOW: TrainState.SLOW,
+            TrackNet_pb2.Train.TrainState.STOPPED: TrainState.STOPPED,
+            TrackNet_pb2.Train.TrainState.PARKED: TrainState.PARKED,
+            TrackNet_pb2.Train.TrainState.PARKING: TrainState.PARKING,
+            TrackNet_pb2.Train.TrainState.UNPARKING: TrainState.UNPARKING,
+        }[train_state]
