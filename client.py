@@ -146,7 +146,7 @@ class Client:
 
     def set_route(self, route: TrackNet_pb2.Route):
         new_route = []
-        for junc in route.junctions:
+        for junc in route.junction_ids:
             new_route.append(self.railmap.junctions[junc])
         self.train.route = Route(new_route)
         self.train.location.set_track(self.train.route.get_next_track())
