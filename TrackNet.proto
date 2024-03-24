@@ -22,27 +22,26 @@ enum TrainSpeed {
     FAST = 200;
 }
 
+// TODO: Handle renames:
+//     - renamed trains to train_ids
 message Track {
-    optional string junction_a = 1;
-    optional string junction_b = 2;
-    optional int32 length = 3;
-    optional string id = 4;
-    repeated string trains = 5;
-    optional TrackCondition condition = 6;
-    optional TrainSpeed speed = 7;
-
+    optional string id = 1;
+    repeated string train_ids = 2;
+    optional TrackCondition condition = 3;
+    optional TrainSpeed speed = 4;
 }
 
+// TODO: Handle renames:
+//     - renamed parked_trains to parked_trains_ids
+//     - removed neighbors
 message Junction {
     optional string id = 1;
-    map<string, string> neighbors = 2;
-    repeated string parked_trains = 3;
+    repeated string parked_trains_ids = 2;
 }
 
 message Route {
-    repeated Junction junctions = 1;
+    repeated string junction_ids = 1;
     optional int32 current_junction_index = 2;
-    optional string destination = 3;
 }
 
 message Location {
@@ -69,16 +68,18 @@ message Train {
     optional Location location = 4;
     optional Route route = 5;
     optional int32 speed = 6;
+    optional string next_junction_id = 7;
+    optional string prev_junction_id = 8;
 }
 
 message Railmap {
-    map<string, Junction> junctions = 1;
-    map<string, Track> tracks = 2;
+    repeated Junction junctions = 1;
+    repeated Track tracks = 2;
 }
 
 message Railway {
     optional Railmap map = 1;
-    map<string, Train> trains = 2;
+    repeated Train trains = 2;
     optional int32 train_counter = 3;
 }
 

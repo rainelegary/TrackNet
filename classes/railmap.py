@@ -1,4 +1,4 @@
-import logging 
+import logging
 from classes.junction import Junction
 from classes.enums import TrackCondition
 from classes.track import Track
@@ -6,19 +6,20 @@ from queue import PriorityQueue
 
 LOGGER = logging.getLogger(__name__)
 
-class RailMap: 
+
+class Railmap:
     def __init__(self, junctions=None, tracks=None):
         self.junctions = {}  # Stores junctions by name
         self.tracks = {}  # Collection of tracks
 
         if junctions:
             for junction_name in junctions:
-                self.add_junction(junction_name)  
+                self.add_junction(junction_name)
 
         if tracks:
             for track_info in tracks:
-                self.add_track(*track_info)  
-      
+                self.add_track(*track_info)
+
     def add_junction(self, name):
         """Adds a junction to the map."""
         if name not in self.junctions:
@@ -27,31 +28,33 @@ class RailMap:
             return junction
         else:
             return self.junctions[name]
-    
+
     def add_track(self, junction_a_name, junction_b_name, length):
         """Adds a track between two junctions."""
         if junction_a_name in self.junctions and junction_b_name in self.junctions:
-            junction_a:Junction = self.junctions[junction_a_name]
-            junction_b:Junction = self.junctions[junction_b_name]
+            junction_a: Junction = self.junctions[junction_a_name]
+            junction_b: Junction = self.junctions[junction_b_name]
             track = Track(junction_a_name, junction_b_name, length)
             self.tracks[track.name] = track
             junction_a.add_neighbor(junction_b, track)
             junction_b.add_neighbor(junction_a, track)
         else:
             print("One or both junctions do not exist, adding them now.")
-       
+
     def set_track_condition(self, track_id: str, condition: TrackCondition):
         self.tracks[track_id].condition = condition
-                
+
     def has_bad_track_condition(self, track_id: str):
         return self.tracks[track_id].condition == TrackCondition.BAD
-         
+
     def get_origin_destination_junction(self):
         return self.junctions["A"], self.junctions["D"]
 
     # example usage = map_instance.find_shortest_path(start_junction_name="A", destination_junction_name="D", avoid_track_name="AB")
-    def find_shortest_path(self, start_junction_name, destination_junction_name, avoid_track_name=None):
-        distances = {junction: float('infinity') for junction in self.junctions}
+    def find_shortest_path(
+        self, start_junction_name, destination_junction_name, avoid_track_name=None
+    ):
+        distances = {junction: float("infinity") for junction in self.junctions}
         previous_junctions = {junction: None for junction in self.junctions}
         distances[start_junction_name] = 0
 
@@ -75,7 +78,9 @@ class RailMap:
                     previous_junctions[neighbor_name] = current_junction_name
                     pq.put((distance, neighbor_name))
 
-        return self.reconstruct_path(previous_junctions, start_junction_name, destination_junction_name)
+        return self.reconstruct_path(
+            previous_junctions, start_junction_name, destination_junction_name
+        )
 
     def reconstruct_path(self, previous_junctions, start, end):
         path = []
@@ -87,3 +92,20 @@ class RailMap:
             current = previous_junctions[current]
         path.insert(0, self.junctions[start])
         return path
+
+    # This function is for testing. It prints all the attributes of the railmap object:
+    def print_map(self):
+        print("Junctions:")
+        for junction in self.junctions.values():
+            print(
+                f"  Junction: {junction.name}. Trains parked: {len(junction.parked_trains)}"
+            )
+            for parker_train in junction.parked_trains.values():
+                print(f"        {parker_train.name}")
+        print("\nTracks:")
+        for track in self.tracks.values():
+            print(
+                f"  Track: {track.name}. Length: {track.length}. Condition: {track.condition}. Speed: {track.speed}. Trains on track: {len(track.trains) if track.trains else 0}"
+            )
+            for train in track.trains.values():
+                print(f"        {train.name}")
