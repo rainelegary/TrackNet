@@ -18,7 +18,7 @@ from classes.trainmovement import TrainMovement
 from datetime import datetime
 from message_converter import MessageConverter
 import random
-
+from classes.location import Location
 
 # Global Variables
 proxy1_address = None
@@ -65,8 +65,7 @@ class Client():
         self.origin, self.destination = self.railmap.get_origin_destination_junction()
         self.train = TrainMovement(
             length=self.generate_random_train_length(),
-            junction_front=self.origin,
-            junction_back=self.origin,
+            location = Location(front_junction=self.origin, back_junction=self.origin)
         )
         self.generate_route()
         print("Route: ", end="")
@@ -95,9 +94,7 @@ class Client():
         return 5
 
     def generate_route(self):
-        self.train.route = Route(
-            self.railmap.find_shortest_path(self.origin.name, self.destination.name)
-        )
+        self.train.route = Route(self.railmap.find_shortest_path(self.origin.name, self.destination.name))
         self.train.location.set_track(self.train.route.get_next_track())
         self.train.prev_junction = self.origin
         self.train.next_junction = self.train.route.get_next_junction()

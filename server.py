@@ -67,7 +67,7 @@ class Server:
         self.proxy_sockets = {}
         self.socks_for_communicating_to_slaves = []
 
-        self.connect_to_proxy()
+        
         self.isMaster = False
         self.proxy_host = "csx1.ucalgary.ca"
         self.proxy_port = 5555
@@ -75,6 +75,9 @@ class Server:
         self.conflict_analysis_interval = 1
         self.previous_conflict_analysis_time = datetime.now()
         self.client_commands = {}
+        self.backup_railway = None
+
+        self.connect_to_proxy()
 
     def create_railway_update_message(self) -> TrackNet_pb2.RailwayUpdate:
         railway_update = TrackNet_pb2.RailwayUpdate()
@@ -236,18 +239,13 @@ class Server:
                         master_resp = TrackNet_pb2.InitConnection()
                         master_resp.ParseFromString(data)
                         # Check if sender is master
-                        if (
-                            master_resp.sender
-                            == TrackNet_pb2.InitConnection.SERVER_MASTER
-                            and master_resp.HasField("railway_update")
-                        ):
-                            LOGGER.debug(
-                                f"Slave received a backup form the master: {master_resp.railway_update}"
-                            )
+                        if (master_resp.sender== TrackNet_pb2.InitConnection.SERVER_MASTER and master_resp.HasField("railway_update")):
+                            LOGGER.debug(f"Slave received a backup form the master: {master_resp.railway_update}")
                             # need to store the backup
-                            LOGGER.debug(
-                                f"Received railway update from master at {master_resp.railway_update.timestamp}"
-                            )
+                            LOGGER.debug( f"Received railway update from master at {master_resp.railway_update.timestamp}")
+                            self.backup_railway = master_resp.railway_update.railway
+
+
                 except socket.timeout:
                     continue  # No data received within the timeout, continue loop
                 except Exception as e:
@@ -273,6 +271,8 @@ class Server:
                 LOGGER.info(f"{self.host}:{self.port} promoted to the MASTER")
                 # self.promote_to_master()
                 self.is_master = True
+                if self.backup_railway:
+                    RailwayConverter.update_railway_with_pb(self.backup_railway,self.railway)
 
                 for slave in proxy_resp.servers:
                     slave_host = slave.host
@@ -335,7 +335,7 @@ class Server:
 
         # CHECK FOR HEARTBEAT HERE
         elif proxy_resp.HasField("is_heartbeat"):
-            #LOGGER.debug(f"Received heartbeat from proxy: {proxy_resp.is_heartbeat}")
+            LOGGER.debug(f"Received heartbeat from proxy: {proxy_resp.is_heartbeat}")
             heartbeat_message = proto.InitConnection()
             heartbeat_message.sender = TrackNet_pb2.InitConnection.Sender.SERVER_MASTER
             heartbeat_message.is_heartbeat = True
@@ -354,7 +354,13 @@ class Server:
                 ):  # split data into 3 difrerent types of messages, a heartbeat, a clientstate or a ServerAssignment
                     # Master server responsibilitites
                     if self.is_master:
-                        self.master_proxy_communication(proxy_sock, data)
+                        try:
+                            self.master_proxy_communication(proxy_sock, data)
+                        except Exception as e:
+                            LOGGER.error(f"Error in master proxy communication: {e}")
+                            proxy_sock.shutdown(socket.SHUT_RDWR)
+                            proxy_sock.close()
+
 
                     # Slave server responsibilities
                     else:
@@ -362,6 +368,9 @@ class Server:
 
         except Exception as e:
             LOGGER.error(f"Error communicating with proxy: {e}")
+
+            traceback.print_exc()
+
             proxy_sock.shutdown(socket.SHUT_RDWR)
             proxy_sock.close()
 

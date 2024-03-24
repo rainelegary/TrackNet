@@ -27,7 +27,7 @@ class Train:
         name=None,  # Name will be assigned later if this is a client's train class
         length=1000,  # in meters
         state=TrainState.PARKED,
-        location=None,
+        location=Location(),
         route=None,
         current_speed=0,
         next_junction=None,

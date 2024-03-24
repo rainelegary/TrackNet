@@ -12,10 +12,9 @@ class TrainMovement(Train):
         self,
         name = None, # Name will be assigned later if this is a client's train class
         length = 1000, # in meters
-        junction_front: Junction = None, # junction ID
-        junction_back: Junction = None,
+        location=None 
     ):
-        Train.__init__(self, name, length, junction_front, junction_back)
+        Train.__init__(self, name, length, location=location)
         self.junction_delay = 5
         #speed is set by the server
         self.stay_parked = False
