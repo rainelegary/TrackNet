@@ -70,7 +70,6 @@ class Railway:
         else:
             raise Exception(f"Train {name} already exists.")
 
-<<<<<<< HEAD
     def update_train(self, train, state, location_obj: Location, route_obj: Route):
         front_track = location_obj.front_cart["track"]
         front_track_id = front_track.name
@@ -81,29 +80,24 @@ class Railway:
         front_junction_id = front_junction.name
         back_junction = location_obj.back_cart["junction"]
         back_junction_id = back_junction.name
-
+        
+        LOGGER.debug(f"train location={train.location} \n new location={location_obj}")
 
         # check if new track
-        if train.location.front_cart["track"] is None or train.location.front_cart["track"].name != front_track_id:
+        # if train.location.front_cart["track"] is None or train.location.front_cart["track"].name != front_track_id:
             # add to new track
-            front_track.add_train(train)
-        
-=======
-    def update_train(self, train, state, location_msg: TrackNet_pb2.Location, route_msg: TrackNet_pb2.Route):
-        
-        LOGGER.debug(f"train location={train.location} \n new location={location_msg}")
+            # front_track.add_train(train)
 
-        # check if new track
         # if (train.location.front_cart["track"] is None or train.location.front_cart["track"].name != location_msg.front_track_id):
         #     if state not in [TrainState.PARKED, TrainState.PARKING]:
         #         # add to new track
         #         self.map.tracks[location_msg.front_track_id].add_train(train)
         
+        # check if new track
         if (train.state in [TrainState.PARKED, TrainState.PARKING]) and (state in [TrainState.RUNNING, TrainState.UNPARKING]):
             # add to new track
-            self.map.tracks[location_msg.front_track_id].add_train(train)
+            self.map.tracks[location_obj.front_cart["track"].name].add_train(train)
 
->>>>>>> karim
 
         # check if new junction
         if train.state not in [TrainState.PARKED, TrainState.PARKING] and state in [TrainState.PARKED, TrainState.PARKING]:      
@@ -134,31 +128,12 @@ class Railway:
                 LOGGER.debug("ERROR: " + str(exc))
 
         # update location and state of train
-<<<<<<< HEAD
         train.location = location_obj
         train.state = state
 
         # update route
         train.route = route_obj
-=======
-        self.trains[train.name].location.front_cart = {
-            "track": self.map.tracks[location_msg.front_track_id],
-            "junction": self.map.junctions[location_msg.front_junction_id],
-            "position": location_msg.front_position,
-        }
-        self.trains[train.name].location.back_cart = {
-            "track": self.map.tracks[location_msg.back_track_id],
-            "junction": self.map.junctions[location_msg.back_junction_id],
-            "position": location_msg.back_position,
-        }
-        train.state = state
 
-        # update route
-        # train = self.trains[train.name]
-        # possibly causing error
-        # self.set_route_for_train(route_msg,train)
-        # train.route = MessageConverter.route_msg_to_obj(route_msg, self.map.junctions)
->>>>>>> karim
 
     def set_route_for_train(self, route: TrackNet_pb2.Route, train: Train):
         new_route = []
