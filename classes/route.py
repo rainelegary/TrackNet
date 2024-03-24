@@ -20,10 +20,10 @@ class Route:
             If train goes straight through the junction without stopping, 
             that junction is not included in this list.
     """
-    def __init__(self, junctions: "list[Junction]"):
+    def __init__(self, junctions: "list[Junction]", current_junction_index=0):
         self.junctions = junctions
-        self.current_junction_index = 0
-        self.destination = junctions[len(junctions) - 1]
+        self.current_junction_index = current_junction_index
+        self.destination = junctions[len(junctions) - 1] # Last junction in the route
         
     def get_next_track(self):
         """

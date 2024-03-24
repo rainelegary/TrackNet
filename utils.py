@@ -200,7 +200,7 @@ def send(sock: socket.socket, msg) -> bool:
     return True
 
 
-def receive(sock: socket.socket) -> bytes:
+def receive(sock: socket.socket, returnException=False, timeout=10) -> bytes:
     """Receives 4 bytes of data indicating length of incomming message then receives
     message.
 
@@ -216,7 +216,7 @@ def receive(sock: socket.socket) -> bytes:
     data = b''
 
     try:
-        sock.settimeout(10)
+        sock.settimeout(timeout)
         content_length = sock.recv(4)
         data = sock.recv(bytes_to_int(content_length))
 
@@ -227,10 +227,14 @@ def receive(sock: socket.socket) -> bytes:
         #    bytes_to_recv = bytes_to_recv - len(recv)
         #    data = data + recv
 
-    except:
-        return None
+    except Exception as e:
+        if returnException:
+            raise e
+        else:
+            return None
 
     #if not data:
     #    raise ValueError("Received data is empty.")
 
     return data
+
