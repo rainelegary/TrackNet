@@ -1,5 +1,6 @@
 import argparse
 import socket
+import traceback
 import TrackNet_pb2
 import logging
 import signal 
@@ -78,7 +79,7 @@ class Client():
         
 
         if proxyDetailsProvided:
-            proxy_items = list(cmdLineProxyDetails)
+            proxy_items = cmdLineProxyDetails
         else:
             proxy_items = list(proxy_details.items())
 
@@ -262,7 +263,7 @@ class Client():
                     proxy_host, proxy_port = self.current_proxy
                     self.sock = create_client_socket(proxy_host, proxy_port)
                     client_ip, client_port = self.sock.getsockname()
-                    self.sock.settimeout(10)  # Set a 10-second timeout for the socket
+                    #self.sock.settimeout(10)  # Set a 10-second timeout for the socket
 
                     if not self.sock:  # If connection failed, switch to backup and retry
                         print("Connection with main proxy failed, switching to backup proxy.")
@@ -283,9 +284,11 @@ class Client():
                     message.sender = TrackNet_pb2.InitConnection.Sender.CLIENT
                     message.client_state.CopyFrom(client_state)
 
+                    LOGGER.debug(f" Sending client state to proxy ")
+
                     if send(self.sock, message.SerializeToString()):
                         try:
-                            data = receive(self.sock)
+                            data = receive(self.sock,returnException=True,timeout=2)
                             resp = TrackNet_pb2.InitConnection()
                             server_resp = TrackNet_pb2.ServerResponse()
                             
@@ -293,16 +296,31 @@ class Client():
                                 resp.ParseFromString(data)
                                 server_resp.CopyFrom(resp.server_response)
                                 self.handle_server_response (server_resp)
-
+                            
                         except socket.timeout:
                             LOGGER.warning("Socket timeout. Switching to backup proxy.")
                             self.sock.close()
                             self.sock = None
                             connected_to_proxy = False
                             self.current_proxy = self.backup_proxy
+                        except Exception as e:
+                            LOGGER.warning(f"Exception thrown after sending client state {e}, Will switch to backup proxy {self.backup_proxy}")
+                            self.sock.close()
+                            self.sock = None
+                            connected_to_proxy = False
+                            self.current_proxy = self.backup_proxy
 
+                    
+                    else:
+                       
+                       LOGGER.debug(f"Unable to send the client state to the proxy server. Switch to backup proxy: {self.backup_proxy} ")
+                       connected_to_proxy = False 
+                       self.sock.close()
+                       self.sock = None
+                       self.current_proxy = self.backup_proxy
+        
             except Exception as e:
-                LOGGER.error(f"Unexpected error in the main loop: {e}")
+                LOGGER.error(f"Unexpected error in the main loop: {e}  ")
                 break  # Exit the loop on unexpected error
 
             time.sleep(5)

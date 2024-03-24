@@ -66,14 +66,22 @@ class Railway:
             raise Exception(f"Train {name} already exists.")
 
     def update_train(self, train, state, location_msg: TrackNet_pb2.Location, route_msg: TrackNet_pb2.Route):
+        
+        LOGGER.debug(f"train location={train.location} \n new location={location_msg}")
+
         # check if new track
-        if train.location.front_cart["track"] is None or train.location.front_cart["track"].name != location_msg.front_track_id:
+        # if (train.location.front_cart["track"] is None or train.location.front_cart["track"].name != location_msg.front_track_id):
+        #     if state not in [TrainState.PARKED, TrainState.PARKING]:
+        #         # add to new track
+        #         self.map.tracks[location_msg.front_track_id].add_train(train)
+        
+        if (train.state in [TrainState.PARKED, TrainState.PARKING]) and (state in [TrainState.RUNNING, TrainState.UNPARKING]):
             # add to new track
             self.map.tracks[location_msg.front_track_id].add_train(train)
-        
+
 
         # check if new junction
-        if train.state != TrainState.PARKED and state in [TrainState.PARKED, TrainState.PARKING]:      
+        if train.state not in [TrainState.PARKED, TrainState.PARKING] and state in [TrainState.PARKED, TrainState.PARKING]:      
             
             # remove train from track
             try:
@@ -84,6 +92,7 @@ class Railway:
             self.map.junctions[location_msg.front_junction_id].park_train(train)
 
         LOGGER.debug(f"train_state={train.state} client_state={state}")
+
         # check if leaving junction
         if train.state == TrainState.PARKED and state in [TrainState.RUNNING, TrainState.UNPARKING]:
             # remove train from junction

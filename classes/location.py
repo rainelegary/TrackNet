@@ -108,6 +108,34 @@ class Location:
         self.back_cart["position"] = 0
         
     def __str__(self):
-        if self.front_cart["track"] is not None:
-            return f"{self.front_cart['track'].name} {self.front_cart['postion']:.2f}"
-        return f"{self.front_cart['junction'].name} "
+        front_cart_track = (
+            self.front_cart["track"].name
+            if self.front_cart["track"]
+            else "None"
+        )
+        front_cart_junction = (
+            self.front_cart["junction"].name
+            if self.front_cart["junction"]
+            else "None"
+        )
+        front_cart_position = self.front_cart["position"]
+        back_cart_track = (
+            self.back_cart["track"].name
+            if self.back_cart["track"]
+            else "None"
+        )
+        back_cart_junction = (
+            self.back_cart["junction"].name
+            if self.back_cart["junction"]
+            else "None"
+        )
+        back_cart_position = self.back_cart["position"]
+        frontString = (
+            f"    Front: Track: {front_cart_track}, Junction: {front_cart_junction}, Position: {front_cart_position}"
+        )
+        backString = (
+            f"    Back: Track: {back_cart_track}, Junction: {back_cart_junction}, Position: {back_cart_position}"
+        )
+
+
+        return frontString +" | "+ backString

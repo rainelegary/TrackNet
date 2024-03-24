@@ -164,7 +164,10 @@ class Server():
         
 
     def handle_client_state(self, client_state):
-        train = self.get_train(client_state.train, client_state.location.front_junction_id)
+        try: 
+            train = self.get_train(client_state.train, client_state.location.front_junction_id)
+        except Exception as e:
+            LOGGER.error(f"Error getting train: {e}")
         self.apply_client_state(client_state,train)
         resp = self.issue_client_command(client_state,train)
         return resp
@@ -351,7 +354,11 @@ class Server():
 
         # listen on proxy sock for client states
         elif proxy_resp.HasField("client_state"):
-            resp = self.handle_client_state(proxy_resp.client_state)
+            try:
+                resp = self.handle_client_state(proxy_resp.client_state)
+            except Exception as e:
+                LOGGER.error(f"Error handling client state: {e} traceback: {traceback.print_exception(e)} ")
+
             master_response = TrackNet_pb2.InitConnection()
             master_response.sender = TrackNet_pb2.InitConnection.Sender.SERVER_MASTER
             master_response.server_response.CopyFrom(resp)
