@@ -494,7 +494,7 @@ if __name__ == "__main__":
     isMain = args.main
     isBackup = args.backup 
 
-    
+    #Main proxy address and port
     LOGGER.debug(f"Proxy address {proxy_address}")
     LOGGER.debug(f"Proxy port number {proxy_port_num}")
     LOGGER.debug(f"Listening port {listening_port_num}")
