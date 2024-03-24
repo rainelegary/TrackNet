@@ -16,7 +16,7 @@ from utils import initial_config, proxy_details
 from message_converter import MessageConverter
 from classes.conflict_analyzer import ConflictAnalyzer
 import argparse
-
+from converters.railway_converter import RailwayConverter
 
 # Global Variables
 proxy1_address = None
@@ -76,71 +76,12 @@ class Server:
         self.previous_conflict_analysis_time = datetime.now()
         self.client_commands = {}
 
-    def serialize_route(self, route_obj, route_pb):
-        """Fills in the details of a Protobuf Route message from a Route object."""
-        for junction in route_obj.junctions:
-            junction_pb = route_pb.junctions.add()
-            junction_pb.id = junction.name
-        route_pb.current_junction_index = route_obj.current_junction_index
-        if route_obj.destination:
-            route_pb.destination.id = route_obj.destination.name
-
-    def serialize_location(self, location_obj, location_pb):
-        """Fills in the details of a Protobuf Location message from a Location object."""
-        if location_obj.front_cart["track"]:
-            location_pb.front_track_id = location_obj.front_cart["track"].name
-        if location_obj.front_cart["junction"]:
-            location_pb.front_junction_id = location_obj.front_cart["junction"].name
-        location_pb.front_position = location_obj.front_cart["position"]
-
-        if location_obj.back_cart["track"]:
-            location_pb.back_track_id = location_obj.back_cart["track"].name
-        if location_obj.back_cart["junction"]:
-            location_pb.back_junction_id = location_obj.back_cart["junction"].name
-        location_pb.back_position = location_obj.back_cart["position"]
-
-    def serialize_train(self, train_obj, train_pb):
-        """Fills in the details of a Protobuf Train message from a Train object."""
-        train_pb.id = train_obj.name
-        train_pb.length = train_obj.length
-        train_pb.state = train_obj.state.value
-        train_pb.speed = train_obj.current_speed
-
-        # Serialize the train's Location
-        if train_obj.location:
-            self.serialize_location(train_obj.location, train_pb.location)
-
-        # Serialize the train's Route
-        if train_obj.route:
-            self.serialize_route(train_obj.route, train_pb.route)
-
     def create_railway_update_message(self) -> TrackNet_pb2.RailwayUpdate:
         railway_update = TrackNet_pb2.RailwayUpdate()
         railway_update.timestamp = datetime.utcnow().isoformat()
 
-        # Serialize the state of Junctions and Tracks in the Railmap
-        for junction_name, junction_obj in self.railway.map.junctions.items():
-            junction_pb = railway_update.railway.map.junctions[junction_name]
-            junction_pb.id = junction_name
-            # Note: You may need to serialize other properties of the Junction here
-
-        for track_id, track_obj in self.railway.map.tracks.items():
-            track_pb = railway_update.railway.map.tracks[track_id]
-            track_pb.id = track_id
-            track_pb.junction_a = track_obj.junctions[0].name
-            track_pb.junction_b = track_obj.junctions[1].name
-            track_pb.condition = track_obj.condition.value
-            track_pb.speed = track_obj.speed
-            # Note: You may need to serialize other properties of the Track here
-
-        # Serialize Trains
-        for train_name, train_obj in self.railway.trains.items():
-            train_pb = railway_update.railway.trains[train_name]
-            self.serialize_train(train_obj, train_pb)
-
-        railway_update.railway.train_counter = self.railway.train_counter
-
-        LOGGER.debug("Railway update message created")
+        railway_update.railway.CopyFrom(RailwayConverter.convert_railway_obj_to_pb(self.railway))
+      
         return railway_update
 
     def get_train(self, train: TrackNet_pb2.Train, origin_id: str):
@@ -526,41 +467,14 @@ class Server:
         if route_obj.destination:
             route_pb.destination.id = route_obj.destination.name
 
-    def create_railway_update_message(self):
-        railway_update = TrackNet_pb2.RailwayUpdate()
-        railway_update.timestamp = datetime.utcnow().isoformat()
-
-        # Serialize the state of Junctions and Tracks in the Railmap
-        for junction_name, junction_obj in self.railway.map.junctions.items():
-            junction_pb = railway_update.railway.map.junctions[junction_name]
-            junction_pb.id = junction_name
-            # Note: You may need to serialize other properties of the Junction here
-
-        for track_id, track_obj in self.railway.map.tracks.items():
-            track_pb = railway_update.railway.map.tracks[track_id]
-            track_pb.id = track_id
-            track_pb.junction_a = track_obj.junctions[0].name
-            track_pb.junction_b = track_obj.junctions[1].name
-            track_pb.condition = track_obj.condition.value
-            track_pb.speed = track_obj.speed
-            # Note: You may need to serialize other properties of the Track here
-
-        # Serialize Trains
-        for train_name, train_obj in self.railway.trains.items():
-            train_pb = railway_update.railway.trains[train_name]
-            self.serialize_train(train_obj, train_pb)
-
-        railway_update.railway.train_counter = self.railway.train_counter
-
-        return railway_update
-
+    
     def talk_to_slaves(self):  # needs to send railway update to slaves
         print(f"number of slaves: {len(self.socks_for_communicating_to_slaves)}")
         for slave_socket in self.socks_for_communicating_to_slaves:
             # Prepare the client state message
             master_resp = TrackNet_pb2.InitConnection()
             master_resp.sender = TrackNet_pb2.InitConnection.SERVER_MASTER
-            #master_resp.railway_update.CopyFrom(self.create_railway_update_message())
+            master_resp.railway_update.CopyFrom(self.create_railway_update_message())
             print("Railway update message created")
             print ("type of slave socket: ", type(slave_socket))
             success = send(slave_socket, master_resp.SerializeToString())
