@@ -131,11 +131,6 @@ class Location:
         self.back_cart["position"] = 0
 
     def __str__(self):
-<<<<<<< HEAD
-        if self.front_cart["track"] is not None:
-            return f"{self.front_cart['track'].name} {self.front_cart['position']:.2f}"
-        return f"{self.front_cart['junction'].name} "
-=======
         front_cart_track = (
             self.front_cart["track"].name
             if self.front_cart["track"]
@@ -167,4 +162,3 @@ class Location:
 
 
         return frontString +" | "+ backString
->>>>>>> karim
