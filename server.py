@@ -18,6 +18,8 @@ from classes.conflict_analyzer import ConflictAnalyzer
 import argparse
 from converters.railway_converter import RailwayConverter
 
+from queue import Queue
+
 # Global Variables
 proxy1_address = None
 proxy2_address = None
@@ -61,6 +63,8 @@ class Server:
         self.host = socket.gethostname()
         self.port = port
 
+        self.lock = threading.Lock()
+
         self.connected_to_master = False
         self.is_master = False
         self.slave_sockets = {}
@@ -76,6 +80,10 @@ class Server:
         self.previous_conflict_analysis_time = datetime.now()
         self.client_commands = {}
         self.backup_railway = None
+
+        self.client_state_queue = Queue()
+
+        threading.Thread(target=self.handle_client_states, daemon=True).start()
 
         self.connect_to_proxy()
 
@@ -109,6 +117,25 @@ class Server:
 
             return train
         
+
+    def handle_client_states(self):
+        while not exit_flag:
+            if self.client_state_queue.qsize() !=0:
+                (client_state,sock) = self.client_state_queue.get_nowait()
+                resp = self.handle_client_state(client_state)
+                master_response = TrackNet_pb2.InitConnection()
+                master_response.sender = TrackNet_pb2.InitConnection.Sender.SERVER_MASTER
+                master_response.server_response.CopyFrom(resp)
+                print(master_response)
+
+                if not send(sock, master_response.SerializeToString()):
+                    LOGGER.warning(f"ServerResponse message failed to send to proxy.")
+                else:
+                    print("sent server response to proxy")
+
+                # Create a separate thread for talking to slaves
+                threading.Thread(target=self.talk_to_slaves, daemon=True).start()
+
 
     def handle_client_state(self, client_state):
         try: 
@@ -315,23 +342,25 @@ class Server:
 
         # listen on proxy sock for client states
         elif proxy_resp.HasField("client_state"):
+            
             try:
-                resp = self.handle_client_state(proxy_resp.client_state)
+                self.client_state_queue.put((proxy_resp.client_state,sock))
+                #resp = self.handle_client_state(proxy_resp.client_state)
             except Exception as e:
                 LOGGER.error(f"Error handling client state: {e} traceback: {traceback.print_exception(e)} ")
 
-            master_response = TrackNet_pb2.InitConnection()
-            master_response.sender = TrackNet_pb2.InitConnection.Sender.SERVER_MASTER
-            master_response.server_response.CopyFrom(resp)
-            print(master_response)
+            # master_response = TrackNet_pb2.InitConnection()
+            # master_response.sender = TrackNet_pb2.InitConnection.Sender.SERVER_MASTER
+            # master_response.server_response.CopyFrom(resp)
+            # print(master_response)
 
-            if not send(sock, master_response.SerializeToString()):
-                LOGGER.warning(f"ServerResponse message failed to send to proxy.")
-            else:
-                print("sent server response to proxy")
+            # if not send(sock, master_response.SerializeToString()):
+            #     LOGGER.warning(f"ServerResponse message failed to send to proxy.")
+            # else:
+            #     print("sent server response to proxy")
 
-            # Create a separate thread for talking to slaves
-            threading.Thread(target=self.talk_to_slaves, daemon=True).start()
+            # # Create a separate thread for talking to slaves
+            # threading.Thread(target=self.talk_to_slaves, daemon=True).start()
 
         # CHECK FOR HEARTBEAT HERE
         elif proxy_resp.HasField("is_heartbeat"):
