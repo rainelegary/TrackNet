@@ -210,7 +210,6 @@ class Server():
 		return resp
 		
 		
-
 	def set_slave_identification_msg(self, slave_identification_msg: TrackNet_pb2.InitConnection):
 		slave_identification_msg.sender = TrackNet_pb2.InitConnection.SERVER_SLAVE
 		slave_identification_msg.slave_details.host = self.host

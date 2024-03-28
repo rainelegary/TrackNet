@@ -64,6 +64,7 @@ class Client():
 
         self.origin, self.destination = self.railmap.get_origin_destination_junction()
         self.train = TrainMovement(
+            name=None,
             length=self.generate_random_train_length(),
             junction_front=self.origin,
             junction_back=self.origin,

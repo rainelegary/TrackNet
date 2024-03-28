@@ -24,24 +24,20 @@ class Train:
 
     def __init__(
         self,
-        name=None,  # Name will be assigned later if this is a client's train class
-        length=1000,  # in meters
-        state=TrainState.PARKED,
-        location=None,
-        route=None,
-        current_speed=0,
-        next_junction=None,
-        prev_junction=None,
+        name = None, # Name will be assigned later if this is a client's train class
+        length = 1000, # in meters
+        junction_front:Junction = None, # junction ID
+        junction_back:Junction = None,
     ):
         self.name = name
         self.length = length
-        self.state = state
-        self.location = location
-        self.route = route
-        # speed is set by the server
-        self.current_speed = current_speed
-        self.next_junction = next_junction
-        self.prev_junction = prev_junction
+        self.state = TrainState.PARKED
+        self.location = Location(junction_front, junction_back)
+        self.route = None
+        #speed is set by the server
+        self.current_speed = 0 
+        self.next_junction = None
+        self.prev_junction = None
 
     def set_route(self, route):
         self.route = route

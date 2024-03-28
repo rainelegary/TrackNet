@@ -475,7 +475,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Proxess Proxy args")
 
     
-    parser.add_argument('-proxy_addres', type=str, help='Address for proxy')
+    parser.add_argument('-proxy_address', type=str, help='Address for proxy')
     parser.add_argument('-proxyPort', type=int, help='Proxy port number')
     parser.add_argument('-listeningPort', type=int, help='Listening port number')
 
@@ -486,7 +486,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
 
-    proxy_address = args.proxy_addres
+    proxy_address = args.proxy_address
     proxy_port_num = args.proxyPort
     listening_port_num = args.listeningPort
 
