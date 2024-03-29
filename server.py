@@ -87,6 +87,7 @@ class Server:
         self.backup_railway = None
 
         self.connect_to_proxy()
+        #test so i can commit changes
 
     def create_railway_update_message(self) -> TrackNet_pb2.RailwayUpdate:
         railway_update = TrackNet_pb2.RailwayUpdate()
