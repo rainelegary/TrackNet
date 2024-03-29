@@ -1,3 +1,5 @@
+from datetime import datetime
+import os
 import select
 import socket
 import threading
@@ -45,9 +47,13 @@ class Proxy:
         self.client_state_handled = {} # Map client address (IP, port) and to tuple (client_state,response_received)
         self.socket_list = []
         self.lock = threading.Lock()
-        self.heartbeat_interval = 3
-        self.heartbeat_timeout = 2
-        self.slave_heartbeat_timeout = 2
+        self.heartbeat_interval = 1
+        self.heartbeat_timeout = 3
+
+        self.proxy_time = None
+        self.adjusted_offset = None
+        self.t1 = None
+        self.t2 = None
 
         self.is_main = is_main
         if is_main:
@@ -322,7 +328,11 @@ class Proxy:
             heartbeat_message = proto.InitConnection()
             heartbeat_message.sender = TrackNet_pb2.InitConnection.Sender.PROXY
             heartbeat_message.is_heartbeat = True
-            if not send(proxy_sock, heartbeat_message.SerializeToString()):
+
+            if send(proxy_sock, heartbeat_message.SerializeToString()):
+                LOGGER.debug("Sent heartbeat message to main proxy.")
+                self.t1 = time.time()
+            else:
                 LOGGER.warning("Failed to send heartbeat message to main proxy.")
 
             data = receive(proxy_sock)
@@ -334,8 +344,27 @@ class Proxy:
                 if heartbeat.code != proto.Response.Code.HEARTBEAT:
                     LOGGER.debug("Did not received heartbeat from main proxy?")
 
-                if heartbeat.HasField("master_host"):
+                if heartbeat.HasField("proxy_time") and self.t1 is not None:
+                    self.t2 = time.time()
+                    proxy_time = heartbeat.proxy_time
 
+                    # Calculate round-trip time (RTT)
+                    round_trip_time = self.t2 - self.t1
+                    LOGGER.debug(f"Round-trip time: {round_trip_time}")
+
+                    # Estimate proxy's current time by adding half RTT to proxy_time
+                    estimated_proxy_time = proxy_time + (round_trip_time / 2)
+
+                    # Calculate offset (difference) between estimated proxy time and current time
+                    self.adjusted_offset = estimated_proxy_time - self.t2
+
+                    LOGGER.debug(f"Adjusted offset: {self.adjusted_offset}")
+
+                    self.t1 = None  # Reset t1 for the next calculation
+                else:
+                    LOGGER.debug ("Error in heartbeat message from main proxy")
+
+                if heartbeat.HasField("master_host"):
                     # if no master server or new master server
                     if (
                         self.master_socket is None
@@ -377,6 +406,8 @@ class Proxy:
                 if self.handle_missed_proxy_heartbeat():
                     LOGGER.info("IS MAIN PROXY")
 
+    def send_heartbeat(self):
+        self.heartbeat_timer = threading.Timer(self.heartbeat_timeout, self.handle_heartbeat_timeout)
 
 	
     def send_heartbeat_loop(self):
@@ -457,10 +488,15 @@ class Proxy:
                 heartbeat_message = proto.InitConnection()
                 heartbeat_message.sender = TrackNet_pb2.InitConnection.Sender.PROXY
                 heartbeat_message.is_heartbeat = True
-                LOGGER.debug(
-                    f"Sending... heartbeat to master server {self.master_socket}"
-                )
-                if not send(self.master_socket, heartbeat_message.SerializeToString()):
+
+                self.proxy_time = time.time()
+                heartbeat_message.proxy_time = self.proxy_time
+                readable_proxy_time = self.convert_unix_time_to_readable(self.proxy_time)
+                LOGGER.debug("Sending... heartbeat, time: %s", readable_proxy_time)
+                if send(self.master_socket, heartbeat_message.SerializeToString()):
+                    # Start a timer
+                    self.heartbeat_timer.start()
+                else:
                     LOGGER.warning(f"Failed to send heartbeat request to master server")
                 else:
                     # Start a timer
@@ -496,88 +532,15 @@ class Proxy:
                 )
         else:
             LOGGER.info("len (slave sockets) is 0")
-            LOGGER.info("No slave servers available to promote to master.")
+            LOGGER.info("No slave servers available to promote to master.") 
 
-    def send_receive_on_socket(self, slave_socket, slave_host, slave_port):
-        """Is called in choose_new_master. Send a heartbeat request to a slave server and waits to receive "slave_last_backup_timestamp" as the response."""
-        # Send request for heartbeat
-        request_heartbeat = TrackNet_pb2.InitConnection()
-        request_heartbeat.sender = TrackNet_pb2.InitConnection.Sender.PROXY
-        request_heartbeat.is_heartbeat = True
-        try:
+    def convert_unix_time_to_readable(self, unix_time):
+        # Convert Unix timestamp to a datetime object
+        datetime_object = datetime.fromtimestamp(unix_time)
 
-            if not send(slave_socket, request_heartbeat.SerializeToString()):
-                LOGGER.warning(f"failed to send heatbeat request to slave socket: {slave_socket}")
-            else:
-                # Wait for self.slave_heartbeat_timeout seconds or until the slave sent its timestamp
-                start_time = time.time()
-                timestampReceived = False
-                while (((time.time() - start_time) <= self.slave_heartbeat_timeout) and (timestampReceived == False)):
-                    if self.all_slave_timestamps.get((slave_host, slave_port), 0) != 0:
-                        timestampReceived = True
-                    time.sleep(0.1)  # Sleep for a short time to avoid busy waiting
-                
-                # if timestampReceived == False:
-                #     if (slave_host, slave_port) in self.all_slave_timestamps:
-                #         del self.all_slave_timestamps[(slave_host, slave_port)]
-                #     else:
-                #         LOGGER.debug(f"Key {(slave_host, slave_port)} not found in all_slave_timestamps.")
-                
-        except Exception as e:
-            LOGGER.warning(
-                f"Error in send_receive_on_socket on socket {slave_socket}: {e}"
-            )
-
-    def choose_new_master(self):
-        self.all_slave_timestamps = {}
-
-        # List to hold all thread objects
-        threads = []
-
-        for ((slaveHost,slavePort),slave_socket) in self.slave_sockets.items():
-            # Create a new Thread for each slave socket to send and receive messages
-            self.all_slave_timestamps[(slaveHost,slavePort)] = 0
-
-            thread = threading.Thread(
-                target=self.send_receive_on_socket,
-                args=(slave_socket,slaveHost, slavePort),
-            )
-            threads.append(thread)
-            thread.start()
-
-        # Wait for all threads to complete
-        for thread in threads:
-            thread.join()
-
-        LOGGER.debug("-----------Priniting all the slave timestamps-----------")
-        for key, value in self.all_slave_timestamps.items():
-            LOGGER.debug(f"Key: {key}, Value: {value}")
-
-        # After all threads complete, you can process the timestamps
-        if self.all_slave_timestamps:
-            max_key = max(self.all_slave_timestamps, key=self.all_slave_timestamps.get)
-            LOGGER.debug(f"key chosen {max_key}")
-            (chosen_slave_host,chosen_slave_port) = max_key
-            LOGGER.info(f"New master chosen in choose_new_master based on timestamp: {(chosen_slave_host,chosen_slave_port)}" )
-            try:
-                ip_address = socket.gethostbyname(chosen_slave_host)
-                LOGGER.debug(f"The IP address of {chosen_slave_host} is {ip_address}")
-                most_recent_slave = (ip_address,chosen_slave_port)
-
-                LOGGER.debug("-----------Priniting all the slave sockets-----------")
-                for key, value in self.slave_sockets.items():
-                    LOGGER.debug(f"Key: {key}, Value: {value}")
-
-                if (most_recent_slave) in self.slave_sockets:
-                    return (self.slave_sockets[(most_recent_slave)],chosen_slave_port)
-                else:
-                    LOGGER.warning(f"Error cannot find the socket for the slave chosen {most_recent_slave}") 
-            except socket.gaierror as e:
-                print(f"Failed to get the IP address of {chosen_slave_host}: {e}")
-                return None
-        else:
-            LOGGER.warning("No timestamps received, cannot select a new master.")
-            return None
+        # Format the datetime object to a string as needed
+        readable_time = datetime_object.strftime('%Y-%m-%d %H:%M:%S')
+        return readable_time  
 
     def handle_connection(self, conn: socket.socket, address):
         try:
@@ -661,6 +624,9 @@ class Proxy:
                             LOGGER.debugv("Received message from backup proxy")
                             heartbeat = proto.Response()
                             heartbeat.code = proto.Response.Code.HEARTBEAT
+                            self.proxy_time = time.time()
+                            heartbeat.proxy_time = self.proxy_time
+                            readable_proxy_time = self.convert_unix_time_to_readable(self.proxy_time)
 
                             # nofity backup proxy who the master server is
                             try:
@@ -673,10 +639,10 @@ class Proxy:
                                     "Master server not connected. Unable to set master host"
                                 )
 
-                            if not send(conn, heartbeat.SerializeToString()):
-                                LOGGER.warning(
-                                    f"Failed to send heartbeat to backup proxy."
-                                )
+                            if send(conn, heartbeat.SerializeToString()):
+                                LOGGER.debug("Sent heartbeat response to backup proxy, main proxy time: %s", readable_proxy_time)
+                            else:
+                                LOGGER.warning(f"Failed to send heartbeat to backup proxy.")
 
                 except Exception as e:
                     LOGGER.error(traceback.format_exc())

@@ -1,3 +1,4 @@
+import os
 import TrackNet_pb2
 import TrackNet_pb2 as proto
 import logging
@@ -74,6 +75,14 @@ class Server:
         self.isMaster = False
         self.proxy_host = "csx1.ucalgary.ca"
         self.proxy_port = 5555
+
+        #t1 is time sent, t2 is time received
+        self.t1 = None
+        self.t2 = None
+        #this time is a long number in UNIX format (seconds since 1970) 
+        self.adjusted_offset = None
+        #this time is a readable string
+        self.adjusted_readable_offset = None
 
         self.conflict_analysis_interval = 1
         self.previous_conflict_analysis_time = datetime.now()
@@ -440,16 +449,59 @@ class Server:
         # CHECK FOR HEARTBEAT HERE
         elif proxy_resp.HasField("is_heartbeat"):
             LOGGER.debug(f"Received heartbeat from proxy: {proxy_resp.is_heartbeat}")
+
+            # #parse time sent from proxy and calculate round trip time
+            # if self.t1 is not None:
+            #     self.t2 = time.time()
+            #     LOGGER.debug("setting t2 to: " +  str(self.convert_unix_time_to_readable(self.t2)))
+            #     proxy_trip_time = (self.t2 - self.t1) / 2
+            #     LOGGER.debug(f"Time taken to receive heartbeat: {proxy_trip_time}")
+            #     self.t1 = None
+            #     #set adjusted time to current time + round trip time
+            #     if (proxy_resp.HasField("proxy_time")):
+            #         proxy_time = proxy_resp.proxy_time + proxy_trip_time
+            #         readable_proxy_time = self.convert_unix_time_to_readable(proxy_time + proxy_trip_time)
+            #         LOGGER.debug(f"Received proxy time (plus 1/5rtt): {readable_proxy_time}")
+            #         LOGGER.debug("current server time" + str(self.convert_unix_time_to_readable(time.time())))
+            #         #save offset between server time and proxy time
+            #         self.adjusted_offset = (proxy_time + proxy_trip_time) - time.time()
+            #         #self.adjusted_readable_offset = self.convert_unix_time_to_readable(self.adjusted_offset)
+            #         LOGGER.debug(f"Adjusting offset to: {self.adjusted_offset}")
+            #        # os.system('date ' + time.strftime('%m%d%H%M%Y.%S',time.localtime(self.adjusted_time)))
+            self.t2 = time.time()
+            proxy_time = proxy_resp.proxy_time
+            # Calculate round-trip time (RTT)
+            round_trip_time = self.t2 - self.t1
+            LOGGER.debug(f"Round-trip time: {round_trip_time}")
+            # Estimate proxy's current time by adding half RTT to proxy_time
+            estimated_proxy_time = proxy_time + (round_trip_time / 2)
+            # Calculate offset (difference) between estimated proxy time and current time
+            self.adjusted_offset = estimated_proxy_time - self.t2
+            LOGGER.debug(f"Adjusted offset: {self.adjusted_offset}")
+            self.t1 = None  # Reset t1 for the next calculation
+
+
             heartbeat_message = proto.InitConnection()
             heartbeat_message.sender = TrackNet_pb2.InitConnection.Sender.SERVER_MASTER
             heartbeat_message.is_heartbeat = True
-            if not send(sock, heartbeat_message.SerializeToString()):
+            if send(sock, heartbeat_message.SerializeToString()):
+                self.t1 = time.time()
+                LOGGER.debug("Sent heartbeat message to main proxy, setting t1 to: " + str(self.convert_unix_time_to_readable(self.t1)))
+            else:
                 LOGGER.warning("Failed to send heartbeat message to main proxy.")
 
         else:
             LOGGER.warning(
                 f"Server received msg from proxy with missing content: {proxy_resp}"
             )
+
+    def convert_unix_time_to_readable(self, unix_time):
+        # Convert Unix timestamp to a datetime object
+        datetime_object = datetime.fromtimestamp(unix_time)
+
+        # Format the datetime object to a string as needed
+        readable_time = datetime_object.strftime('%Y-%m-%d %H:%M:%S')
+        return readable_time
 
     def listen_to_proxy(self, proxy_sock):
         try:
