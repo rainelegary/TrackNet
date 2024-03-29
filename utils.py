@@ -31,12 +31,12 @@ proxy_port = 5555
 
 #assumes csx1.ucalgary.ca is the host
 proxy_details = {
-    "csx1.uc.ucalgary.ca": 5555,
     "csx2.uc.ucalgary.ca": 5555,
     "csx3.uc.ucalgary.ca": 5555
 }
 
 exit_flag = False
+
 
 def exit_gracefully(signum, frame):
     global exit_flag
@@ -50,9 +50,17 @@ def exit_gracefully(signum, frame):
     print('Trying to exit gracefully. ' + sig_type)
     exit_flag = True
 
+DEBUGV= 9 
+def debugv(self, message, *args, **kws):
+    # Yes, logger takes its '*args' as 'args'.
+    self._log(DEBUGV, message, args, **kws) 
+
 def setup_logging():
-    formatter = logging.Formatter('%(lineno)d %(asctime)s %(levelname)s@%(name)s: %(message)s')
+    logging.addLevelName(DEBUGV, "DEBUGV")
+    logging.Logger.debugv = debugv
+    formatter = logging.Formatter(fmt='%(lineno)d %(asctime)s %(levelname)s@%(name)s: %(message)s', datefmt='%H:%M:%S')
     handler = logging.StreamHandler()
+    #handler.setLevel(DEBUGV)
     handler.setLevel(logging.DEBUG)
     handler.setFormatter(formatter)
 
@@ -192,7 +200,7 @@ def send(sock: socket.socket, msg) -> bool:
     return True
 
 
-def receive(sock: socket.socket) -> bytes:
+def receive(sock: socket.socket, returnException=False, timeout=10) -> bytes:
     """Receives 4 bytes of data indicating length of incomming message then receives
     message.
 
@@ -208,7 +216,7 @@ def receive(sock: socket.socket) -> bytes:
     data = b''
 
     try:
-        sock.settimeout(10)
+        sock.settimeout(timeout)
         content_length = sock.recv(4)
         data = sock.recv(bytes_to_int(content_length))
 
@@ -219,10 +227,14 @@ def receive(sock: socket.socket) -> bytes:
         #    bytes_to_recv = bytes_to_recv - len(recv)
         #    data = data + recv
 
-    except:
-        return None
+    except Exception as e:
+        if returnException:
+            raise e
+        else:
+            return None
 
     #if not data:
     #    raise ValueError("Received data is empty.")
 
     return data
+
