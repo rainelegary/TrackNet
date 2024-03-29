@@ -83,6 +83,14 @@ class Railway:
         if (train.state in [TrainState.PARKED, TrainState.PARKING]) and (state in [TrainState.RUNNING, TrainState.UNPARKING]):
             # add to new track
             self.map.tracks[location_msg.front_track_id].add_train(train)
+			
+			# remove train from junction
+            LOGGER.debug(f"Remove {train.name} from {location_msg.back_junction_id}")
+            try:
+                ## remove train front cart junc?
+                self.map.junctions[location_msg.back_junction_id].depart_train(train)
+            except Exception as exc:
+                LOGGER.debug("ERROR removing train fro junction: " + str(exc))
 
 
         # check if new junction
@@ -101,17 +109,17 @@ class Railway:
         LOGGER.debug(f"train_state={train.state} client_state={state}")
 
         # check if leaving junction
-        if train.state == TrainState.PARKED and state in [
-            TrainState.RUNNING,
-            TrainState.UNPARKING,
-        ]:
-            # remove train from junction
-            LOGGER.debug(f"Remove {train.name} from {location_msg.back_junction_id}")
-            try:
-                ## remove train front cart junc?
-                self.map.junctions[location_msg.back_junction_id].depart_train(train)
-            except Exception as exc:
-                LOGGER.debug("ERROR: " + str(exc))
+        # if train.state == TrainState.PARKED and state in [
+            # TrainState.RUNNING,
+            # TrainState.UNPARKING,
+        # ]:
+            # # remove train from junction
+            # LOGGER.debug(f"Remove {train.name} from {location_msg.back_junction_id}")
+            # try:
+                # ## remove train front cart junc?
+                # self.map.junctions[location_msg.back_junction_id].depart_train(train)
+            # except Exception as exc:
+                # LOGGER.debug("ERROR: " + str(exc))
 
         # update location and state of train
         self.trains[train.name].location.front_cart = {

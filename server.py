@@ -270,9 +270,7 @@ class Server:
                             LOGGER.debug(f"Slave received a backup form the master: {master_resp.railway_update}")
                             # need to store the backup
                             LOGGER.debug( f"Received railway update from master at {master_resp.railway_update.timestamp}")
-                            self.backup_railway = master_resp.railway_update.railway
-
-
+                            self.backup_railway = (master_resp.railway_update.railway)
                 except socket.timeout:
                     continue  # No data received within the timeout, continue loop
                 except Exception as e:
@@ -300,7 +298,8 @@ class Server:
                 self.is_master = True
                 if self.backup_railway != None:
                     RailwayConverter.update_railway_with_pb(self.backup_railway,self.railway)
-                    self.railway.map.print_map()
+                    #self.railway.map.print_map()
+                    self.railway.print_map()
                 else:
                     LOGGER.info(f"no backup railway")
 
@@ -521,33 +520,8 @@ class Server:
             success = send(slave_socket, master_resp.SerializeToString())
             print(f"Railway update message sent to slave successfully: {success}")
 
-    def listen_to_master(self, host, port):
-        self.sock_for_communicating_to_master = create_server_socket(host, port)
-        LOGGER.debug("Created server socket for slave, waiting for master backups ")
-
-        while not exit_flag and self.sock_for_communicating_to_master:
-            try:
-                conn, addr = self.sock_for_communicating_to_master.accept()
-                self.connected_to_master = True
-                LOGGER.debug(
-                    "Master has connected to slave server, listening for updates..."
-                )
-                threading.Thread(
-                    target=self.handle_master_communication, args=(conn,), daemon=True
-                ).start()
-
-            except socket.timeout:
-                continue  # Just continue listening without taking action
-
-            except Exception as exc:
-                LOGGER.error("listen_to_master: " + str(exc))
-                self.sock_for_communicating_to_master.close()
-                LOGGER.info("Restarting listening socket...")
-                self.sock_for_communicating_to_master = create_server_socket(
-                    self.host, self.port
-                )
-
-    def handle_master_communication(self, conn):
+   
+    def handle_master_communicationOld(self, conn):
         try:
             while self.connected_to_master:
                 data = receive(conn)
