@@ -171,6 +171,7 @@ class Proxy:
         #self.remove_slave_socket(slave_socket)
 
         LOGGER.debug ("sending heartbeat to new master server")
+        LOGGER.debug(f"Sending... heartbeat to master server {self.master_socket}")
         #threading.Thread(target=self.send_heartbeat, args=(self.master_socket,), daemon=True).start()
         self.send_heartbeat()
 
@@ -194,7 +195,7 @@ class Proxy:
         # Notify master of new slave server so it can connect to it
         resp = TrackNet_pb2.InitConnection()
         resp.sender = TrackNet_pb2.InitConnection.Sender.PROXY
-        for slave_ip, _ in self.slave_sockets.items():
+        for slave_ip, slave_port in self.slave_sockets.items():
             slave_details = resp.slave_details.add()
             slave_details.host = slave_ip
             slave_details.port = slave_to_master_port
@@ -315,7 +316,7 @@ class Proxy:
                 heartbeat_message = proto.InitConnection()
                 heartbeat_message.sender = TrackNet_pb2.InitConnection.Sender.PROXY
                 heartbeat_message.is_heartbeat = True
-                LOGGER.debugv("Sending... heartbeat to master server")
+                LOGGER.debug(f"Sending... heartbeat to master server {self.master_socket}")
                 if not send(self.master_socket, heartbeat_message.SerializeToString()):
                     LOGGER.warning(f"Failed to send heartbeat request to master server")
 

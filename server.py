@@ -298,8 +298,11 @@ class Server:
                 LOGGER.info(f"{self.host}:{self.port} promoted to the MASTER")
                 # self.promote_to_master()
                 self.is_master = True
-                if self.backup_railway:
+                if self.backup_railway != None:
                     RailwayConverter.update_railway_with_pb(self.backup_railway,self.railway)
+                    self.railway.map.print_map()
+                else:
+                    LOGGER.info(f"no backup railway")
 
                 for slave in proxy_resp.servers:
                     slave_host = slave.host
