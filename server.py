@@ -324,8 +324,8 @@ class Server:
             LOGGER.debug(f"Slave received role assignment from proxy: {proxy_resp}")
 
             # Determine if this server has been assigned as the master
-            if proxy_resp.HasField("is_master"):
-                if proxy_resp.is_master:
+            if proxy_resp.server_assignment.HasField("is_master"):
+                if proxy_resp.server_assignment.is_master:
                     LOGGER.info(f"{self.host}:{self.port} promoted to the MASTER")
                     # self.promote_to_master()
                     self.is_master = True
@@ -338,7 +338,7 @@ class Server:
                     else:
                         LOGGER.info(f"no backup railway")
 
-                    for slave in proxy_resp.servers:
+                    for slave in proxy_resp.server_assignment.servers:
                         slave_host = slave.host
                         slave_port = slave.port
                         LOGGER.debug(
@@ -358,19 +358,18 @@ class Server:
                         threading.Thread(
                             target=self.listen_for_master, args=(self.host, self.port)
                         ).start()
-        if proxy_resp.HasField("is_heartbeat"):
-            LOGGER.debug(
-                f"Proxy requested heartbeat from slave. Sending last_backup_timestamp as a response."
-            )
+        elif proxy_resp.HasField("is_heartbeat"):
+
+            LOGGER.debug(f"Proxy requested heartbeat from slave. proxy_resp: {proxy_resp} Sending backup_railway_timestamp as a response.")
             response = proto.Response()
             response.code = proto.Response.HEARTBEAT
-            if self.railway.last_backup_timestamp:
+            if self.backup_railway_timestamp:
                 response.slave_last_backup_timestamp = (
-                    self.railway.last_backup_timestamp
+                    self.backup_railway_timestamp
                 )
             else:
                 LOGGER.warning(
-                    "Slave has no last backup timestamp. Sending response without last_backup_timestamp."
+                    "Slave has no last backup timestamp. Sending response without backup_railway_timestamp."
                 )
             if not send(sock, response.SerializeToString()):
                 LOGGER.warning("Failed to send heartbeat response to proxy.")
@@ -542,7 +541,7 @@ class Server:
     def connect_to_slave(self, slave_host, slave_port):
         try:
             # for each slave create client sockets
-            print("Before creating client socket, host: ", slave_host)
+            print("Before creating client socket, host: ", slave_host ,"port: ", slave_port)
             slave_sock = create_client_socket(slave_host, slave_port)
             print("Type of slave sock: ", type(slave_sock))
             self.socks_for_communicating_to_slaves.append(slave_sock)

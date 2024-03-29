@@ -128,7 +128,7 @@ def create_client_socket(ip: str, port: int):
     try:
         sock.connect((ip, port))
     except Exception as e:
-        print ("Failed to connect to proxy at " + ip + ":" + str(port))
+        print ("Failed to connect to socket at " + ip + ":" + str(port))
         print ("exception: " + str(e))
         return None
 

@@ -46,8 +46,8 @@ class Proxy:
         )  # Map client address (IP, port) to socket for direct access
         self.socket_list = []
         self.lock = threading.Lock()
-        self.heartbeat_interval = 2
-        self.heartbeat_timeout = 3
+        self.heartbeat_interval = 3
+        self.heartbeat_timeout = 2
 
         self.is_main = is_main
         if is_main:
@@ -57,7 +57,10 @@ class Proxy:
 
         self.heartbeat_attempts = 0
         self.max_heartbeat_attempts = 0
-
+        self.heartbeat_timer = None
+        self.master_server_heartbeat_thread = threading.Thread(target=self.send_heartbeat_loop, daemon=True)
+        if self.is_main:
+            self.master_server_heartbeat_thread.start()
         # self.set_main_proxy_host()
 
         threading.Thread(target=self.proxy_to_proxy, daemon=True).start()
@@ -188,8 +191,10 @@ class Proxy:
         # self.remove_slave_socket(slave_socket)
 
         LOGGER.debug("sending heartbeat to new master server")
+
+        #self.master_server_heartbeat_thread.start()
         # threading.Thread(target=self.send_heartbeat, args=(self.master_socket,), daemon=True).start()
-        self.send_heartbeat()
+        #self.send_heartbeat()
 
     def notify_master_of_new_slave(self, init_conn: TrackNet_pb2.InitConnection):
         # Notify master of new slave server so it can connect to it
@@ -232,10 +237,13 @@ class Proxy:
             else:
                 self.add_slave_socket(slave_socket)
 
+                proxy_message = proto.InitConnection()
+                proxy_message.sender = proto.InitConnection.Sender.PROXY
                 role_assignment = proto.ServerAssignment()
                 role_assignment.is_master = False
-
-                if not send(slave_socket, role_assignment.SerializeToString()):
+                proxy_message.server_assignment.CopyFrom(role_assignment)
+                
+                if not send(slave_socket, proxy_message.SerializeToString()):
                     LOGGER.warning(f"Failed to send role assignmnet to slave.")
 
                 # self.notify_master_of_slaves()
@@ -248,7 +256,9 @@ class Proxy:
             self.is_main = True
             LOGGER.debug("Setting self to main proxy")
             LOGGER.info("Calling send heartbeat")
-            self.send_heartbeat()
+            #self.send_heartbeat()
+            if self.master_socket:
+                self.master_server_heartbeat_thread.start()
             return True
 
         return False
@@ -340,13 +350,74 @@ class Proxy:
                 if self.handle_missed_proxy_heartbeat():
                     LOGGER.info("IS MAIN PROXY")
 
-    def send_heartbeat(self):
-        # Start a timer
-        self.heartbeat_timer = threading.Timer(
-            self.heartbeat_timeout, self.handle_heartbeat_timeout
-        )
-        self.heartbeat_timer.start()
 
+	
+    def send_heartbeat_loop(self):
+
+        LOGGER.debug(f"Sending heartbeat thread started: ")
+        while True:
+            
+            if self.heartbeat_timer and self.heartbeat_timer.is_alive():
+                LOGGER.debug(f"sent a heartbeat already and timer running")
+            else:
+                try:
+                    if self.master_socket:
+                        LOGGER.debugv(f"master socket: {self.master_socket} ")
+                        if self.master_socket.fileno() < 0:
+                            LOGGER.warning(f"File descriptor for socket is negative. Assume master server is down: {self.master_socket} ")
+                            self.handle_heartbeat_timeout_loop()
+                        else:
+                            heartbeat_message = proto.InitConnection()
+                            heartbeat_message.sender = TrackNet_pb2.InitConnection.Sender.PROXY
+                            heartbeat_message.is_heartbeat = True
+
+                            # Start a timer
+                            LOGGER.debug("Starting timer right before sending heartbeat:")
+                            self.heartbeat_timer = threading.Timer(self.heartbeat_timeout, self.handle_heartbeat_timeout_loop)
+                            self.heartbeat_timer.start()
+
+                            LOGGER.debug(f"Sending... heartbeat to master server {self.master_socket}")
+
+                            if not send(self.master_socket, heartbeat_message.SerializeToString()):
+                                LOGGER.warning(f"Failed to send heartbeat request to master server {self.master_socket} FD: {self.master_socket.fileno()}")
+                            else:
+                                LOGGER.debug("Sent heartbeat to master")
+                                #self.heartbeat_timer = threading.Timer(self.heartbeat_timeout, self.handle_heartbeat_timeout_loop)
+                                #self.heartbeat_timer.start()       
+                    else:
+                        LOGGER.debugv(f"No master server: {self.master_socket}")
+
+                except Exception as e:
+                    LOGGER.warning("Error sending heartbeat to maser server:", e)
+                    self.handle_heartbeat_timeout()  # Trigger timeout handling 
+
+            time.sleep(self.heartbeat_interval)         
+            
+    def handle_heartbeat_response_loop(self):
+        # LOGGER.debugv("Received heartbeat response from master server.")
+        # Cancel the timer if it's still running
+        if self.heartbeat_timer and self.heartbeat_timer.is_alive():
+            self.heartbeat_timer.cancel()
+
+    def handle_heartbeat_timeout_loop(self):
+        LOGGER.info("Heartbeat response timed out. Stop sending hearbeat by setting master socket to none")
+        #self.master_server_heartbeat_thread
+        self.master_socket = None
+        if len(self.slave_sockets) > 0:
+            LOGGER.debug("Number of slave sockets: %d", len(self.slave_sockets))
+            new_master_socket = self.choose_new_master()
+            if new_master_socket:
+                self.promote_slave_to_master(new_master_socket)
+            else:
+                LOGGER.warning(
+                    "Unexpected return: Received none from choose_new_master."
+                )
+        else:
+            LOGGER.info("len (slave sockets) is 0")
+            LOGGER.info("No slave servers available to promote to master.")
+
+
+    def send_heartbeat(self):  
         try:
             if self.master_socket:
                 heartbeat_message = proto.InitConnection()
@@ -357,7 +428,12 @@ class Proxy:
                 )
                 if not send(self.master_socket, heartbeat_message.SerializeToString()):
                     LOGGER.warning(f"Failed to send heartbeat request to master server")
-
+                else:
+                    # Start a timer
+                    self.heartbeat_timer = threading.Timer(
+                        self.heartbeat_timeout, self.handle_heartbeat_timeout
+                    )
+                    self.heartbeat_timer.start()
         except Exception as e:
             LOGGER.warning("Error sending heartbeat:", e)
             self.handle_heartbeat_timeout()  # Trigger timeout handling
@@ -408,10 +484,10 @@ class Proxy:
                         response.slave_last_backup_timestamp
                     )
             else:
-                LOGGER.debug(f"No data received from {slave_socket.getpeername()[0]}")
+                LOGGER.debug(f"No data received from {slave_socket}")
         except Exception as e:
             LOGGER.warning(
-                f"Error in send_receive_on_socket on socket {slave_socket.getpeername()[0]}: {e}"
+                f"Error in send_receive_on_socket on socket {slave_socket}: {e}"
             )
 
     def choose_new_master(self):
@@ -485,10 +561,19 @@ class Proxy:
                                 LOGGER.debugv(
                                     "Received heartbeat from master server. Sending response..."
                                 )
+                                
+                                #self.handle_heartbeat_response_loop()
+                                LOGGER.debug(f"Recived heartbeat from master server. checking if timer running")
+                                if self.heartbeat_timer and self.heartbeat_timer.is_alive():
+                                    LOGGER.debug(f"Timer is still running, will cancel timer")
+                                    self.heartbeat_timer.cancel()
+
                                 # send heartbeat
-                                threading.Thread(
-                                    target=self.handle_heartbeat_response, daemon=True
-                                ).start()
+                                # LOGGER.debug(
+                                #     "Creating Thread to handle heartbeat response which calls: handle_heartbeat_response "
+                                # )
+                                #threading.Thread(target=self.handle_heartbeat_response, daemon=True).start()
+
                             else:
                                 LOGGER.warning(
                                     f"Proxy received msg from master with missing content {init_conn}"
