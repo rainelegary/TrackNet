@@ -106,7 +106,9 @@ class Server:
         :raises Exception: Logs an error if the train ID does not exist in the list of trains.
         """
         if not train.HasField("id"):
+            LOGGER.debug("No id in client state, will create a new train: ")
             trainObject = self.railway.create_new_train(train.length, origin_id)
+            
             train.id = trainObject.name
             return trainObject
         else:
@@ -145,6 +147,7 @@ class Server:
             train = self.get_train(
                 client_state.train, client_state.location.front_junction_id
             )
+            LOGGER.debug(f" train name: {train.name} \n train location={train.location} \n new location={client_state.location}")
         except Exception as e:
             LOGGER.error(f"Error getting train: {e}")
         self.apply_client_state(client_state, train)

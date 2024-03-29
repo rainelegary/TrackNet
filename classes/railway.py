@@ -3,6 +3,7 @@ from .junction import *
 from .route import *
 from .train import *
 from .track import *
+from .location import *
 import logging
 
 LOGGER = logging.getLogger(__name__)
@@ -72,7 +73,9 @@ class Railway:
 
     def update_train(self, train, state, location_msg: TrackNet_pb2.Location, route_msg: TrackNet_pb2.Route):
         
-        LOGGER.debug(f"train location={train.location} \n new location={location_msg}")
+		
+        LOGGER.debug(f" train name: {train.name} \n train location={train.location} \n new location={location_msg}")
+		
 
         # check if new track
         # if (train.location.front_cart["track"] is None or train.location.front_cart["track"].name != location_msg.front_track_id):
@@ -121,18 +124,20 @@ class Railway:
             # except Exception as exc:
                 # LOGGER.debug("ERROR: " + str(exc))
 
-        # update location and state of train
-        self.trains[train.name].location.front_cart = {
+        updated_location = Location()
+        updated_location.front_cart = {
             "track": self.map.tracks[location_msg.front_track_id],
             "junction": self.map.junctions[location_msg.front_junction_id],
             "position": location_msg.front_position,
         }
-        self.trains[train.name].location.back_cart = {
+        updated_location.back_cart = {
             "track": self.map.tracks[location_msg.back_track_id],
             "junction": self.map.junctions[location_msg.back_junction_id],
             "position": location_msg.back_position,
         }
-        train.state = state
+        self.trains[train.name].location = updated_location
+
+        self.trains[train.name].state = state
 
         # update route
         # train = self.trains[train.name]
