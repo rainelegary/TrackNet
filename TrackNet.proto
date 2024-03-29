@@ -138,6 +138,12 @@ message Response {
     optional float slave_last_backup_timestamp = 3;
 }
 
+message SlaveBackupTimestamp {
+    optional float timestamp = 1;
+    optional string host = 2;
+    optional int32 port = 3;
+}
+
 message InitConnection {
     enum Sender {
         SERVER_MASTER = 0;
@@ -153,4 +159,5 @@ message InitConnection {
      optional RailwayUpdate railway_update = 5;
      optional ServerDetails slave_details = 6;
      optional ServerAssignment server_assignment = 7;
+     optional SlaveBackupTimestamp slave_backup_timestamp = 8;
 }

@@ -108,7 +108,7 @@ class Server:
         if not train.HasField("id"):
             LOGGER.debug("No id in client state, will create a new train: ")
             trainObject = self.railway.create_new_train(train.length, origin_id)
-            
+
             train.id = trainObject.name
             return trainObject
         else:
@@ -147,7 +147,9 @@ class Server:
             train = self.get_train(
                 client_state.train, client_state.location.front_junction_id
             )
-            LOGGER.debug(f" train name: {train.name} \n train location={train.location} \n new location={client_state.location}")
+            LOGGER.debug(
+                f" train name: {train.name} \n train location={train.location} \n new location={client_state.location}"
+            )
         except Exception as e:
             LOGGER.error(f"Error getting train: {e}")
         self.apply_client_state(client_state, train)
@@ -363,19 +365,24 @@ class Server:
                         ).start()
         elif proxy_resp.HasField("is_heartbeat"):
 
-            LOGGER.debug(f"Proxy requested heartbeat from slave. proxy_resp: {proxy_resp} Sending backup_railway_timestamp as a response.")
-            response = proto.Response()
-            response.code = proto.Response.HEARTBEAT
+            LOGGER.debug(
+                f"Proxy requested heartbeat from slave. proxy_resp: {proxy_resp} Sending backup_railway_timestamp as a response."
+            )
+            response = proto.InitConnection()
+            response.sender = proto.InitConnection.SERVER_SLAVE
+            backup_timestamp_message = proto.SlaveBackupTimestamp()
             if self.backup_railway_timestamp:
-                response.slave_last_backup_timestamp = (
-                    self.backup_railway_timestamp
-                )
-            else:
-                LOGGER.warning(
-                    "Slave has no last backup timestamp. Sending response without backup_railway_timestamp."
-                )
+                backup_timestamp_message.timestamp = self.backup_railway_timestamp
+            backup_timestamp_message.host = self.host
+            backup_timestamp_message.port = self.port
+            response.slave_backup_timestamp.CopyFrom(backup_timestamp_message)
+
             if not send(sock, response.SerializeToString()):
-                LOGGER.warning("Failed to send heartbeat response to proxy.")
+                LOGGER.warning("Failed to send SlaveBackupTimestamp response to proxy.")
+            else:
+                LOGGER.debug(
+                    "Sent SlaveBackupTimestamp response to proxy. Response message: {response}"
+                )
         else:
             LOGGER.warning(
                 f"Slave received msg from prox. slave_proxy_communication couldn't handle content: {proxy_resp}"
@@ -544,7 +551,12 @@ class Server:
     def connect_to_slave(self, slave_host, slave_port):
         try:
             # for each slave create client sockets
-            print("Before creating client socket, host: ", slave_host ,"port: ", slave_port)
+            print(
+                "Before creating client socket, host: ",
+                slave_host,
+                "port: ",
+                slave_port,
+            )
             slave_sock = create_client_socket(slave_host, slave_port)
             print("Type of slave sock: ", type(slave_sock))
             self.socks_for_communicating_to_slaves.append(slave_sock)
