@@ -78,6 +78,8 @@ class Server:
         self.conflict_analysis_interval = 1
         self.previous_conflict_analysis_time = datetime.now()
         self.client_commands = {}
+
+        self.backup_railway_timestamp = None
         self.backup_railway = None
 
         self.client_state_queue = Queue()
@@ -88,7 +90,7 @@ class Server:
 
     def create_railway_update_message(self) -> TrackNet_pb2.RailwayUpdate:
         railway_update = TrackNet_pb2.RailwayUpdate()
-        railway_update.timestamp = datetime.utcnow().isoformat()
+        railway_update.timestamp = time.time()
 
         railway_update.railway.CopyFrom(
             RailwayConverter.convert_railway_obj_to_pb(self.railway)
@@ -285,6 +287,9 @@ class Server:
                             LOGGER.debug(
                                 f"Received railway update from master at {master_resp.railway_update.timestamp}"
                             )
+                            self.backup_railway_timestamp = (
+                                master_resp.railway_update.timestamp
+                            )
                             self.backup_railway = master_resp.railway_update.railway
                 except socket.timeout:
                     continue  # No data received within the timeout, continue loop
@@ -299,45 +304,80 @@ class Server:
             LOGGER.debug("Closing connection to master")
             conn.close()
 
-    def slave_proxy_communication(self, data):
+    def slave_proxy_communication(
+        self,
+        sock,
+        data,
+    ):
         LOGGER.debug("slave recieved message from proxy")
-        proxy_resp = TrackNet_pb2.ServerAssignment()
-        proxy_resp.ParseFromString(data)
-        LOGGER.debug(f"Slave received role assignment from proxy: {proxy_resp}")
+        proxy_resp = TrackNet_pb2.InitConnection()
+        try:
+            proxy_resp.ParseFromString(data)
+        except Exception as e:
+            LOGGER.error(
+                f"In slave_proxy_communication: Error parsing proxy message: {e}"
+            )
 
-        # Determine if this server has been assigned as the master
-        if proxy_resp.HasField("is_master"):
-            if proxy_resp.is_master:
-                LOGGER.info(f"{self.host}:{self.port} promoted to the MASTER")
-                # self.promote_to_master()
-                self.is_master = True
-                if self.backup_railway != None:
-                    RailwayConverter.update_railway_with_pb(
-                        self.backup_railway, self.railway
-                    )
-                    # self.railway.map.print_map()
-                    self.railway.print_map()
+        if proxy_resp.HasField("server_assignment"):
+            LOGGER.debug(f"Slave received role assignment from proxy: {proxy_resp}")
+            # Determine if this server has been assigned as the master
+            LOGGER.debug(f"Slave received role assignment from proxy: {proxy_resp}")
+
+            # Determine if this server has been assigned as the master
+            if proxy_resp.HasField("is_master"):
+                if proxy_resp.is_master:
+                    LOGGER.info(f"{self.host}:{self.port} promoted to the MASTER")
+                    # self.promote_to_master()
+                    self.is_master = True
+                    if self.backup_railway != None:
+                        RailwayConverter.update_railway_with_pb(
+                            self.backup_railway, self.railway
+                        )
+                        # self.railway.map.print_map()
+                        self.railway.print_map()
+                    else:
+                        LOGGER.info(f"no backup railway")
+
+                    for slave in proxy_resp.servers:
+                        slave_host = slave.host
+                        slave_port = slave.port
+                        LOGGER.debug(
+                            f"Slave host: {slave_host}, Slave port: {slave_port}"
+                        )
+                        # connect to slave in separate thread
+                        LOGGER.debug("Connecting to slave")
+                        self.connect_to_slave(slave_host, slave_port)
+
                 else:
-                    LOGGER.info(f"no backup railway")
-
-                for slave in proxy_resp.servers:
-                    slave_host = slave.host
-                    slave_port = slave.port
-                    LOGGER.debug(f"Slave host: {slave_host}, Slave port: {slave_port}")
-                    # connect to slave in separate thread
-                    LOGGER.debug("Connecting to slave")
-                    self.connect_to_slave(slave_host, slave_port)
-
+                    LOGGER.info(f"{self.host}:{self.port} designated as a SLAVE.")
+                    self.is_master = False
+                    # Connect to master if not already
+                    if not self.connected_to_master:
+                        # listen to master instead of initiating connection
+                        # self.listen_for_master(self.host, 4444)
+                        threading.Thread(
+                            target=self.listen_for_master, args=(self.host, self.port)
+                        ).start()
+        if proxy_resp.HasField("is_heartbeat"):
+            LOGGER.debug(
+                f"Proxy requested heartbeat from slave. Sending last_backup_timestamp as a response."
+            )
+            response = proto.Response()
+            response.code = proto.Response.HEARTBEAT
+            if self.railway.last_backup_timestamp:
+                response.slave_last_backup_timestamp = (
+                    self.railway.last_backup_timestamp
+                )
             else:
-                LOGGER.info(f"{self.host}:{self.port} designated as a SLAVE.")
-                self.is_master = False
-                # Connect to master if not already
-                if not self.connected_to_master:
-                    # listen to master instead of initiating connection
-                    # self.listen_for_master(self.host, 4444)
-                    threading.Thread(
-                        target=self.listen_for_master, args=(self.host, self.port)
-                    ).start()
+                LOGGER.warning(
+                    "Slave has no last backup timestamp. Sending response without last_backup_timestamp."
+                )
+            if not send(sock, response.SerializeToString()):
+                LOGGER.warning("Failed to send heartbeat response to proxy.")
+        else:
+            LOGGER.warning(
+                f"Slave received msg from prox. slave_proxy_communication couldn't handle content: {proxy_resp}"
+            )
 
     def master_proxy_communication(self, sock, data):
         # Data also needs to include an update of a new slave
@@ -417,7 +457,12 @@ class Server:
 
                     # Slave server responsibilities
                     else:
-                        self.slave_proxy_communication(data)
+                        try:
+                            self.slave_proxy_communication(proxy_sock, data)
+                        except Exception as e:
+                            LOGGER.error(f"Error in slave proxy communication: {e}")
+                            proxy_sock.shutdown(socket.SHUT_RDWR)
+                            proxy_sock.close()
 
         except Exception as e:
             LOGGER.error(f"Error communicating with proxy: {e}")
@@ -562,34 +607,6 @@ class Server:
             print("type of slave socket: ", type(slave_socket))
             success = send(slave_socket, master_resp.SerializeToString())
             print(f"Railway update message sent to slave successfully: {success}")
-
-    def handle_master_communicationOld(self, conn):
-        try:
-            while self.connected_to_master:
-                data = receive(conn)
-                if data:
-                    master_resp = TrackNet_pb2.InitConnection()
-                    master_resp.ParseFromString(data)
-                    print("data received at slave")
-                    # Check if sender is master
-                    if (
-                        master_resp.sender == TrackNet_pb2.InitConnection.SERVER_MASTER
-                        and master_resp.HasField("railway_update")
-                    ):
-                        print(
-                            f"Received a backup form the master: {master_resp.railway_update}"
-                        )
-                        # need to store the backup
-                        LOGGER.debug(
-                            f"Received railway update from master at {master_resp.railway_update.timestamp}"
-                        )
-        except Exception as e:
-            LOGGER.error(f"Error communicating with master: {e}")
-        finally:
-            conn.close()
-            self.connected_to_master = (
-                False  # Reset the flag to allow for a new connection
-            )
 
 
 if __name__ == "__main__":

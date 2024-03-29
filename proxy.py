@@ -160,6 +160,8 @@ class Proxy:
         # LOGGER.info(f"{slave_socket.getpeername()} promoted to MASTER")
 
         # notify the newly promoted master server of its new role
+        proxy_message = proto.InitConnection()
+        proxy_message.sender = proto.InitConnection.Sender.PROXY
         role_assignment = proto.ServerAssignment()
         role_assignment.is_master = True
 
@@ -173,7 +175,9 @@ class Proxy:
             slave_details.port = slave_to_master_port
             # LOGGER.info(f"Adding {slave_ip}:{slave_to_master_port} to list of slaves")
 
-        if send(slave_socket, role_assignment.SerializeToString()):
+        proxy_message.server_assignment.CopyFrom(role_assignment)
+
+        if send(slave_socket, proxy_message.SerializeToString()):
             LOGGER.debug(f"Sent role assignmnet to newly elected master.")
         else:
             LOGGER.warning(f"Failed to send role assignmnet to newly elected master.")
@@ -184,7 +188,6 @@ class Proxy:
         # self.remove_slave_socket(slave_socket)
 
         LOGGER.debug("sending heartbeat to new master server")
-        LOGGER.debug(f"Sending... heartbeat to master server {self.master_socket}")
         # threading.Thread(target=self.send_heartbeat, args=(self.master_socket,), daemon=True).start()
         self.send_heartbeat()
 
@@ -208,7 +211,7 @@ class Proxy:
         # Notify master of new slave server so it can connect to it
         resp = TrackNet_pb2.InitConnection()
         resp.sender = TrackNet_pb2.InitConnection.Sender.PROXY
-        for slave_ip, slave_port in self.slave_sockets.items():
+        for slave_ip, _ in self.slave_sockets.items():
             slave_details = resp.slave_details.add()
             slave_details.host = slave_ip
             slave_details.port = slave_to_master_port
@@ -372,16 +375,79 @@ class Proxy:
     def handle_heartbeat_timeout(self):
         LOGGER.info("Heartbeat response timed out.")
         self.master_socket = None
-        # Take appropriate action here
         if len(self.slave_sockets) > 0:
             LOGGER.debug("Number of slave sockets: %d", len(self.slave_sockets))
-            new_master_socket_key, new_master_socket_value = (
-                self.slave_sockets.popitem()
-            )
-            self.promote_slave_to_master(new_master_socket_value)
+            new_master_socket = self.choose_new_master()
+            if new_master_socket:
+                self.promote_slave_to_master(new_master_socket)
+            else:
+                LOGGER.warning(
+                    "Unexpected return: Received none from choose_new_master."
+                )
         else:
             LOGGER.info("len (slave sockets) is 0")
             LOGGER.info("No slave servers available to promote to master.")
+
+    def send_receive_on_socket(self, slave_socket, slave_timestamps):
+        """Is called in choose_new_master. Send a heartbeat request to a slave server and waits to receive "slave_last_backup_timestamp" as the response."""
+        # Send request for heartbeat
+        request_heartbeat = TrackNet_pb2.InitConnection()
+        request_heartbeat.sender = TrackNet_pb2.InitConnection.Sender.PROXY
+        request_heartbeat.is_heartbeat = True
+        try:
+            send(slave_socket, request_heartbeat.SerializeToString())
+
+            # Receive response
+            data = receive(slave_socket)
+            if data:
+                response = TrackNet_pb2.Response()
+                response.ParseFromString(data)
+                if response.HasField("slave_last_backup_timestamp"):
+                    # Directly update the dictionary without lock since it's a unique addition
+                    slave_timestamps[slave_socket.getpeername()[0]] = (
+                        response.slave_last_backup_timestamp
+                    )
+            else:
+                LOGGER.debug(f"No data received from {slave_socket.getpeername()[0]}")
+        except Exception as e:
+            LOGGER.warning(
+                f"Error in send_receive_on_socket on socket {slave_socket.getpeername()[0]}: {e}"
+            )
+
+    def choose_new_master(self):
+        slave_timestamps = {}
+
+        # List to hold all thread objects
+        threads = []
+
+        for slave_socket in self.slave_sockets.values():
+            # Create a new Thread for each slave socket to send and receive messages
+            thread = threading.Thread(
+                target=self.send_receive_on_socket,
+                args=(slave_socket, slave_timestamps),
+            )
+            threads.append(thread)
+            thread.start()
+
+        # Wait for all threads to complete
+        for thread in threads:
+            thread.join()
+
+        # After all threads complete, you can process the timestamps
+        # to choose the new master. For example:
+        if slave_timestamps:
+            new_master_ip = max(slave_timestamps, key=slave_timestamps.get)
+            LOGGER.info(
+                f"New master chosen in choose_new_master based on timestamp: {new_master_ip}"
+            )
+            if new_master_ip:
+                return self.slave_sockets[new_master_ip]
+            else:
+                LOGGER.warning("Error in choose_new_master. No new master selected.")
+                return None
+
+        else:
+            LOGGER.warning("No timestamps received, cannot select a new master.")
 
     def handle_connection(self, conn: socket.socket, address):
         try:
