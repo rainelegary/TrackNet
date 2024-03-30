@@ -86,13 +86,13 @@ class Proxy:
             self.main_proxy_host = self.host
             self.is_main = True
 
-    def add_slave_socket(self, slave_socket: socket.socket):
-        self.slave_sockets[f"{slave_socket.getpeername()[0]}"] = slave_socket
-        LOGGER.debug(f"Slave {slave_socket.getpeername()[0]} added")
+    def add_slave_socket(self, slave_socket: socket.socket, slave_port: int):
+        self.slave_sockets[(f"{slave_socket.getpeername()}",slave_port)] = slave_socket
+        LOGGER.debug(f"Slave {slave_socket.getpeername()} added")
 
-    def remove_slave_socket(self, slave_socket: socket.socket):
+    def remove_slave_socket(self, slave_socket: socket.socket,slave_port: int):
         try:
-            del self.slave_sockets[slave_socket.getpeername()[0]]
+            del self.slave_sockets[(slave_socket.getpeername(),slave_port)]
         except KeyError:
             pass
         except Exception as exc:
@@ -148,7 +148,7 @@ class Proxy:
             else:
                 LOGGER.warning(f"Target client {target_client_key} not found.")
 
-    def promote_slave_to_master(self, slave_socket: socket.socket):
+    def promote_slave_to_master(self, slave_socket: socket.socket, slave_port: int):
 
         self.master_socket = slave_socket
         try:
@@ -158,8 +158,8 @@ class Proxy:
                 f"Exception {e} was thrown when setting master_socket_hostIP "
             )
 
-        self.remove_slave_socket(self.master_socket)
-        LOGGER.info(f"Promoting {self.master_socket_hostIP} to MASTER")
+        self.remove_slave_socket(self.master_socket,slave_port)
+        LOGGER.info(f"Promoting {self.master_socket_hostIP} to MASTER, was previously a slave listening on port {slave_port}")
         # LOGGER.info(f"{slave_socket.getpeername()} promoted to MASTER")
 
         # notify the newly promoted master server of its new role
@@ -172,10 +172,11 @@ class Proxy:
             LOGGER.info("No slaves to send to master")
 
         # Send slave details to master server
-        for slave_ip, _ in self.slave_sockets.items():
+        for (slave_ip,slave_port), _ in self.slave_sockets.items():
             slave_details = role_assignment.servers.add()
             slave_details.host = slave_ip
-            slave_details.port = slave_to_master_port
+            #slave_details.port = slave_to_master_port
+            slave_details.port = slave_port
             # LOGGER.info(f"Adding {slave_ip}:{slave_to_master_port} to list of slaves")
 
         proxy_message.server_assignment.CopyFrom(role_assignment)
@@ -228,21 +229,25 @@ class Proxy:
     def slave_role_assignment(
         self, slave_socket: socket.socket, init_conn: TrackNet_pb2.InitConnection
     ):
+        slave_host = init_conn.slave_details.host
+        slave_port = init_conn.slave_details.port
+
         with self.lock:
             # Check if there is no master server, and promote the first slave to master
             if self.master_socket is None:
-                self.promote_slave_to_master(slave_socket)
+                self.promote_slave_to_master(slave_socket,slave_port)
 
             # Already have master so assign slave role
             else:
-                self.add_slave_socket(slave_socket)
+
+                self.add_slave_socket(slave_socket,slave_port)
 
                 proxy_message = proto.InitConnection()
                 proxy_message.sender = proto.InitConnection.Sender.PROXY
                 role_assignment = proto.ServerAssignment()
                 role_assignment.is_master = False
                 proxy_message.server_assignment.CopyFrom(role_assignment)
-                
+
                 if not send(slave_socket, proxy_message.SerializeToString()):
                     LOGGER.warning(f"Failed to send role assignmnet to slave.")
 
@@ -320,15 +325,16 @@ class Proxy:
                             f"slave sockets: {self.slave_sockets}, items: {self.slave_sockets.items()}"
                         )
                         foundMasterServer = False
+                        slave_port_chosen = None
+
                         with self.lock:
-                            for _, slave in self.slave_sockets.items():
+                            for (slave_host, slave_port), slave in self.slave_sockets.items():
                                 try:
                                     if slave.getpeername()[0] == heartbeat.master_host:
                                         foundMasterServer = True
+                                        slave_port_chosen = slave_port
                                         self.master_socket = slave
-                                        self.master_socket_hostIP = slave.getpeername()[
-                                            0
-                                        ]
+                                        self.master_socket_hostIP = slave.getpeername()[0]
                                         LOGGER.debug(
                                             "Master server updated to %s",
                                             heartbeat.master_host,
@@ -342,7 +348,7 @@ class Proxy:
                                 f"BackUp Proxy doesn't have connection to the master server ? {heartbeat.master_host}"
                             )
                         else:
-                            self.remove_slave_socket(self.master_socket)
+                            self.remove_slave_socket(self.master_socket,slave_port_chosen)
 
                 time.sleep(self.heartbeat_interval)
             else:
@@ -405,9 +411,9 @@ class Proxy:
         self.master_socket = None
         if len(self.slave_sockets) > 0:
             LOGGER.debug("Number of slave sockets: %d", len(self.slave_sockets))
-            new_master_socket = self.choose_new_master()
+            (new_master_socket,slave_port) = self.choose_new_master()
             if new_master_socket:
-                self.promote_slave_to_master(new_master_socket)
+                self.promote_slave_to_master(new_master_socket,slave_port)
             else:
                 LOGGER.warning(
                     "Unexpected return: Received none from choose_new_master."
@@ -471,20 +477,25 @@ class Proxy:
         request_heartbeat.sender = TrackNet_pb2.InitConnection.Sender.PROXY
         request_heartbeat.is_heartbeat = True
         try:
-            send(slave_socket, request_heartbeat.SerializeToString())
 
-            # Receive response
-            data = receive(slave_socket)
-            if data:
-                response = TrackNet_pb2.Response()
-                response.ParseFromString(data)
-                if response.HasField("slave_last_backup_timestamp"):
-                    # Directly update the dictionary without lock since it's a unique addition
-                    slave_timestamps[slave_socket.getpeername()[0]] = (
-                        response.slave_last_backup_timestamp
-                    )
+            if not send(slave_socket, request_heartbeat.SerializeToString()):
+                LOGGER.warning(f"failed to send heatbeat request to slave socket: {slave_socket}")
             else:
-                LOGGER.debug(f"No data received from {slave_socket}")
+                # Receive response
+                data = receive(slave_socket)
+                if data:
+                    LOGGER.debug(f"Data received from slave socket: {slave_socket}")
+                    response = TrackNet_pb2.Response()
+                    response.ParseFromString(data)
+                    if response.HasField("slave_last_backup_timestamp"):
+                        LOGGER.debug(f"Response received from slave socket has a last backup timestamp response: {response}")
+                        # Directly update the dictionary without lock since it's a unique addition
+                        slave_timestamps[slave_socket.getpeername()[0]] = (response.slave_last_backup_timestamp)
+                    else:
+                        LOGGER.warning(f"Response received from slave socket has no timestamp response: {response}")
+
+                else:
+                    LOGGER.debug(f"No data received from {slave_socket}")
         except Exception as e:
             LOGGER.warning(
                 f"Error in send_receive_on_socket on socket {slave_socket}: {e}"
@@ -585,7 +596,8 @@ class Proxy:
                             if self.is_main:
                                 self.slave_role_assignment(conn, init_conn)
                             else:
-                                self.add_slave_socket(conn)
+                                slave_port = init_conn.slave_details.port
+                                self.add_slave_socket(conn,slave_port)
 
                         elif (
                             init_conn.sender == proto.InitConnection.Sender.PROXY
@@ -628,7 +640,7 @@ class Proxy:
                 LOGGER.warning("Master server connection lost.")
 
             elif client_key.split(":")[0] in self.slave_sockets:
-                del self.slave_sockets[client_key.split(":")[0]]
+                del self.slave_sockets[client_key]
                 LOGGER.warning("Slave server connection lost.")
 
         if conn is not None:
@@ -731,4 +743,4 @@ if __name__ == "__main__":
         try:
             proxy.run()
         except KeyboardInterrupt:
-            LOGGER.info("Shutting down proxy server.")
+            LOGGER.info("Keyboard interupt detected")
