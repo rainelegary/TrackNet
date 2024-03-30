@@ -170,7 +170,7 @@ def create_server_socket(ip: str, port: int):
     return sock
 
 
-def send(sock: socket.socket, msg) -> bool:
+def send(sock: socket.socket, msg , returnException=False) -> bool:
     """ First Sends the number of bytes in msg padded to 4 bytes, then sends
     provided data across the given socket.
 
@@ -193,9 +193,12 @@ def send(sock: socket.socket, msg) -> bool:
         sock.sendall(msg_len)
         sock.sendall(msg)
 
-    except:
-        sock.close()
-        return False
+    except Exception as e:
+        if returnException:
+            raise e
+        else:
+            sock.close()
+            return False
 
     return True
 

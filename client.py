@@ -56,6 +56,8 @@ class Client():
         self.host = host
         self.port = port
         self.sock = None
+        self.client_ip = None
+        self.client_port = None
         self.probabilty_of_good_track = 95
         self.railmap = Railmap(
             junctions=initial_config["junctions"], tracks=initial_config["tracks"]
@@ -284,7 +286,7 @@ class Client():
                     #set current proxy to 
                     proxy_host, proxy_port = self.current_proxy
                     self.sock = create_client_socket(proxy_host, proxy_port)
-                    client_ip, client_port = self.sock.getsockname()
+                    
                     #self.sock.settimeout(10)  # Set a 10-second timeout for the socket
 
                     if (
@@ -293,17 +295,20 @@ class Client():
                         print(
                             "Connection with main proxy failed, switching to backup proxy."
                         )
+                        self.client_ip, self.client_port = self.sock.getsockname()
                         self.current_proxy = self.backup_proxy
                         connected_to_main_proxy = False
                         
                         continue  # Skip the rest of this iteration
                     else:
                         connected_to_proxy = True
+                        self.client_ip, self.client_port = self.sock.getsockname()
+
                 else:
-
+                    
                     client_state = TrackNet_pb2.ClientState()
-
-                    self.set_client_state_msg(client_state, client_ip, client_port)
+                    
+                    self.set_client_state_msg(client_state, self.client_ip, self.client_port)
                     LOGGER.debug(f"state={client_state.location}")
 
                     message = TrackNet_pb2.InitConnection()
