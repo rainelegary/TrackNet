@@ -136,6 +136,7 @@ message Response {
     optional Code code = 1;
     optional string master_host = 2;
     optional float slave_last_backup_timestamp = 3;
+    optional float proxy_time = 4; 
 }
 
 message SlaveBackupTimestamp {
@@ -160,4 +161,5 @@ message InitConnection {
      optional ServerDetails slave_details = 6;
      optional ServerAssignment server_assignment = 7;
      optional SlaveBackupTimestamp slave_backup_timestamp = 8;
+     optional float proxy_time = 9;
 }
