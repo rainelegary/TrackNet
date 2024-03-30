@@ -543,8 +543,6 @@ class Proxy:
         readable_time = datetime_object.strftime('%Y-%m-%d %H:%M:%S')
         return readable_time  
 
-            LOGGER.info("No slave servers available to promote to master.")
-
     def send_receive_on_socket(self, slave_socket, slave_host, slave_port):
         """Is called in choose_new_master. Send a heartbeat request to a slave server and waits to receive "slave_last_backup_timestamp" as the response."""
         # Send request for heartbeat
