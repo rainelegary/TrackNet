@@ -549,7 +549,7 @@ class Proxy:
         for thread in threads:
             thread.join()
 
-        LOGGER.debug("-----------Priniting all the slave sockets-----------")
+        LOGGER.debug("-----------Priniting all the slave timestamps-----------")
         for key, value in self.all_slave_timestamps.items():
             LOGGER.debug(f"Key: {key}, Value: {value}")
 

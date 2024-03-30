@@ -84,7 +84,10 @@ class Client():
         else:
             proxy_items = list(proxy_details.items())
 
+
         index = random.randint(0, len(proxy_items) - 1)
+        #print (f"index: {index} index 2: {(index + 1) % (len(proxy_items))}")
+        #print(proxy_items)
         self.current_proxy = proxy_items[index]  # First item
         self.backup_proxy = proxy_items[(index + 1) % (len(proxy_items))]  # Second item   
         print (f"Current proxy: {self.current_proxy}")     
@@ -326,14 +329,15 @@ class Client():
                             if data is not None:
                                 resp.ParseFromString(data)
                                 server_resp.CopyFrom(resp.server_response)
-                                self.handle_server_response (server_resp)
+                                self.handle_server_response(server_resp)
                             
                         except socket.timeout:
-                            LOGGER.warning("Socket timeout. Switching to backup proxy.")
-                            self.sock.close()
-                            self.sock = None
-                            connected_to_proxy = False
-                            self.current_proxy = self.backup_proxy
+                            #LOGGER.warning("Socket timeout. Switching to backup proxy.")
+                            LOGGER.debug(f"Socket timeout. Will resend a client state")
+                            #self.sock.close()
+                            #self.sock = None
+                            #connected_to_proxy = False
+                            #self.current_proxy = self.backup_proxy
                         except Exception as e:
                             LOGGER.warning(f"Exception thrown after sending client state {e}, Will switch to backup proxy {self.backup_proxy}")
                             self.sock.close()
