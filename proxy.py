@@ -542,6 +542,88 @@ class Proxy:
         readable_time = datetime_object.strftime('%Y-%m-%d %H:%M:%S')
         return readable_time  
 
+    def send_receive_on_socket(self, slave_socket, slave_host, slave_port):
+        """Is called in choose_new_master. Send a heartbeat request to a slave server and waits to receive "slave_last_backup_timestamp" as the response."""
+        # Send request for heartbeat
+        request_heartbeat = TrackNet_pb2.InitConnection()
+        request_heartbeat.sender = TrackNet_pb2.InitConnection.Sender.PROXY
+        request_heartbeat.is_heartbeat = True
+        try:
+
+            if not send(slave_socket, request_heartbeat.SerializeToString()):
+                LOGGER.warning(f"failed to send heatbeat request to slave socket: {slave_socket}")
+            else:
+                # Wait for self.slave_heartbeat_timeout seconds or until the slave sent its timestamp
+                start_time = time.time()
+                timestampReceived = False
+                while (((time.time() - start_time) <= self.slave_heartbeat_timeout) and (timestampReceived == False)):
+                    if self.all_slave_timestamps.get((slave_host, slave_port), 0) != 0:
+                        timestampReceived = True
+                    time.sleep(0.1)  # Sleep for a short time to avoid busy waiting
+                
+                # if timestampReceived == False:
+                #     if (slave_host, slave_port) in self.all_slave_timestamps:
+                #         del self.all_slave_timestamps[(slave_host, slave_port)]
+                #     else:
+                #         LOGGER.debug(f"Key {(slave_host, slave_port)} not found in all_slave_timestamps.")
+                
+        except Exception as e:
+            LOGGER.warning(
+                f"Error in send_receive_on_socket on socket {slave_socket}: {e}"
+            )
+
+    def choose_new_master(self):
+        self.all_slave_timestamps = {}
+
+        # List to hold all thread objects
+        threads = []
+
+        for ((slaveHost,slavePort),slave_socket) in self.slave_sockets.items():
+            # Create a new Thread for each slave socket to send and receive messages
+            self.all_slave_timestamps[(slaveHost,slavePort)] = 0
+
+            thread = threading.Thread(
+                target=self.send_receive_on_socket,
+                args=(slave_socket,slaveHost, slavePort),
+            )
+            threads.append(thread)
+            thread.start()
+
+        # Wait for all threads to complete
+        for thread in threads:
+            thread.join()
+
+        LOGGER.debug("-----------Priniting all the slave timestamps-----------")
+        for key, value in self.all_slave_timestamps.items():
+            LOGGER.debug(f"Key: {key}, Value: {value}")
+
+        # After all threads complete, you can process the timestamps
+        if self.all_slave_timestamps:
+            max_key = max(self.all_slave_timestamps, key=self.all_slave_timestamps.get)
+            LOGGER.debug(f"key chosen {max_key}")
+            (chosen_slave_host,chosen_slave_port) = max_key
+            LOGGER.info(f"New master chosen in choose_new_master based on timestamp: {(chosen_slave_host,chosen_slave_port)}" )
+            try:
+                ip_address = socket.gethostbyname(chosen_slave_host)
+                LOGGER.debug(f"The IP address of {chosen_slave_host} is {ip_address}")
+                most_recent_slave = (ip_address,chosen_slave_port)
+
+                LOGGER.debug("-----------Priniting all the slave sockets-----------")
+                for key, value in self.slave_sockets.items():
+                    LOGGER.debug(f"Key: {key}, Value: {value}")
+
+                if (most_recent_slave) in self.slave_sockets:
+                    return (self.slave_sockets[(most_recent_slave)],chosen_slave_port)
+                else:
+                    LOGGER.warning(f"Error cannot find the socket for the slave chosen {most_recent_slave}") 
+            except socket.gaierror as e:
+                print(f"Failed to get the IP address of {chosen_slave_host}: {e}")
+                return None
+        else:
+            LOGGER.warning("No timestamps received, cannot select a new master.")
+            return None
+
+
     def handle_connection(self, conn: socket.socket, address):
         try:
             # Convert address to a string key
