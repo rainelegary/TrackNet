@@ -537,6 +537,7 @@ class Proxy:
         for ((slaveHost,slavePort),slave_socket) in self.slave_sockets.items():
             # Create a new Thread for each slave socket to send and receive messages
             self.all_slave_timestamps[(slaveHost,slavePort)] = 0
+
             thread = threading.Thread(
                 target=self.send_receive_on_socket,
                 args=(slave_socket,slaveHost, slavePort),
@@ -547,6 +548,10 @@ class Proxy:
         # Wait for all threads to complete
         for thread in threads:
             thread.join()
+
+        LOGGER.debug("-----------Priniting all the slave sockets-----------")
+        for key, value in self.all_slave_timestamps.items():
+            LOGGER.debug(f"Key: {key}, Value: {value}")
 
         # After all threads complete, you can process the timestamps
         if self.all_slave_timestamps:
