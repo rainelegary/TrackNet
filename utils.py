@@ -184,12 +184,13 @@ def send(sock: socket.socket, msg , returnException=False) -> bool:
     True if all data successfully sent over socket.
     False otherwise.
     """
-    assert type(sock) == socket.socket
-    assert type(msg) == bytes
-
-    msg_len = int_to_bytes(len(msg), 4)
-
     try:
+        assert type(sock) == socket.socket
+        assert type(msg) == bytes
+
+        msg_len = int_to_bytes(len(msg), 4)
+
+    
         sock.sendall(msg_len)
         sock.sendall(msg)
 
