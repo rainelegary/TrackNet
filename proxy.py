@@ -158,7 +158,7 @@ class Proxy:
                         self.client_state_handled[target_client_key] = (None,True)
                 except Exception as e:
                     LOGGER.warning(f"Failed to send server response message to client. socket: {target_client_socket}")
-                    LOGGER.warning(f"Exception thrown: {e} type: {type(e)} repr: {repr(e)} str: {str(e)}")
+                    LOGGER.warning(f"Exception thrown: {e} type: {type(e)} repr: {repr(e)}")
 
             else:
                 LOGGER.warning(f"Target client {target_client_key} not found.")
