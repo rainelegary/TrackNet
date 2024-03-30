@@ -292,9 +292,7 @@ class Server:
                             LOGGER.debug(
                                 f"Received railway update from master at {master_resp.railway_update.timestamp}"
                             )
-                            self.backup_railway_timestamp = (
-                                master_resp.railway_update.timestamp
-                            )
+                            self.backup_railway_timestamp = (master_resp.railway_update.timestamp) # -10
                             self.backup_railway = master_resp.railway_update.railway
                 except socket.timeout:
                     continue  # No data received within the timeout, continue loop
@@ -363,26 +361,31 @@ class Server:
                         threading.Thread(
                             target=self.listen_for_master, args=(self.host, self.port)
                         ).start()
+
         elif proxy_resp.HasField("is_heartbeat"):
 
-            LOGGER.debug(
-                f"Proxy requested heartbeat from slave. proxy_resp: {proxy_resp} Sending backup_railway_timestamp as a response."
-            )
-            response = proto.InitConnection()
-            response.sender = proto.InitConnection.SERVER_SLAVE
-            backup_timestamp_message = proto.SlaveBackupTimestamp()
-            if self.backup_railway_timestamp:
-                backup_timestamp_message.timestamp = self.backup_railway_timestamp
-            backup_timestamp_message.host = self.host
-            backup_timestamp_message.port = self.port
-            response.slave_backup_timestamp.CopyFrom(backup_timestamp_message)
-
-            if not send(sock, response.SerializeToString()):
-                LOGGER.warning("Failed to send SlaveBackupTimestamp response to proxy.")
-            else:
+            if proxy_resp.is_heartbeat:
                 LOGGER.debug(
-                    "Sent SlaveBackupTimestamp response to proxy. Response message: {response}"
+                    f"Proxy requested heartbeat from slave. proxy_resp: {proxy_resp} Sending backup_railway_timestamp as a response."
                 )
+                response = proto.InitConnection()
+                response.sender = proto.InitConnection.SERVER_SLAVE
+                backup_timestamp_message = proto.SlaveBackupTimestamp()
+                if self.backup_railway_timestamp:
+                    backup_timestamp_message.timestamp = self.backup_railway_timestamp
+                backup_timestamp_message.host = self.host
+                backup_timestamp_message.port = self.port
+                response.slave_backup_timestamp.CopyFrom(backup_timestamp_message)
+
+                if not send(sock, response.SerializeToString()):
+                    LOGGER.warning("Failed to send SlaveBackupTimestamp response to proxy.")
+                else:
+                    LOGGER.debug(
+                        f"Sent SlaveBackupTimestamp response to proxy. Response message: {response}"
+                    )
+            else:
+                LOGGER.debug(f"proxy_resp has heatbeat feild but set to false: {proxy_resp}")
+
         else:
             LOGGER.warning(
                 f"Slave received msg from prox. slave_proxy_communication couldn't handle content: {proxy_resp}"
