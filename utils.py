@@ -128,7 +128,7 @@ def create_client_socket(ip: str, port: int):
     try:
         sock.connect((ip, port))
     except Exception as e:
-        print ("Failed to connect to proxy at " + ip + ":" + str(port))
+        print ("Failed to connect to socket at " + ip + ":" + str(port))
         print ("exception: " + str(e))
         return None
 
@@ -170,7 +170,7 @@ def create_server_socket(ip: str, port: int):
     return sock
 
 
-def send(sock: socket.socket, msg) -> bool:
+def send(sock: socket.socket, msg , returnException=False) -> bool:
     """ First Sends the number of bytes in msg padded to 4 bytes, then sends
     provided data across the given socket.
 
@@ -184,18 +184,22 @@ def send(sock: socket.socket, msg) -> bool:
     True if all data successfully sent over socket.
     False otherwise.
     """
-    assert type(sock) == socket.socket
-    assert type(msg) == bytes
-
-    msg_len = int_to_bytes(len(msg), 4)
-
     try:
+        assert type(sock) == socket.socket
+        assert type(msg) == bytes
+
+        msg_len = int_to_bytes(len(msg), 4)
+
+    
         sock.sendall(msg_len)
         sock.sendall(msg)
 
-    except:
-        sock.close()
-        return False
+    except Exception as e:
+        if returnException:
+            raise e
+        else:
+            sock.close()
+            return False
 
     return True
 

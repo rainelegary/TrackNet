@@ -3,6 +3,7 @@ from .junction import *
 from .route import *
 from .train import *
 from .track import *
+from .location import *
 import logging
 
 LOGGER = logging.getLogger(__name__)
@@ -81,7 +82,9 @@ class Railway:
         back_junction = location_obj.back_cart["junction"]
         back_junction_id = back_junction.name
         
-        LOGGER.debug(f"train location={train.location} \n new location={location_obj}")
+		
+        LOGGER.debug(f" train name: {train.name} \n train location={train.location} \n new location={location_msg}")
+		
 
         # check if new track
         # if train.location.front_cart["track"] is None or train.location.front_cart["track"].name != front_track_id:

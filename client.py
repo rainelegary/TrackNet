@@ -18,7 +18,7 @@ from classes.trainmovement import TrainMovement
 from datetime import datetime
 from message_converter import MessageConverter
 import random
-
+from classes.location import Location
 
 # Global Variables
 proxy1_address = None
@@ -56,6 +56,8 @@ class Client():
         self.host = host
         self.port = port
         self.sock = None
+        self.client_ip = None
+        self.client_port = None
         self.probabilty_of_good_track = 95
         self.railmap = Railmap(
             junctions=initial_config["junctions"], tracks=initial_config["tracks"]
@@ -66,8 +68,7 @@ class Client():
         self.train = TrainMovement(
             name=None,
             length=self.generate_random_train_length(),
-            junction_front=self.origin,
-            junction_back=self.origin,
+            location = Location(front_junction=self.origin, back_junction=self.origin)
         )
         self.generate_route()
         print("Route: ", end="")
@@ -84,7 +85,10 @@ class Client():
         else:
             proxy_items = list(proxy_details.items())
 
+
         index = random.randint(0, len(proxy_items) - 1)
+        #print (f"index: {index} index 2: {(index + 1) % (len(proxy_items))}")
+        #print(proxy_items)
         self.current_proxy = proxy_items[index]  # First item
         self.backup_proxy = proxy_items[(index + 1) % (len(proxy_items))]  # Second item   
         print (f"Current proxy: {self.current_proxy}")     
@@ -96,9 +100,7 @@ class Client():
         return 5
 
     def generate_route(self):
-        self.train.route = Route(
-            self.railmap.find_shortest_path(self.origin.name, self.destination.name)
-        )
+        self.train.route = Route(self.railmap.find_shortest_path(self.origin.name, self.destination.name))
         self.train.location.set_track(self.train.route.get_next_track())
         self.train.prev_junction = self.origin
         self.train.next_junction = self.train.route.get_next_junction()
@@ -288,7 +290,7 @@ class Client():
                     #set current proxy to 
                     proxy_host, proxy_port = self.current_proxy
                     self.sock = create_client_socket(proxy_host, proxy_port)
-                    client_ip, client_port = self.sock.getsockname()
+                    
                     #self.sock.settimeout(10)  # Set a 10-second timeout for the socket
 
                     if (
@@ -297,26 +299,32 @@ class Client():
                         print(
                             "Connection with main proxy failed, switching to backup proxy."
                         )
+                        temp = self.current_proxy
                         self.current_proxy = self.backup_proxy
+                        self.backup_proxy = temp
+
                         connected_to_main_proxy = False
                         
                         continue  # Skip the rest of this iteration
                     else:
                         connected_to_proxy = True
+                        self.client_ip, self.client_port = self.sock.getsockname()
+
                 else:
-
+                    
                     client_state = TrackNet_pb2.ClientState()
-
-                    self.set_client_state_msg(client_state, client_ip, client_port)
+                    
+                    self.set_client_state_msg(client_state, self.client_ip, self.client_port)
                     LOGGER.debug(f"state={client_state.location}")
 
                     message = TrackNet_pb2.InitConnection()
                     message.sender = TrackNet_pb2.InitConnection.Sender.CLIENT
                     message.client_state.CopyFrom(client_state)
 
-                    LOGGER.debug(f" Sending client state to proxy ")
+                    LOGGER.debug(f" Sending client state to proxy: {self.sock} ")
 
                     if send(self.sock, message.SerializeToString()):
+                        LOGGER.debug(f" Sent client state to proxy ")
                         try:
                             data = receive(self.sock,returnException=True,timeout=2)
                             resp = TrackNet_pb2.InitConnection()
@@ -325,29 +333,33 @@ class Client():
                             if data is not None:
                                 resp.ParseFromString(data)
                                 server_resp.CopyFrom(resp.server_response)
-                                self.handle_server_response (server_resp)
+                                self.handle_server_response(server_resp)
                             
                         except socket.timeout:
-                            LOGGER.warning("Socket timeout. Switching to backup proxy.")
-                            self.sock.close()
-                            self.sock = None
-                            connected_to_proxy = False
-                            self.current_proxy = self.backup_proxy
+                            #LOGGER.warning("Socket timeout. Switching to backup proxy.")
+                            LOGGER.debug(f"Socket timeout. Will resend a client state")
+                            #self.sock.close()
+                            #self.sock = None
+                            #connected_to_proxy = False
+                            #self.current_proxy = self.backup_proxy
                         except Exception as e:
                             LOGGER.warning(f"Exception thrown after sending client state {e}, Will switch to backup proxy {self.backup_proxy}")
                             self.sock.close()
                             self.sock = None
                             connected_to_proxy = False
+                            temp = self.current_proxy
                             self.current_proxy = self.backup_proxy
+                            self.backup_proxy = temp
 
                     
                     else:
-                       
-                       LOGGER.debug(f"Unable to send the client state to the proxy server. Switch to backup proxy: {self.backup_proxy} ")
-                       connected_to_proxy = False 
-                       self.sock.close()
-                       self.sock = None
-                       self.current_proxy = self.backup_proxy
+                        LOGGER.debug(f"Unable to send the client state to the proxy server. Switch to backup proxy: {self.backup_proxy} ")
+                        connected_to_proxy = False 
+                        self.sock.close()
+                        self.sock = None
+                        temp = self.current_proxy
+                        self.current_proxy = self.backup_proxy
+                        self.backup_proxy = temp
         
             except Exception as e:
                 LOGGER.error(f"Unexpected error in the main loop: {e}  ")
@@ -357,6 +369,7 @@ class Client():
 
 
     def handle_server_response (self, server_resp):
+        LOGGER.debug(f"handling server response: {server_resp} none: {server_resp==None}")
         if self.train.name is None:
             self.train.name = server_resp.train.id
             LOGGER.debug(f"Initi. {self.train.name}")
@@ -367,29 +380,33 @@ class Client():
                 ## cannot take instructions until route is assigned
                 self.sock.close()
                 return
+            
+        if server_resp.HasField("status"):
+            if server_resp.status == TrackNet_pb2.ServerResponse.UpdateStatus.CHANGE_SPEED:
+                LOGGER.debug(f"CHANGE_SPEED {self.train.name} to {server_resp.speed}")
+                self.train.set_speed(server_resp.speed)
 
-        if server_resp.status == TrackNet_pb2.ServerResponse.UpdateStatus.CHANGE_SPEED:
-            LOGGER.debug(f"CHANGE_SPEED {self.train.name} to {server_resp.speed}")
-            self.train.set_speed(server_resp.speed)
+            elif server_resp.status == TrackNet_pb2.ServerResponse.UpdateStatus.REROUTE:
+                LOGGER.debug(f"REROUTING {self.train.name}")
+                self.set_route(server_resp.route)
 
-        elif server_resp.status == TrackNet_pb2.ServerResponse.UpdateStatus.REROUTE:
-            LOGGER.debug(f"REROUTING {self.train.name}")
-            self.set_route(server_resp.route)
+            elif server_resp.status == TrackNet_pb2.ServerResponse.UpdateStatus.STOP:
+                LOGGER.debug(f"STOPPING {self.train.name}")
+                self.train.stop()
+                                
+            elif server_resp.status == TrackNet_pb2.ServerResponse.UpdateStatus.CLEAR:
+                if self.train.state == TrainState.PARKED:
+                    LOGGER.debug("UNPARKING")
+                    self.train.unpark(server_resp.speed)
+                elif self.train.state == TrainState.STOPPED:
+                    LOGGER.debug("RESUMING MOVEMENT")
+                    self.train.resume_movement(server_resp.speed)
+                elif self.train.state == TrainState.RUNNING and self.train.current_speed == TrainSpeed.SLOW.value:
+                    LOGGER.debug("SPEEDING UP")
+                    self.train.set_speed(TrainSpeed.FAST.value) 
+        else:
+            LOGGER.debug(f"Server response has no status")
 
-        elif server_resp.status == TrackNet_pb2.ServerResponse.UpdateStatus.STOP:
-            LOGGER.debug(f"STOPPING {self.train.name}")
-            self.train.stop()
-                            
-        elif server_resp.status == TrackNet_pb2.ServerResponse.UpdateStatus.CLEAR:
-            if self.train.state == TrainState.PARKED:
-                LOGGER.debug("UNPARKING")
-                self.train.unpark(server_resp.speed)
-            elif self.train.state == TrainState.STOPPED:
-                LOGGER.debug("RESUMING MOVEMENT")
-                self.train.resume_movement(server_resp.speed)
-            elif self.train.state == TrainState.RUNNING and self.train.current_speed == TrainSpeed.SLOW.value:
-                LOGGER.debug("SPEEDING UP")
-                self.train.set_speed(TrainSpeed.FAST.value)    
     
     
 if __name__ == '__main__':
