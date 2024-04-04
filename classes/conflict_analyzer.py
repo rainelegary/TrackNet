@@ -73,7 +73,7 @@ class ConflictAnalyzer:
         commands = {}
 
         # fast and clear
-        for train in railway.trains:
+        for train in railway.trains.values():
             command = TrackNet_pb2.ServerResponse()
             command.status = TrackNet_pb2.ServerResponse.UpdateStatus.CLEAR
             command.speed = TrainSpeed.FAST.value
@@ -84,15 +84,15 @@ class ConflictAnalyzer:
         # TODO park
             
         # slow
-        for track_id in railway.tracks.keys():
+        for track_id in railway.map.tracks.keys():
             commands = ConflictAnalyzer.resolve_bad_track_condition(railway, commands, track_id)
 
         # stop
-        for junction_id in railway.junctions.keys():
+        for junction_id in railway.map.junctions.keys():
             commands = ConflictAnalyzer.resolve_immediate_junction_conflict(railway, commands, junction_id)
 
         # slow (without overriding stop) / stop
-        for track_id in railway.tracks.keys():
+        for track_id in railway.map.tracks.keys():
             commands = ConflictAnalyzer.resolve_current_track_conflict(railway, commands, track_id)
         
         # returns a dictionary containing the commands to give to each train.
@@ -171,8 +171,8 @@ class ConflictAnalyzer:
 
     @staticmethod
     def resolve_bad_track_condition(railway, commands, track_id):
-        if railway.tracks[track_id].condition == TrackCondition.BAD:
-            for train in railway.tracks[track_id].trains.values():
+        if railway.map.tracks[track_id].condition == TrackCondition.BAD:
+            for train in railway.map.tracks[track_id].trains.values():
                 # message creation inside the for loop as the messages must be separate objects, 
                 # as they may be overwritten in different ways in the future
                 command = TrackNet_pb2.ServerResponse() 
@@ -197,7 +197,7 @@ class ConflictAnalyzer:
         :param commands: a dictionary that maps train id to a pending server response
         :param track_id: id of the track we are preventing conflicts on
         """
-        track = railway.tracks[track_id]
+        track = railway.map.tracks[track_id]
 
         train_heading = next(iter(track.trains.values())).next_junction
         same_direction = all(train.next_junction == train_heading for train in track.trains.values())
@@ -281,7 +281,7 @@ class ConflictAnalyzer:
         :param commands: a dictionary that maps train id to a pending server response
         :param junction_id: if of the junction we are preventing conflicts on
         """
-        junction = railway.junctions[junction_id]
+        junction = railway.map.junctions[junction_id]
 
         involved_trains = {} # all trains heading towards or already parked in this junction
         available_tracks = {} # all tracks that do not have trains heading towards this junction
@@ -305,7 +305,7 @@ class ConflictAnalyzer:
                 for train in track.trains.values():
                     if track.length - train.location.front_cart["position"] < ConflictAnalyzer.SAFETY_DISTANCE:
                         involved_trains[train.name] = train
-                    next_track = train.get_next_track()
+                    next_track = train.route.get_next_track()
                     in_demand_tracks[next_track.name] = next_track
             else:
                 available_tracks[track.name] = track
@@ -314,7 +314,7 @@ class ConflictAnalyzer:
         
         for train in junction.parked_trains.values():
             involved_trains[train.name] = train
-            next_track = train.get_next_track()
+            next_track = train.route.get_next_track()
             in_demand_tracks[next_track.name] = next_track
 
         parking_trains = {}

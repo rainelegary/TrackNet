@@ -103,7 +103,7 @@ class Client():
         self.train.location.set_track(self.train.route.get_next_track())
         self.train.prev_junction = self.origin
         self.train.next_junction = self.train.route.get_next_junction()
-        LOGGER.debug(f"init track={self.train.route.get_next_track()}")
+        LOGGER.debug(f"init track={self.train.route.get_next_track().name}")
         LOGGER.debug("Route created")
 
     def get_track_condition(self):

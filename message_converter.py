@@ -333,11 +333,7 @@ class MessageConverter:
     def route_msg_to_obj(
         msg: TrackNet_pb2.Route, junction_refs: "dict[str, Junction]"
     ) -> Route:
-        route = Route()
-        for junction_name in msg.junctions:
-            # route.junctions.append(junction_refs[junction_name])
-            pass
+        junction_arr = list(map(lambda j: junction_refs[j], msg.junction_ids))
+        route = Route(junction_arr)
         route.current_junction_index = msg.current_junction_index
-        route.destination = route.junctions[len(route.junctions) - 1]
-
         return route

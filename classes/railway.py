@@ -71,10 +71,16 @@ class Railway:
         else:
             raise Exception(f"Train {name} already exists.")
 
-    def update_train(self, train, state, location_msg: TrackNet_pb2.Location, route_msg: TrackNet_pb2.Route):
+    def update_train(self, train, state, location_obj: TrackNet_pb2.Location, route_obj: TrackNet_pb2.Route):
+        front_track_id = location_obj.front_cart["track"].name
+        front_junction_id = location_obj.front_cart["junction"].name
+        front_position = location_obj.front_cart["position"]
+        back_track_id = location_obj.back_cart["track"].name
+        back_junction_id = location_obj.back_cart["junction"].name
+        back_position = location_obj.back_cart["position"]
         
 		
-        LOGGER.debug(f" train name: {train.name} \n train location={train.location} \n new location={location_msg}")
+        LOGGER.debug(f" train name: {train.name} \n train location={train.location} \n new location={location_obj}")
 		
 
         # check if new track
@@ -85,13 +91,13 @@ class Railway:
         
         if (train.state in [TrainState.PARKED, TrainState.PARKING]) and (state in [TrainState.RUNNING, TrainState.UNPARKING]):
             # add to new track
-            self.map.tracks[location_msg.front_track_id].add_train(train)
+            self.map.tracks[front_track_id].add_train(train)
 			
 			# remove train from junction
-            LOGGER.debug(f"Remove {train.name} from {location_msg.back_junction_id}")
+            LOGGER.debug(f"Remove {train.name} from {back_junction_id}")
             try:
                 ## remove train front cart junc?
-                self.map.junctions[location_msg.back_junction_id].depart_train(train)
+                self.map.junctions[back_junction_id].depart_train(train)
             except Exception as exc:
                 LOGGER.debug("ERROR removing train fro junction: " + str(exc))
 
@@ -107,7 +113,7 @@ class Railway:
             except:
                 pass
             # add tain to new junction
-            self.map.junctions[location_msg.front_junction_id].park_train(train)
+            self.map.junctions[front_junction_id].park_train(train)
 
         LOGGER.debug(f"train_state={train.state} client_state={state}")
 
@@ -124,25 +130,13 @@ class Railway:
             # except Exception as exc:
                 # LOGGER.debug("ERROR: " + str(exc))
 
-        updated_location = Location()
-        updated_location.front_cart = {
-            "track": self.map.tracks[location_msg.front_track_id],
-            "junction": self.map.junctions[location_msg.front_junction_id],
-            "position": location_msg.front_position,
-        }
-        updated_location.back_cart = {
-            "track": self.map.tracks[location_msg.back_track_id],
-            "junction": self.map.junctions[location_msg.back_junction_id],
-            "position": location_msg.back_position,
-        }
-        self.trains[train.name].location = updated_location
-
+        self.trains[train.name].location = location_obj
         self.trains[train.name].state = state
+        self.trains[train.name].route = route_obj
 
         # update route
         # train = self.trains[train.name]
-        # possibly causing error
-        # self.set_route_for_train(route_msg,train)
+        # self.set_route_for_train(route_msg, train)
         # train.route = MessageConverter.route_msg_to_obj(route_msg, self.map.junctions)
 
     def set_route_for_train(self, route: TrackNet_pb2.Route, train: Train):
