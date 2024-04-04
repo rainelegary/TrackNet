@@ -83,9 +83,16 @@ message Railway {
     optional int32 train_counter = 3;
 }
 
+message LastHandledClientState {
+    optional string train_id = 1;
+    optional string client_state_hash = 2;
+    optional ServerResponse serverResponse = 3;
+}
+
 message RailwayUpdate {
     optional Railway railway = 1;
     optional float timestamp = 2;
+    repeated LastHandledClientState last_handled_client_states = 3;
 }
 
 message ServerResponse {
@@ -112,7 +119,7 @@ message ClientState {
     optional Location location = 4;
     optional TrackCondition condition = 5;
     optional Route route = 6;
-}
+    }
 
 // Sent to proxy upon initialization
 message ServerDetails{
@@ -160,4 +167,4 @@ message InitConnection {
      optional ServerDetails slave_details = 6;
      optional ServerAssignment server_assignment = 7;
      optional SlaveBackupTimestamp slave_backup_timestamp = 8;
-}
+     }
