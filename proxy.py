@@ -47,8 +47,11 @@ class Proxy:
         self.client_state_handled = {} # Map client address (IP, port) and to tuple (client_state,response_received)
         self.socket_list = []
         self.lock = threading.Lock()
-        self.heartbeat_interval = 1
-        self.heartbeat_timeout = 3
+
+        self.heartbeat_interval = 3
+        self.heartbeat_timeout = 2
+        self.slave_heartbeat_timeout = 2
+
 
         self.proxy_time = None
         self.adjusted_offset = None
@@ -406,9 +409,6 @@ class Proxy:
                 if self.handle_missed_proxy_heartbeat():
                     LOGGER.info("IS MAIN PROXY")
 
-    def send_heartbeat(self):
-        self.heartbeat_timer = threading.Timer(self.heartbeat_timeout, self.handle_heartbeat_timeout)
-
 	
     def send_heartbeat_loop(self):
 
@@ -493,10 +493,11 @@ class Proxy:
                 heartbeat_message.proxy_time = self.proxy_time
                 readable_proxy_time = self.convert_unix_time_to_readable(self.proxy_time)
                 LOGGER.debug("Sending... heartbeat, time: %s", readable_proxy_time)
-                if send(self.master_socket, heartbeat_message.SerializeToString()):
-                    # Start a timer
-                    self.heartbeat_timer.start()
-                else:
+                LOGGER.debug(
+                    f"Sending... heartbeat to master server {self.master_socket}"
+                )
+                if not send(self.master_socket, heartbeat_message.SerializeToString()):
+
                     LOGGER.warning(f"Failed to send heartbeat request to master server")
                 else:
                     # Start a timer
