@@ -106,13 +106,13 @@ class ConflictAnalyzer:
         next_track = train.route.get_next_track()
         next_junction = train.route.get_next_junction()
 
-        if Train.state not in [TrainState.PARKED, TrainState.PARKING]:
+        if train.state not in [TrainState.PARKED, TrainState.PARKING]:
             return True # train is moving on a track
 
         # break ties by train id. wait for train with smaller id to go first
         favored_train_id = sorted(list(filter(
                 lambda t: (railway.trains[t].route.get_next_track().name == next_track.name),
-                current_junction.trains.keys()
+                current_junction.parked_trains.keys()
             )))[0]
 
         if favored_train_id != train_id:
@@ -199,13 +199,16 @@ class ConflictAnalyzer:
         """
         track = railway.map.tracks[track_id]
 
+        if len(track.trains) == 0:
+            return commands
+
         train_heading = next(iter(track.trains.values())).next_junction
         same_direction = all(train.next_junction == train_heading for train in track.trains.values())
         if not same_direction:
             raise CollisionException("Trains moving opposite directions on the same track") # TODO a collision hasn't necessarily occurred and we may recover if we reverse
 
         # Sort trains front to back
-        sorted_trains = sorted(track.trains, key=lambda train: train.location.back_cart["position"], reverse=True)
+        sorted_trains = sorted(track.trains.values(), key=lambda train: train.location.back_cart["position"], reverse=True)
 
         # Slow down trains starting front to back
         for i, train in enumerate(sorted_trains):
@@ -361,17 +364,17 @@ class ConflictAnalyzer:
 
         # populate commands
         # each train has a different command object to allow for different references
-        for train_id, train in parking_trains:
+        for train_id, train in parking_trains.items():
             command = TrackNet_pb2.ServerResponse()
             command.status = TrackNet_pb2.ServerResponse.UpdateStatus.PARK
             commands[train_id] = command
         
-        for train_id, train in moving_trains:
+        for train_id, train in moving_trains.items():
             command = TrackNet_pb2.ServerResponse()
             command.status = TrackNet_pb2.ServerResponse.UpdateStatus.CLEAR
             commands[train_id] = command
         
-        for train_id, train in stopping_trains:
+        for train_id, train in stopping_trains.items():
             command = TrackNet_pb2.ServerResponse()
             command.status = TrackNet_pb2.ServerResponse.UpdateStatus.STOP
             commands[train_id] = command

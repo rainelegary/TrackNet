@@ -313,11 +313,15 @@ class MessageConverter:
         junction_refs: "dict[str, Junction]",
         track_refs: "dict[str, Track]",
     ) -> Location:
-
-        # need junction objects
-        # need track objects
-
-        pass
+        
+        return Location (
+            junction_refs[msg.front_junction_id],
+            junction_refs[msg.back_junction_id],
+            track_refs[msg.front_track_id],
+            track_refs[msg.back_track_id],
+            msg.front_position,
+            msg.back_position
+        )
 
     @staticmethod
     def route_obj_to_msg(
