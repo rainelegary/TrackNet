@@ -2,6 +2,9 @@
 from classes.enums import TrainState, TrainSpeed, TrackCondition
 from classes.train import Train
 import TrackNet_pb2
+import logging
+
+LOGGER = logging.getLogger(__name__)
 
 
 class CannotRerouteException(Exception):
@@ -78,23 +81,25 @@ class ConflictAnalyzer:
             command.status = TrackNet_pb2.ServerResponse.UpdateStatus.CLEAR
             command.speed = TrainSpeed.FAST.value
             commands[train.name] = command
-
-        # TODO reroute
-
-        # TODO park
             
         # slow
+        LOGGER.debug("Resolving bad track conditions")
         for track_id in railway.map.tracks.keys():
             commands = ConflictAnalyzer.resolve_bad_track_condition(railway, commands, track_id)
+        LOGGER.debug(commands["Train0"].speed)
 
         # stop
+        LOGGER.debug("Resolving immediate junction conflicts")
         for junction_id in railway.map.junctions.keys():
             commands = ConflictAnalyzer.resolve_immediate_junction_conflict(railway, commands, junction_id)
+        LOGGER.debug(commands["Train0"].speed)
 
         # slow (without overriding stop) / stop
+        LOGGER.debug("Resolving current track conflicts")
         for track_id in railway.map.tracks.keys():
             commands = ConflictAnalyzer.resolve_current_track_conflict(railway, commands, track_id)
-        
+        LOGGER.debug(commands["Train0"].speed)
+
         # returns a dictionary containing the commands to give to each train.
         return commands
     
@@ -135,41 +140,6 @@ class ConflictAnalyzer:
 
 
     @staticmethod
-    def reroute(railway, commands, train_id, junction_blacklist, track_blacklist): # throws CannotRerouteException
-        pass # new reroute function TODO in later iterations
-    
-    
-    # def reroute_train(self, train_name, avoid_track_name):
-    #     """
-    #     Previous implemenation as written in the server class
-    #     """
-
-
-    #     """
-    #     Reroutes a train to avoid a specified track.
-
-    #     :param train_name: The name of the train to reroute.
-    #     :param avoid_track_name: The name of the track to avoid.
-    #     """
-    #     train = self.trains[train_name]
-    #     if not train:
-    #         print(f"No train found with the name {train_name}.")
-    #         return
-
-    #     # Destination is the last junction in the train's current route
-    #     destination_junction = train.route.tracks[-1]
-
-    #     # Find a new route from the train's current junction to the destination
-    #     new_route = self.map.find_shortest_path(train.current_junction, destination_junction, avoid_track_name)
-
-    #     if new_route:
-    #         # Update the train's route
-    #         train.set_route(new_route)
-    #         print(f"Train {train_name} rerouted successfully.")
-    #     else:
-    #         print(f"No alternative route found for Train {train_name}.")
-
-    @staticmethod
     def resolve_bad_track_condition(railway, commands, track_id):
         if railway.map.tracks[track_id].condition == TrackCondition.BAD:
             for train in railway.map.tracks[track_id].trains.values():
@@ -205,7 +175,7 @@ class ConflictAnalyzer:
         train_heading = next(iter(track.trains.values())).next_junction
         same_direction = all(train.next_junction == train_heading for train in track.trains.values())
         if not same_direction:
-            raise CollisionException("Trains moving opposite directions on the same track") # TODO a collision hasn't necessarily occurred and we may recover if we reverse
+            raise CollisionException("Trains moving opposite directions on the same track")
 
         # Sort trains front to back
         sorted_trains = sorted(track.trains.values(), key=lambda train: train.location.back_cart["position"], reverse=True)
@@ -263,6 +233,7 @@ class ConflictAnalyzer:
                     # overwrite previous command with stop command
                     command = TrackNet_pb2.ServerResponse()
                     command.status = TrackNet_pb2.ServerResponse.UpdateStatus.STOP
+                    command.speed = TrainSpeed.STOPPED.value
                     commands[train_j.name] = command
                 
                 break # already told all following trains to stop so can exit loop
@@ -338,6 +309,7 @@ class ConflictAnalyzer:
 
             if train.state in [TrainState.PARKED, TrainState.PARKING] and not may_enter_next_track:
                 # cannot enter track yet; stay parked
+                LOGGER.debug("May not enter next track")
                 parking_trains[train_id] = train
                 continue
             
@@ -367,79 +339,20 @@ class ConflictAnalyzer:
         for train_id, train in parking_trains.items():
             command = TrackNet_pb2.ServerResponse()
             command.status = TrackNet_pb2.ServerResponse.UpdateStatus.PARK
+            command.speed = commands[train_id].speed
             commands[train_id] = command
         
         for train_id, train in moving_trains.items():
             command = TrackNet_pb2.ServerResponse()
             command.status = TrackNet_pb2.ServerResponse.UpdateStatus.CLEAR
+            command.speed = commands[train_id].speed
             commands[train_id] = command
         
         for train_id, train in stopping_trains.items():
             command = TrackNet_pb2.ServerResponse()
             command.status = TrackNet_pb2.ServerResponse.UpdateStatus.STOP
+            command.speed = TrainSpeed.STOPPED.value
             commands[train_id] = command
 
         return commands
-
-
-    """
-    Resolve a conflict that may occur once train goes on its next track
-
-    Prevention Hierarchy:
-        1. Park
-        2. Re-route
-        3. Stop
-    """
-    @staticmethod
-    def resolve_next_track_conflict(railway, commands, train_id, junction_blacklist, track_blacklist): 
-        # TODO in later iterations
-        pass
         
-
-    """
-    Resolve a conflict that may occur once train enters the junction that is after the train's next track
-
-    Prevention Hierarchy:
-        1. Park
-        2. Re-route
-        3. Stop
-    """
-    @staticmethod
-    def resolve_later_junction_conflict(railway, commands, train_id, junction_blacklist, track_blacklist): 
-        # TODO in later iterations
-        
-        # try parking
-
-        # reroute if no parking available
-        try:
-            return
-        except CannotRerouteException:
-            pass
-
-        # stop if cannot reroute
-
-    
-# railmap
-    # junctions
-        # id
-        # neighboring track id's (change proto)
-        # parked train id's (change proto)
-    # tracks
-        # junction_a id
-        # junction_b id
-        # id
-        # train id's (change proto)
-        # condition
-        # speed
-    # trains
-        # id
-        # length
-        # state
-        # location
-            #
-        # route
-            #
-        # destination junction id (change proto)
-        # speed
-
-    # train counter

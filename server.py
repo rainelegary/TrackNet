@@ -191,6 +191,7 @@ class Server:
 		resp.train.id = train.name
 		resp.train.length = train.length
 		resp.client.CopyFrom(client_state.client)
+
 		# LOGGER.debug(f"trains speed being set to {TrainSpeed.FAST.value}")
 		# resp.speed = TrainSpeed.FAST.value
 		# resp.status = TrackNet_pb2.ServerResponse.UpdateStatus.CLEAR
@@ -204,7 +205,14 @@ class Server:
 		if command.HasField("new_route"):
 			resp.new_route = command.new_route
 		if command.HasField("speed"):
+			print(command.speed)
 			resp.speed = command.speed
+		else:
+			print("NO SPEED!!!!")
+
+		print("HELLO WORLD (REMOVE LATER)")
+		print(resp.speed)
+		print(resp.status)
 
 		return resp
 
