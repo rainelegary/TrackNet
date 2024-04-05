@@ -42,7 +42,7 @@ initial_config = {
 
 class Client():
     
-    def __init__(self, host: str ="csx2.ucalgary.ca", port: int =5555):
+    def __init__(self, host: str ="csx2.ucalgary.ca", port: int =5555, origin=None, destination=None):
         """ A client class responsible for simulating a train's interaction with a server, including sending its state and receiving updates.
 
         :param host: The hostname or IP address of the server to connect to.
@@ -63,8 +63,12 @@ class Client():
             junctions=initial_config["junctions"], tracks=initial_config["tracks"]
         )
         self.last_time_updated = datetime.now()
-
-        self.origin, self.destination = self.railmap.get_origin_destination_junction()
+        
+        if origin == None:
+            self.origin, self.destination = self.railmap.get_origin_destination_junction()
+        else:
+            self.origin = self.railmap.junctions[origin]
+            self.destination = self.railmap.junction[destination]
         self.train = TrainMovement(
             length=self.generate_random_train_length(),
             location = Location(front_junction=self.origin, back_junction=self.origin)
@@ -136,7 +140,7 @@ class Client():
 
                 # Adjust the speed to achieve desired movement
                 speed_factor = 10  # Adjust this factor as needed
-                effective_speed = self.train.get_speed() * speed_factor
+                effective_speed = self.train.get_speed().value * speed_factor
                 distance_moved = effective_speed * (
                     elapsed_time / 3600
                 )  # Assuming speed is in km/h
@@ -424,6 +428,8 @@ if __name__ == '__main__':
     parser.add_argument('-proxy2', type=str, help='Address for proxy2')
     parser.add_argument('-proxyPort1', type=int, help='Proxy 1 port number')
     parser.add_argument('-proxyPort2', type=int, help='Proxy 2 port number')
+    parser.add_argument('-start', type=str, help='Start junction')
+    parser.add_argument('-destination', type=str, help='Destination junction')
     
     
     args = parser.parse_args()
@@ -432,6 +438,8 @@ if __name__ == '__main__':
     proxy2_address = args.proxy2
     proxy1_port_num = args.proxyPort1
     proxy2_port_num = args.proxyPort2
+    start_junction = args.start
+    destination_junction = args.destination
 
     LOGGER.debug(f"Proxy 1 address {proxy1_address}")
     LOGGER.debug(f"Proxy 2 address {proxy2_address}")
@@ -455,4 +463,4 @@ if __name__ == '__main__':
             cmdLineProxyDetails.append((proxy1_address, proxy1_port_num))
         if proxy2_address != None:
             cmdLineProxyDetails.append((proxy2_address, proxy2_port_num))
-    Client()
+    Client(origin=start_junction, destination=destination_junction)
