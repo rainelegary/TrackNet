@@ -29,6 +29,7 @@ class Route:
         """
         Returns next track as an object
         """
+        LOGGER.debugv(f"get_next_track(): current junction index = {self.current_junction_index}")
         if self.current_junction_index == len(self.junctions) - 1:
             return None
         return self.junctions[self.current_junction_index].neighbors[self.junctions[self.current_junction_index + 1].name]
@@ -37,6 +38,8 @@ class Route:
         """
         Returns next junction as an object
         """
+        if self.current_junction_index == len(self.junctions) - 1:
+            return None
         return self.junctions[self.current_junction_index + 1]
 
     def get_current_junction(self):

@@ -54,7 +54,7 @@ class TrainMovement(Train):
         # Handle the train's full arrival at the junction and transition to the next track if applicable
         # proceed with the next part of the route
 
-        LOGGER.debug(f"Arrived at junction {self.next_junction.name}")
+        LOGGER.debug(f"{self.name} arrived at junction {self.next_junction.name}")
         self.location.set_to_park()
         self.state = TrainState.PARKED
         self.current_speed = 0

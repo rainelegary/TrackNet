@@ -7,12 +7,10 @@ import logging
 LOGGER = logging.getLogger(__name__)
 
 
-class CannotRerouteException(Exception):
-    pass
-
-
 class CollisionException(Exception):
-    pass
+    """
+    Used to indicate that a train collision has occurred
+    """
 
 
 class Conflict:
@@ -86,19 +84,19 @@ class ConflictAnalyzer:
         LOGGER.debug("Resolving bad track conditions")
         for track_id in railway.map.tracks.keys():
             commands = ConflictAnalyzer.resolve_bad_track_condition(railway, commands, track_id)
-        LOGGER.debug(commands["Train0"].speed)
+        # LOGGER.debug(commands["Train0"].speed)
 
         # stop
         LOGGER.debug("Resolving immediate junction conflicts")
         for junction_id in railway.map.junctions.keys():
             commands = ConflictAnalyzer.resolve_immediate_junction_conflict(railway, commands, junction_id)
-        LOGGER.debug(commands["Train0"].speed)
+        # LOGGER.debug(commands["Train0"].speed)
 
         # slow (without overriding stop) / stop
         LOGGER.debug("Resolving current track conflicts")
         for track_id in railway.map.tracks.keys():
             commands = ConflictAnalyzer.resolve_current_track_conflict(railway, commands, track_id)
-        LOGGER.debug(commands["Train0"].speed)
+        # LOGGER.debug(commands["Train0"].speed)
 
         # returns a dictionary containing the commands to give to each train.
         return commands
@@ -131,7 +129,7 @@ class ConflictAnalyzer:
 
         # At this point in the code, we have ruled out the possibility that the track is empty.
         # Now determine direction of trains on track
-        track_heading = next(iter(next_track.trains.values())).next_junction.name
+        track_heading = next(iter(next_track.trains.values())).route.get_next_junction().name
         if track_heading != next_junction.name:
             return False # existing trains are moving opposite direction
         
@@ -178,10 +176,17 @@ class ConflictAnalyzer:
         train_heading = next(iter(track.trains.values())).next_junction
         same_direction = all(train.next_junction == train_heading for train in track.trains.values())
         if not same_direction:
-            raise CollisionException("Trains moving opposite directions on the same track")
+            raise CollisionException(f"Trains moving opposite directions on Track {track_id}")
 
         # Sort trains front to back
         sorted_trains = sorted(track.trains.values(), key=lambda train: train.location.back_cart["position"], reverse=True)
+
+        # check for collision by overlapping positions
+        pos = sorted_trains[0].location.front_cart["position"] + 1
+        for train in sorted_trains:
+            if train.location.front_cart["position"] > pos:
+                raise CollisionException(f"Two trains occupy the same part of Track {track_id}")
+            pos = train.location.back_cart["position"]
 
         # Slow down trains starting front to back
         for i, train in enumerate(sorted_trains):
@@ -278,7 +283,7 @@ class ConflictAnalyzer:
             # they are all heading in the same direction.
             # If this is not the case, the an exception will be raised when resolving track conflicts.
 
-            track_heading = next(iter(trains.values())).next_junction
+            track_heading = next(iter(trains.values())).route.get_next_junction().name
             if track_heading == junction.name:
                 for train in track.trains.values():
                     if track.length - train.location.front_cart["position"] < ConflictAnalyzer.SAFETY_DISTANCE:
@@ -295,8 +300,8 @@ class ConflictAnalyzer:
             next_track = train.route.get_next_track()
             in_demand_tracks[next_track.name] = next_track
 
-        LOGGER.debugv(f"available tracks: {available_tracks.keys()}")
-        LOGGER.debugv(f"in demand tracks: {in_demand_tracks.keys()}")
+        # LOGGER.debugv(f"available tracks: {available_tracks.keys()}")
+        # LOGGER.debugv(f"in demand tracks: {in_demand_tracks.keys()}")
 
         parking_trains = {}
         moving_trains = {} # unpark / keep moving
@@ -335,11 +340,14 @@ class ConflictAnalyzer:
                     # junction still has capacity
                     # issue "park" command
                     parking_trains[train_id] = train
-                else:
+                elif len(parking_trains) == ConflictAnalyzer.JUNCTION_CAPACITY:
                     # junction is full 
                     # issue "stop" command
                     LOGGER.debug(f"{train_id} stop because junction full")
                     stopping_trains[train_id] = train
+                else:
+                    # junction is over capacity, raise exception
+                    raise CollisionException(f"Capacity exceeded at Junction {junction_id}")
                 continue
 
             # otherwise (desired track occupied and on low demand track)

@@ -68,7 +68,7 @@ class Client():
             self.origin, self.destination = self.railmap.get_origin_destination_junction()
         else:
             self.origin = self.railmap.junctions[origin]
-            self.destination = self.railmap.junction[destination]
+            self.destination = self.railmap.junctions[destination]
         self.train = TrainMovement(
             length=self.generate_random_train_length(),
             location = Location(front_junction=self.origin, back_junction=self.origin)
@@ -172,7 +172,7 @@ class Client():
         new_route = []
         for junc in route.junction_ids:
             new_route.append(self.railmap.junctions[junc])
-        self.train.route = Route(new_route)
+        self.train.route = Route(new_route, route.current_junction_index)
         self.train.location.set_track(self.train.route.get_next_track())
         LOGGER.debug(f"init track={self.train.route.get_next_track()}")
 
@@ -291,7 +291,8 @@ class Client():
                     client_state = TrackNet_pb2.ClientState()
                     
                     self.set_client_state_msg(client_state, self.client_ip, self.client_port)
-                    LOGGER.debug(f"state={client_state.location}")
+                    LOGGER.debug(f"state:\n{client_state.location}")
+                    self.train.print_train()
 
                     message = TrackNet_pb2.InitConnection()
                     message.sender = TrackNet_pb2.InitConnection.Sender.CLIENT

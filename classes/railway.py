@@ -148,7 +148,7 @@ class Railway:
         new_route = []
         for junc in route.junctions:
             new_route.append(self.map.junctions[junc])
-        train.route = Route(new_route)
+        train.route = Route(new_route, route.current_junction_index)
         train.location.set_track(self.train.route.get_next_track())
         LOGGER.debug(f"init track={self.train.route.get_next_track()}")
 

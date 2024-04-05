@@ -159,8 +159,8 @@ class Server:
 				resp = TrackNet_pb2.ServerResponse()
 				value = self.handled_client_states.get(train.name)
 				if value is not None and clientStateHash == value[0]:
-					last_master_response = value[1]
-					resp.CopyFrom(last_master_response)
+					# last_master_response = value[1]
+					resp.CopyFrom(self.handle_client_state(client_state, train, apply_state=False))
 				else:
 					resp.CopyFrom(self.handle_client_state(client_state, train))
 				
@@ -183,8 +183,9 @@ class Server:
 
 				
 
-	def handle_client_state(self, client_state, train):
-		self.apply_client_state(client_state, train)
+	def handle_client_state(self, client_state, train, apply_state=True):
+		if apply_state:
+			self.apply_client_state(client_state, train)
 		resp = self.issue_client_command(client_state, train)
 		return resp
 
@@ -237,14 +238,9 @@ class Server:
 		if command.HasField("new_route"):
 			resp.new_route = command.new_route
 		if command.HasField("speed"):
-			print(command.speed)
 			resp.speed = command.speed
 		else:
 			print("NO SPEED!!!!")
-
-		print("HELLO WORLD (REMOVE LATER)")
-		print(resp.speed)
-		print(resp.status)
 
 		return resp
 
