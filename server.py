@@ -505,7 +505,7 @@ class Server:
 
 	def connect_to_proxy(self):
 		self.connecting_to_proxies = True
-		LOGGER.debug(f"!!!-------Connect to proxy called in thread: {threading.current_thread().name}")
+		#LOGGER.debug(f"!!!-------Connect to proxy called in thread: {threading.current_thread().name}")
 		
 		while not exit_flag:
 			

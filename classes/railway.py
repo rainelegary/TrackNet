@@ -242,6 +242,6 @@ class Railway:
                         print(f"  - Train: {train_id}, Speed: {train_data.current_speed}km/h, "
                             f"Position: Front {front_position}m - Back {back_position}m")
                 else:
-                    print(f"  Track: {track_name}, Length: {track.length}m - No running trains")
+                    print(f"Track: {track_name}, Length: {track.length}m - No running trains")
         else:
             print("No Tracks to display.")
