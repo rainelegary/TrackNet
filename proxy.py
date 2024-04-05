@@ -430,18 +430,18 @@ class Proxy:
                             heartbeat_message.is_heartbeat = True
 
                             # Start a timer
-                            LOGGER.debug("Starting timer right before sending heartbeat:")
+                            LOGGER.debugv("Starting timer right before sending heartbeat:")
                             self.heartbeat_timer = threading.Timer(self.heartbeat_timeout, self.handle_heartbeat_timeout_loop)
                             self.heartbeat_timer.start()
 
-                            LOGGER.debug(f"Sending... heartbeat to master server {self.master_socket}")
+                            LOGGER.debugv(f"Sending... heartbeat to master server {self.master_socket}")
 
                             if not send(self.master_socket, heartbeat_message.SerializeToString()):
                                 LOGGER.warning(f"Failed to send heartbeat request to master server {self.master_socket} FD: {self.master_socket.fileno()}")
                                 self.heartbeat_timer.cancel()
                                 self.handle_heartbeat_timeout_loop()
                             else:
-                                LOGGER.debug("Sent heartbeat to master")
+                                LOGGER.debugv("Sent heartbeat to master")
                                 #self.heartbeat_timer = threading.Timer(self.heartbeat_timeout, self.handle_heartbeat_timeout_loop)
                                 #self.heartbeat_timer.start()       
                     else:
@@ -661,9 +661,9 @@ class Proxy:
                                 )
                                 
                                 #self.handle_heartbeat_response_loop()
-                                LOGGER.debug(f"Recived heartbeat from master server. checking if timer running")
+                                LOGGER.debugv(f"Recived heartbeat from master server. checking if timer running")
                                 if self.heartbeat_timer and self.heartbeat_timer.is_alive():
-                                    LOGGER.debug(f"Timer is still running, will cancel timer")
+                                    LOGGER.debugv(f"Timer is still running, will cancel timer")
                                     self.heartbeat_timer.cancel()
 
                                 # send heartbeat

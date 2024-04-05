@@ -101,13 +101,13 @@ class Server:
             RailwayConverter.convert_railway_obj_to_pb(self.railway)
         )
         
-        for train_id, (client_state_hash, master_response) in self.handled_client_states.items():
+        for train_id, (client_state_hash, server_response) in self.handled_client_states.items():
             # Creating a new LastHandledClientState protobuf message
             last_handled_client_state = TrackNet_pb2.LastHandledClientState()
             last_handled_client_state.train_id = train_id
             last_handled_client_state.client_state_hash = client_state_hash
             
-            last_handled_client_state.serverResponse.CopyFrom(master_response)
+            last_handled_client_state.serverResponse.CopyFrom(server_response)
             
             # Adding the LastHandledClientState to the list in RailwayUpdate
             railway_update.last_handled_client_states.add().CopyFrom(last_handled_client_state)
@@ -139,12 +139,13 @@ class Server:
 
             return train
 
-    def computeHash(clienstate: Message):
+    def computeHash(self, clienstate: Message):
         serialized_obj = clienstate.SerializeToString()
         hash_obj = hashlib.sha256(serialized_obj)
         return hash_obj.hexdigest()
     
     def handle_client_states(self):
+        LOGGER.debug(F"Handling client states thread has been started")
         while not exit_flag:
             if self.client_state_queue.qsize() != 0:
                 (client_state, sock) = self.client_state_queue.get_nowait()
@@ -155,21 +156,22 @@ class Server:
                 except Exception as e:
                     LOGGER.error(f"Error getting train: {e}")
 
+                resp = TrackNet_pb2.ServerResponse()
                 value = self.handled_client_states.get(train.name)
                 if value is not None and clientStateHash == value[0]:
                     last_master_response = value[1]
-                    master_response.CopyFrom(last_master_response)
+                    resp.CopyFrom(last_master_response)
                 else:
-                    
-                    resp = self.handle_client_state(client_state, train)
-                    master_response = TrackNet_pb2.InitConnection()
-                    master_response.sender = TrackNet_pb2.InitConnection.Sender.SERVER_MASTER
-                    master_response.server_response.CopyFrom(resp)
+                    resp.CopyFrom(self.handle_client_state(client_state, train))
+                
+                master_response = TrackNet_pb2.InitConnection()
+                master_response.sender = TrackNet_pb2.InitConnection.Sender.SERVER_MASTER
+                master_response.server_response.CopyFrom(resp)
 
 
                 print(master_response)
                 train_id = resp.train.id
-                self.handled_client_states[train_id] = (clientStateHash,master_response)
+                self.handled_client_states[train_id] = (clientStateHash,master_response.server_response)
                 
                 # Create a separate thread for talking to slaves
                 threading.Thread(target=self.talk_to_slaves, daemon=True).start()
@@ -322,9 +324,9 @@ class Server:
                                 # Extract the train_id, client_state_hash, and serverResponse
                                 train_id = last_handled_client_state.train_id
                                 client_state_hash = last_handled_client_state.client_state_hash
-                                master_response = last_handled_client_state.serverResponse  
+                                server_response = last_handled_client_state.serverResponse  
 
-                                self.handled_client_states[train_id] = (client_state_hash, master_response)
+                                self.handled_client_states[train_id] = (client_state_hash, server_response)
                             
                 except socket.timeout:
                     continue  # No data received within the timeout, continue loop
@@ -345,12 +347,9 @@ class Server:
         try:
             proxy_resp.ParseFromString(data)
         except Exception as e:
-            LOGGER.error(
-                f"In slave_proxy_communication: Error parsing proxy message: {e}"
-            )
+            LOGGER.error(f"In slave_proxy_communication: Error parsing proxy message: {e}"           )
 
         if proxy_resp.HasField("server_assignment"):
-            LOGGER.debug(f"Slave received role assignment from proxy: {proxy_resp}")
             # Determine if this server has been assigned as the master
             LOGGER.debug(f"Slave received role assignment from proxy: {proxy_resp}")
 
@@ -415,9 +414,7 @@ class Server:
                 LOGGER.debug(f"proxy_resp has heatbeat feild but set to false: {proxy_resp}")
 
         else:
-            LOGGER.warning(
-                f"Slave received msg from prox. slave_proxy_communication couldn't handle content: {proxy_resp}"
-            )
+            LOGGER.warning(f"Slave received msg from prox. slave_proxy_communication couldn't handle content: {proxy_resp}")
 
     def master_proxy_communication(self, sock, data):
         # Data also needs to include an update of a new slave
@@ -443,7 +440,7 @@ class Server:
 
         # listen on proxy sock for client states
         elif proxy_resp.HasField("client_state"):
-
+            LOGGER.debug(F"Master server received client state, will put it in queue")
             try:
                 self.client_state_queue.put((proxy_resp.client_state, sock))
                 # resp = self.handle_client_state(proxy_resp.client_state)
@@ -467,13 +464,13 @@ class Server:
 
         # CHECK FOR HEARTBEAT HERE
         elif proxy_resp.HasField("is_heartbeat"):
-            LOGGER.debug(f"Received heartbeat from proxy: {proxy_resp.is_heartbeat}")
+            LOGGER.debugv(f"Received heartbeat from proxy: {proxy_resp.is_heartbeat}")
 
             heartbeat_message = proto.InitConnection()
             heartbeat_message.sender = TrackNet_pb2.InitConnection.Sender.SERVER_MASTER
             heartbeat_message.is_heartbeat = True
             if send(sock, heartbeat_message.SerializeToString()):
-                LOGGER.debug("Sent heartbeat message to main proxy")
+                LOGGER.debugv("Sent heartbeat message to main proxy")
             else:
                 LOGGER.warning("Failed to send heartbeat message to main proxy.")
         else:
