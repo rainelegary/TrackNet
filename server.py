@@ -513,7 +513,7 @@ class Server:
 			if proxyDetailsProvided:
 				for proxy_host, proxy_port in cmdLineProxyDetails:
 					key = f"{proxy_host}:{proxy_port}"
-					LOGGER.debug(F"prox sockets: {self.proxy_sockets} key {key}")
+					#LOGGER.debug(F"prox sockets: {self.proxy_sockets} key {key}")
 					if key not in self.proxy_sockets or (self.proxy_sockets[key]).fileno() < 0:
 						LOGGER.info(f"Connecting to proxy at {proxy_host}:{proxy_port}")
 						proxy_sock = create_client_socket(proxy_host, proxy_port)
