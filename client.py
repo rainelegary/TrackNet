@@ -387,6 +387,7 @@ class Client():
         if server_resp.HasField("status"):
             if server_resp.status == TrackNet_pb2.ServerResponse.UpdateStatus.CHANGE_SPEED:
                 LOGGER.debug(f"CHANGE_SPEED {self.train.name} to {server_resp.speed}")
+                self.train.stay_parked = False
                 self.train.set_speed(server_resp.speed)
 
             elif server_resp.status == TrackNet_pb2.ServerResponse.UpdateStatus.REROUTE:
@@ -398,15 +399,19 @@ class Client():
                 self.train.stop()
                                 
             elif server_resp.status == TrackNet_pb2.ServerResponse.UpdateStatus.CLEAR:
+                self.train.stay_parked = False
                 if self.train.state == TrainState.PARKED:
                     LOGGER.debug("UNPARKING")
-                    self.train.unpark(server_resp.speed)
+                    self.train.leave_junction()
                 elif self.train.state == TrainState.STOPPED:
                     LOGGER.debug("RESUMING MOVEMENT")
                     self.train.resume_movement(server_resp.speed)
                 elif self.train.state == TrainState.RUNNING and self.train.current_speed == TrainSpeed.SLOW.value:
                     LOGGER.debug("SPEEDING UP")
-                    self.train.set_speed(TrainSpeed.FAST.value) 
+                    self.train.set_speed(TrainSpeed.FAST.value)
+            
+            elif server_resp.status == TrackNet_pb2.ServerResponse.UpdateStatus.PARK:
+                self.train.stay_parked = True
         else:
             LOGGER.debug(f"Server response has no status")
 
