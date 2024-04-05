@@ -37,8 +37,8 @@ setup_logging()  ## only need to call at main entry point of application
 LOGGER = logging.getLogger("Server")
 
 
-# signal.signal(signal.SIGTERM, exit_gracefully)
-# signal.signal(signal.SIGINT, exit_gracefully)
+signal.signal(signal.SIGTERM, exit_gracefully)
+signal.signal(signal.SIGINT, exit_gracefully)
 
 
 # Slave server

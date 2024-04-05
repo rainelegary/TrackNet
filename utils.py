@@ -1,6 +1,7 @@
 import socket
 import logging
 import signal
+import sys
 
 __all__ = [
     "initial_config",
@@ -51,6 +52,7 @@ def exit_gracefully(signum, frame):
 
     print('Trying to exit gracefully. ' + sig_type)
     exit_flag = True
+    sys.exit(0)
 
 DEBUGV= 9 
 def debugv(self, message, *args, **kws):
