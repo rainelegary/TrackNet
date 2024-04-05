@@ -74,6 +74,8 @@ class Server:
 		self.proxy_sockets = {}
 		self.socks_for_communicating_to_slaves = []
 
+		self.connecting_to_proxies = False
+
 		self.isMaster = False
 		self.proxy_host = "csx1.ucalgary.ca"
 		self.proxy_port = 5555
@@ -159,8 +161,8 @@ class Server:
 				resp = TrackNet_pb2.ServerResponse()
 				value = self.handled_client_states.get(train.name)
 				if value is not None and clientStateHash == value[0]:
-					last_master_response = value[1]
-					resp.CopyFrom(last_master_response)
+					#last_master_response = value[1]
+					resp.CopyFrom(self.handle_client_state(client_state, train,))
 				else:
 					resp.CopyFrom(self.handle_client_state(client_state, train))
 				
@@ -209,7 +211,7 @@ class Server:
 		)
 
 		# print map
-		self.railway.print_map()
+		self.railway.print_map_new()
 
 	def issue_client_command(self, client_state, train):
 		resp = TrackNet_pb2.ServerResponse()
@@ -464,9 +466,12 @@ class Server:
 
 	def listen_to_proxy(self, proxy_sock, key):
 		try:
-			connected = True
-			while connected:
-				data = receive(proxy_sock)
+			while not exit_flag:
+				try:
+					data = receive(proxy_sock,timeout=5, returnException=True)
+				except socket.timeout:
+					data = None
+
 				if (data):  # split data into 3 difrerent types of messages, a heartbeat, a clientstate or a ServerAssignment
 					# Master server responsibilitites
 					if self.is_master:
@@ -474,6 +479,7 @@ class Server:
 							self.master_proxy_communication(proxy_sock, data)
 						except Exception as e:
 							LOGGER.error(f"Error in master proxy communication: {e}")
+							traceback.print_exc()
 							proxy_sock.shutdown(socket.SHUT_RDWR)
 							proxy_sock.close()
 
@@ -483,28 +489,33 @@ class Server:
 							self.slave_proxy_communication(proxy_sock, data)
 						except Exception as e:
 							LOGGER.error(f"Error in slave proxy communication: {e}")
+							traceback.print_exc()
 							proxy_sock.shutdown(socket.SHUT_RDWR)
 							proxy_sock.close()
-				else:
-					connected = False
-					LOGGER.debug(f"no data received from proxy will reconnect to proxy")
+
+		except Exception as e:
+			LOGGER.error(f"Error communicating with proxy, will reconnect to proxy")
 			proxy_sock.shutdown(socket.SHUT_RDWR)
 			proxy_sock.close()
 			self.proxy_sockets[key] = None
-			threading.Thread(target=self.connect_to_proxy(), daemon=False).start()
-		except Exception as e:
-			LOGGER.error(f"Error communicating with proxy: {e}")
+			if self.connecting_to_proxies == False:
+				threading.Thread(target=self.connect_to_proxy(), daemon=False).start()
 
-			traceback.print_exc()
-
-			proxy_sock.shutdown(socket.SHUT_RDWR)
-			proxy_sock.close()
 
 	def connect_to_proxy(self):
+		self.connecting_to_proxies = True
+		LOGGER.debug(f"!!!-------Connect to proxy called in thread: {threading.current_thread().name}")
+		
 		while not exit_flag:
 			
 			# Determine the source of proxy details
 			proxies_to_connect = cmdLineProxyDetails if proxyDetailsProvided else proxy_details.items()
+
+			# Attempt to connect to each proxy
+			for proxy_host, proxy_port in proxies_to_connect:
+				key = f"{proxy_host}:{proxy_port}"
+				if key not in self.proxy_sockets or self.proxy_sockets[key] is None:
+					self.attempt_proxy_connection(proxy_host, proxy_port, key)
 
 			# Check if all proxies are already connected
 			# all_connected = all(
@@ -515,20 +526,14 @@ class Server:
 			all_connected = all(
 				f"{proxy_host}:{proxy_port}" in self.proxy_sockets and
 				self.proxy_sockets[f"{proxy_host}:{proxy_port}"] is not None
-				for proxy_host, proxy_port in proxies_to_connect
-        	)
+				for proxy_host, proxy_port in proxies_to_connect)
 
 			if all_connected:
 				LOGGER.info("Connected to all proxies. Stopping connection attempts.")
 				break
 
-			# Attempt to connect to each proxy
-			for proxy_host, proxy_port in proxies_to_connect:
-				key = f"{proxy_host}:{proxy_port}"
-				if key not in self.proxy_sockets or self.proxy_sockets[key] is None:
-					self.attempt_proxy_connection(proxy_host, proxy_port, key)
-
 			time.sleep(5)  # Sleep between connection attempts
+		self.connecting_to_proxies = False
 		LOGGER.debug(f"done connecting to proxies")
 
 

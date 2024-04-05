@@ -215,3 +215,33 @@ class Railway:
 
             else:
                 print(f"  Track: {track_name} has no running trains or is not properly initialized.")
+
+    def print_map_new(self):
+        """Prints an overview of the map, including junctions, tracks, and parked or running trains."""
+        print("Map Overview:")
+
+        # Printing Junctions with parked trains
+        if self.map.junctions:
+            print("Junctions:")
+            for junction_name, junction in self.map.junctions.items():
+                trains_info = ", ".join(junction.parked_trains) if junction.parked_trains else "None"
+                print(f"  Junction: {junction_name}, Parked Trains: [{trains_info}]")
+        else:
+            print("No Junctions to display.")
+
+        # Printing Tracks with running trains
+        print("\nTracks:")
+        if self.map.tracks:
+            for track_name, track in self.map.tracks.items():
+                if hasattr(track, "trains") and track.trains:
+                    print(f"Track: {track_name}, Length: {track.length}m, Speed Limit: {track.speed}km/h")
+                    for train_id, train_data in track.trains.items():
+                        # Rounding positions to two decimal places
+                        front_position = round(train_data.location.front_cart['position'], 2)
+                        back_position = round(train_data.location.back_cart['position'], 2)
+                        print(f"  - Train: {train_id}, Speed: {train_data.current_speed}km/h, "
+                            f"Position: Front {front_position}m - Back {back_position}m")
+                else:
+                    print(f"  Track: {track_name}, Length: {track.length}m - No running trains")
+        else:
+            print("No Tracks to display.")
