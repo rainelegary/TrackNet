@@ -16,7 +16,6 @@ from classes.railmap import Railmap
 from classes.route import Route
 from classes.trainmovement import TrainMovement
 from datetime import datetime
-from message_converter import MessageConverter
 import random
 from classes.location import Location
 
@@ -305,7 +304,7 @@ class Client():
                             #self.sock = None
                             #connected_to_proxy = False
                             #self.current_proxy = self.backup_proxy
-                            
+
                         except Exception as e:
                             LOGGER.warning(f"Exception thrown after sending client state {e}, Will switch to backup proxy {self.backup_proxy}")
                             self.sock.close()

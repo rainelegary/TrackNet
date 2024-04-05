@@ -15,7 +15,6 @@ from datetime import datetime
 import time
 import threading
 from utils import initial_config, proxy_details
-from message_converter import MessageConverter
 from classes.conflict_analyzer import ConflictAnalyzer
 import argparse
 from converters.railway_converter import RailwayConverter

@@ -7,8 +7,6 @@ from .location import *
 import logging
 
 LOGGER = logging.getLogger(__name__)
-# from message_converter import MessageConverter
-
 
 # Example usage:
 # initial_config = {
