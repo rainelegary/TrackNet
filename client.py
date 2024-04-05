@@ -114,15 +114,8 @@ class Client():
         )
 
     def update_position(self):
-        ## TODO decided how often to update
         while not utils.exit_flag and not (self.train.route.destination_reached()):
             time.sleep(2)
-
-            #            if self.train.route.destination_reached():
-            #                #self.stay_parked = True
-            #                LOGGER.debug(f"*****************DESTINATION REACHED*******************")
-            #                utils.exit_flag = True
-            #                break
 
             if self.train.state in [TrainState.PARKED, TrainState.STOPPED]:
                 continue
@@ -312,6 +305,7 @@ class Client():
                             #self.sock = None
                             #connected_to_proxy = False
                             #self.current_proxy = self.backup_proxy
+                            
                         except Exception as e:
                             LOGGER.warning(f"Exception thrown after sending client state {e}, Will switch to backup proxy {self.backup_proxy}")
                             self.sock.close()

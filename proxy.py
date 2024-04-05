@@ -27,13 +27,7 @@ LOGGER = logging.getLogger("Proxy")
 
 
 class Proxy:
-    def __init__(
-        self,
-        proxy_port=5555,
-        listening_port=5555,
-        is_main=False,
-        mainProxyAddress=list(proxy_details.items())[0][0],
-    ):
+    def __init__(self,proxy_port=5555,listening_port=5555,is_main=False,mainProxyAddress=list(proxy_details.items())[0][0],):
         LOGGER.debug(f"port: {proxy_port} listening port {listening_port}")
         self.host = socket.gethostname()
         self.port = listening_port
@@ -213,16 +207,7 @@ class Proxy:
                     self.relay_client_state(client_state)
 
         else:
-            LOGGER.warning(f"Failed to send role assignmnet to newly elected master.")
-
-        ##TODO recv ACK
-
-        # remove new master from list of slaves
-        # self.remove_slave_socket(slave_socket)
-        #LOGGER.debug("sending heartbeat to new master server")
-        #self.master_server_heartbeat_thread.start()
-        # threading.Thread(target=self.send_heartbeat, args=(self.master_socket,), daemon=True).start()
-        #self.send_heartbeat()
+            LOGGER.warning(f"Failed to send role assignmnet to newly elected master.")       
 
     def notify_master_of_new_slave(self, init_conn: TrackNet_pb2.InitConnection):
         # Notify master of new slave server so it can connect to it
@@ -476,12 +461,6 @@ class Proxy:
                     if self.all_slave_timestamps.get((slave_host, slave_port), 0) != 0:
                         timestampReceived = True
                     time.sleep(0.1)  # Sleep for a short time to avoid busy waiting
-                
-                # if timestampReceived == False:
-                #     if (slave_host, slave_port) in self.all_slave_timestamps:
-                #         del self.all_slave_timestamps[(slave_host, slave_port)]
-                #     else:
-                #         LOGGER.debug(f"Key {(slave_host, slave_port)} not found in all_slave_timestamps.")
                 
         except Exception as e:
             LOGGER.warning(f"Error in send_heartbeat_to_slaves on socket {slave_socket}: {e}")

@@ -244,24 +244,6 @@ class Server:
 		# slave_identification_msg.slave_details.port = slave_to_master_port
 		slave_identification_msg.slave_details.port = self.port
 
-	def talk_to_slaves_old(self):
-		"""Sends railway update  message to slaves"""
-		LOGGER.info(f"Sending backups to slaves")
-		LOGGER.debug(f"number of slaves: {len(self.slave_sockets)}")
-		for _, slave_socket in self.slave_sockets.items():
-			# Prepare the client state message
-			print("HERE")
-			master_resp = TrackNet_pb2.InitConnection()
-			master_resp.sender = TrackNet_pb2.InitConnection.SERVER_MASTER
-			master_resp.railway_update.CopyFrom(
-				MessageConverter.railway_obj_and_ts_to_railway_update_msg(
-					self.railway, datetime.utcnow().isoformat()
-				)
-			)
-			print(master_resp)
-
-			if not send(slave_socket, master_resp.SerializeToString()):
-				LOGGER.warning(f"Railway update message failed to sent to slave")
 
 	def listen_for_master(self, host, port):
 		slave_to_master_sock = create_server_socket(host, port)
@@ -411,13 +393,7 @@ class Server:
 		proxy_resp.ParseFromString(data)
 		# LOGGER.debug(f"Master server received response from proxy\n{proxy_resp}")
 
-		# Receive updates on new slaves connecting to the proxy
-		# if len(proxy_resp.slave_details) > 0:
-		#    for slave_details in proxy_resp.slave_details:
-		#        slave_key = f"{slave_details.ip}:{slave_details.port}"
-		#        # check if connection to slave already exists
-		#        if slave_key not in self.slave_sockets or self.slave_sockets[slave_key] is None:
-		#            self.connect_to_slave(slave_details.ip, slave_details.port)
+		
 
 		if proxy_resp.HasField("slave_details"):
 			LOGGER.debug("Received slave server details from proxy")
@@ -437,19 +413,6 @@ class Server:
 				LOGGER.error(
 					f"Error handling client state: {e} traceback: {traceback.print_exception(e)} "
 				)
-
-			# master_response = TrackNet_pb2.InitConnection()
-			# master_response.sender = TrackNet_pb2.InitConnection.Sender.SERVER_MASTER
-			# master_response.server_response.CopyFrom(resp)
-			# print(master_response)
-
-			# if not send(sock, master_response.SerializeToString()):
-			#     LOGGER.warning(f"ServerResponse message failed to send to proxy.")
-			# else:
-			#     print("sent server response to proxy")
-
-			# # Create a separate thread for talking to slaves
-			# threading.Thread(target=self.talk_to_slaves, daemon=True).start()
 
 		# CHECK FOR HEARTBEAT HERE
 		elif proxy_resp.HasField("is_heartbeat"):
@@ -532,12 +495,6 @@ class Server:
 				if key not in self.proxy_sockets or self.proxy_sockets[key] is None:
 					self.attempt_proxy_connection(proxy_host, proxy_port, key)
 
-			# Check if all proxies are already connected
-			# all_connected = all(
-			# 	f"{proxy_host}:{proxy_port}" in self.proxy_sockets and
-			# 	(self.proxy_sockets[f"{proxy_host}:{proxy_port}"]).fileno() >= 0
-			# 	for proxy_host, proxy_port in proxies_to_connect
-			# )
 			all_connected = all(
 				f"{proxy_host}:{proxy_port}" in self.proxy_sockets and
 				self.proxy_sockets[f"{proxy_host}:{proxy_port}"] is not None
