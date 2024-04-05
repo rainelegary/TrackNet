@@ -167,7 +167,7 @@ class Client():
             state.train.id = self.train.name
         state.train.length = self.train.length
         state.train.state = self.train.state.value
-        state.speed = self.train.get_speed()
+        state.speed = self.train.get_speed().value
         self.train.location.set_location_message(state.location)
         state.condition = self.get_track_condition()
 
