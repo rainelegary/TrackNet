@@ -6,14 +6,12 @@ import threading
 import TrackNet_pb2
 import TrackNet_pb2 as proto
 import traceback
-import time
 import TrackNet_pb2
 import logging
 import sys
-import time
 from utils import *
 import argparse
-
+import time 
 
 # Global Variables
 proxy_address = None
@@ -55,8 +53,7 @@ class Proxy:
 
         self.proxy_time = None
         self.adjusted_offset = None
-        self.t1 = None
-        self.t2 = None
+        
 
         self.is_main = is_main
         if is_main:
@@ -334,7 +331,7 @@ class Proxy:
 
             if send(proxy_sock, heartbeat_message.SerializeToString()):
                 LOGGER.debug("Sent heartbeat message to main proxy.")
-                self.t1 = time.time()
+                
             else:
                 LOGGER.warning("Failed to send heartbeat message to main proxy.")
 
@@ -346,26 +343,6 @@ class Proxy:
 
                 if heartbeat.code != proto.Response.Code.HEARTBEAT:
                     LOGGER.debug("Did not received heartbeat from main proxy?")
-
-                if heartbeat.HasField("proxy_time") and self.t1 is not None:
-                    self.t2 = time.time()
-                    proxy_time = heartbeat.proxy_time
-
-                    # Calculate round-trip time (RTT)
-                    round_trip_time = self.t2 - self.t1
-                    LOGGER.debug(f"Round-trip time: {round_trip_time}")
-
-                    # Estimate proxy's current time by adding half RTT to proxy_time
-                    estimated_proxy_time = proxy_time + (round_trip_time / 2)
-
-                    # Calculate offset (difference) between estimated proxy time and current time
-                    self.adjusted_offset = estimated_proxy_time - self.t2
-
-                    LOGGER.debug(f"Adjusted offset: {self.adjusted_offset}")
-
-                    self.t1 = None  # Reset t1 for the next calculation
-                else:
-                    LOGGER.debug ("Error in heartbeat message from main proxy")
 
                 if heartbeat.HasField("master_host"):
                     # if no master server or new master server
@@ -707,9 +684,6 @@ class Proxy:
                             LOGGER.debugv("Received message from backup proxy")
                             heartbeat = proto.Response()
                             heartbeat.code = proto.Response.Code.HEARTBEAT
-                            self.proxy_time = time.time()
-                            heartbeat.proxy_time = self.proxy_time
-                            readable_proxy_time = self.convert_unix_time_to_readable(self.proxy_time)
 
                             # nofity backup proxy who the master server is
                             try:
@@ -723,7 +697,7 @@ class Proxy:
                                 )
 
                             if send(conn, heartbeat.SerializeToString()):
-                                LOGGER.debug("Sent heartbeat response to backup proxy, main proxy time: %s", readable_proxy_time)
+                                LOGGER.debug("Sent heartbeat response to backup proxy")
                             else:
                                 LOGGER.warning(f"Failed to send heartbeat to backup proxy.")
 

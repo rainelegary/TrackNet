@@ -260,19 +260,6 @@ class Server:
             if not send(slave_socket, master_resp.SerializeToString()):
                 LOGGER.warning(f"Railway update message failed to sent to slave")
 
-    def connect_to_slave_old(self, slave_host, slave_port):
-        LOGGER.info("Master connecting to the new slave")
-        try:
-            # for each slave create client sockets
-            slave_sock = create_client_socket(slave_host, slave_port)
-            self.slave_sockets[f"{slave_host}:{slave_port}"] = slave_sock
-            LOGGER.debug(f"Added slave server {slave_host}:{slave_port}")
-            # Start a new thread dedicated to this slave for communication
-            # threading.Thread(target=self.handle_slave_communication, args=(slave_sock,), daemon=True).start()
-
-        except Exception as e:
-            LOGGER.error(f"Could not connect to slave {slave_host}:{slave_port}: {e}")
-
     def listen_for_master(self, host, port):
         slave_to_master_sock = create_server_socket(host, port)
         LOGGER.debug("Slave created listening socket, waiting for master backups")
@@ -511,15 +498,14 @@ class Server:
             if proxyDetailsProvided:
                 for proxy_host, proxy_port in cmdLineProxyDetails:
                     key = f"{proxy_host}:{proxy_port}"
-                    if key not in self.proxy_sockets or self.proxy_sockets[key] is None:
+                    LOGGER.debug(F"prox sockets: {self.proxy_sockets} key {key}")
+                    if key not in self.proxy_sockets or (self.proxy_sockets[key]).fileno() < 0:
                         LOGGER.info(f"Connecting to proxy at {proxy_host}:{proxy_port}")
                         proxy_sock = create_client_socket(proxy_host, proxy_port)
-
+                        
                         if proxy_sock:
-                            LOGGER.info(
-                                f"Connected to proxy at {proxy_host}:{proxy_port}"
-                            )
-                            self.proxy_sockets[key] = cmdLineProxyDetails
+                            LOGGER.info(f"Connected to proxy at {proxy_host}:{proxy_port}")
+                            self.proxy_sockets[key] = proxy_sock
                             # Send proxy init message to identify itself as a slave
                             slave_identification_msg = TrackNet_pb2.InitConnection()
                             self.set_slave_identification_msg(slave_identification_msg)
@@ -527,9 +513,7 @@ class Server:
                             if send(
                                 proxy_sock, slave_identification_msg.SerializeToString()
                             ):
-                                LOGGER.debug(
-                                    "Sent slave identification message to proxy"
-                                )
+                                LOGGER.debug("Sent slave identification message to proxy")
                                 threading.Thread(
                                     target=self.listen_to_proxy,
                                     args=(proxy_sock,),
@@ -551,7 +535,7 @@ class Server:
                             LOGGER.info(
                                 f"Connected to proxy at {proxy_host}:{proxy_port}"
                             )
-                            self.proxy_sockets[key] = proxy_details
+                            self.proxy_sockets[key] = proxy_sock
                             # Send proxy init message to identify itself as a slave
                             slave_identification_msg = TrackNet_pb2.InitConnection()
                             self.set_slave_identification_msg(slave_identification_msg)
