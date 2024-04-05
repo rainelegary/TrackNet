@@ -46,7 +46,7 @@ class TrainMovement(Train):
         self.location.set_track(next_track)
         self.prev_junction = self.next_junction
         self.next_junction = self.route.get_next_junction()
-        self.current_speed = TrainSpeed.FAST
+        self.current_speed = TrainSpeed.FAST.value
         self.state = TrainState.UNPARKING
 
     def handle_arrival_at_junction(self):

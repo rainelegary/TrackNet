@@ -46,7 +46,7 @@ class Train:
     def set_route(self, route):
         self.route = route
 
-    def set_speed(self, new_speed):
+    def set_speed(self, new_speed: int):
         self.current_speed = new_speed
 
     def get_speed(self):

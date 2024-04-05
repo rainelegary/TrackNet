@@ -140,7 +140,7 @@ class Client():
 
                 # Adjust the speed to achieve desired movement
                 speed_factor = 10  # Adjust this factor as needed
-                effective_speed = self.train.get_speed().value * speed_factor
+                effective_speed = self.train.get_speed() * speed_factor
                 distance_moved = effective_speed * (
                     elapsed_time / 3600
                 )  # Assuming speed is in km/h
@@ -167,7 +167,7 @@ class Client():
             state.train.id = self.train.name
         state.train.length = self.train.length
         state.train.state = self.train.state.value
-        state.speed = self.train.get_speed().value
+        state.speed = self.train.get_speed()
         self.train.location.set_location_message(state.location)
         state.condition = self.get_track_condition()
 
