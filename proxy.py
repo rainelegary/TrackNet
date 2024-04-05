@@ -520,7 +520,7 @@ class Proxy:
         readable_time = datetime_object.strftime('%Y-%m-%d %H:%M:%S')
         return readable_time  
 
-    def send_receive_on_socket(self, slave_socket, slave_host, slave_port):
+    def send_heartbeat_to_slaves(self, slave_socket, slave_host, slave_port):
         """Is called in choose_new_master. Send a heartbeat request to a slave server and waits to receive "slave_last_backup_timestamp" as the response."""
         # Send request for heartbeat
         request_heartbeat = TrackNet_pb2.InitConnection()
@@ -547,7 +547,7 @@ class Proxy:
                 
         except Exception as e:
             LOGGER.warning(
-                f"Error in send_receive_on_socket on socket {slave_socket}: {e}"
+                f"Error in send_heartbeat_to_slaves on socket {slave_socket}: {e}"
             )
 
     def choose_new_master(self):
@@ -561,7 +561,7 @@ class Proxy:
             self.all_slave_timestamps[(slaveHost,slavePort)] = 0
 
             thread = threading.Thread(
-                target=self.send_receive_on_socket,
+                target=self.send_heartbeat_to_slaves,
                 args=(slave_socket,slaveHost, slavePort),
             )
             threads.append(thread)
