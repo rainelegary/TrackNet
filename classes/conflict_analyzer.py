@@ -111,6 +111,9 @@ class ConflictAnalyzer:
         next_track = train.route.get_next_track()
         next_junction = train.route.get_next_junction()
 
+        if next_track is None:
+            return True
+
         if train.state not in [TrainState.PARKED, TrainState.PARKING]:
             return True # train is moving on a track
 
@@ -243,6 +246,7 @@ class ConflictAnalyzer:
     
     @staticmethod
     def resolve_immediate_junction_conflict(railway, commands, junction_id):
+        LOGGER.debugv(f"Solving Junction: {junction_id}")
         """
         Resolve a conflict that may occur once trains enter the junction the are heading towards
 
@@ -268,7 +272,7 @@ class ConflictAnalyzer:
             if not trains:
                 available_tracks[track.name] = track
                 continue
-
+                
             # NOTE track heading is the junction that all trains on this track are heading to.
             # it is assumed to be the same for all trains on this track, meaning
             # they are all heading in the same direction.
@@ -291,6 +295,9 @@ class ConflictAnalyzer:
             next_track = train.route.get_next_track()
             in_demand_tracks[next_track.name] = next_track
 
+        LOGGER.debugv(f"available tracks: {available_tracks.keys()}")
+        LOGGER.debugv(f"in demand tracks: {in_demand_tracks.keys()}")
+
         parking_trains = {}
         moving_trains = {} # unpark / keep moving
         stopping_trains = {}
@@ -300,6 +307,9 @@ class ConflictAnalyzer:
 
             may_enter_next_track = ConflictAnalyzer.may_enter_next_track(railway, commands, train_id)
 
+            LOGGER.debugv(f"{train_id} may enter next track: {may_enter_next_track}")
+            LOGGER.debugv(f"{train_id} next route.get_next_track() returns {train.route.get_next_track().name}")
+
             if (
                 train.route.get_next_track().name in available_tracks
                 and may_enter_next_track
@@ -307,13 +317,15 @@ class ConflictAnalyzer:
                 moving_trains[train_id] = train
                 continue 
 
+            LOGGER.debugv(f"{train_id} unable to proceed to next track")
+
             if train.state in [TrainState.PARKED, TrainState.PARKING] and not may_enter_next_track:
                 # cannot enter track yet; stay parked
-                LOGGER.debug("May not enter next track")
                 parking_trains[train_id] = train
                 continue
             
             # can now assume train is moving and its next track is not available
+            LOGGER.debugv(f"{train_id} is moving and next track is unavailable")
 
             if (
                 train.location.front_cart["track"].name in in_demand_tracks
@@ -326,29 +338,34 @@ class ConflictAnalyzer:
                 else:
                     # junction is full 
                     # issue "stop" command
+                    LOGGER.debug(f"{train_id} stop because junction full")
                     stopping_trains[train_id] = train
                 continue
 
             # otherwise (desired track occupied and on low demand track)
             # issue "stop" command to this train
+            LOGGER.debug(f"{train_id} desired track occupied and on low demand track")
             stopping_trains[train_id] = train
 
 
         # populate commands
         # each train has a different command object to allow for different references
         for train_id, train in parking_trains.items():
+            LOGGER.debug(f"{train_id} told to park")
             command = TrackNet_pb2.ServerResponse()
             command.status = TrackNet_pb2.ServerResponse.UpdateStatus.PARK
             command.speed = commands[train_id].speed
             commands[train_id] = command
         
         for train_id, train in moving_trains.items():
+            LOGGER.debug(f"{train_id} told to move")
             command = TrackNet_pb2.ServerResponse()
             command.status = TrackNet_pb2.ServerResponse.UpdateStatus.CLEAR
             command.speed = commands[train_id].speed
             commands[train_id] = command
         
         for train_id, train in stopping_trains.items():
+            LOGGER.debug(f"{train_id} told to stop")
             command = TrackNet_pb2.ServerResponse()
             command.status = TrackNet_pb2.ServerResponse.UpdateStatus.STOP
             command.speed = TrainSpeed.STOPPED.value

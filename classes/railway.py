@@ -71,7 +71,7 @@ class Railway:
         else:
             raise Exception(f"Train {name} already exists.")
 
-    def update_train(self, train, state, location_obj: TrackNet_pb2.Location, route_obj: TrackNet_pb2.Route):
+    def update_train(self, train, state, location_obj: Location, route_obj: Route):
         front_track_id = location_obj.front_cart["track"].name
         front_junction_id = location_obj.front_cart["junction"].name
         front_position = location_obj.front_cart["position"]
@@ -79,7 +79,6 @@ class Railway:
         back_junction_id = location_obj.back_cart["junction"].name
         back_position = location_obj.back_cart["position"]
         
-		
         LOGGER.debug(f" train name: {train.name} \n train location={train.location} \n new location={location_obj}")
 		
 
@@ -133,6 +132,12 @@ class Railway:
         self.trains[train.name].location = location_obj
         self.trains[train.name].state = state
         self.trains[train.name].route = route_obj
+
+        if self.trains[train.name].location.back_cart["junction"] == self.trains[train.name].route.destination:
+            try: 
+                self.map.junctions[back_junction_id].depart_train(train)
+            except Exception as exc:
+                LOGGER.debug("ERROR removing train fro junction: " + str(exc))
 
         # update route
         # train = self.trains[train.name]

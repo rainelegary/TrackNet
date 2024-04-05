@@ -29,6 +29,8 @@ class Route:
         """
         Returns next track as an object
         """
+        if self.current_junction_index == len(self.junctions) - 1:
+            return None
         return self.junctions[self.current_junction_index].neighbors[self.junctions[self.current_junction_index + 1].name]
     
     def get_next_junction(self):

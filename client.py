@@ -171,6 +171,8 @@ class Client():
             for junction_obj in self.train.route.junctions:
                 state.route.junction_ids.append(junction_obj.name)
 
+            state.route.current_junction_index = self.train.route.current_junction_index
+
     def set_route(self, route: TrackNet_pb2.Route):
         new_route = []
         for junc in route.junction_ids:
@@ -361,14 +363,16 @@ class Client():
                         self.backup_proxy = temp
         
             except Exception as e:
+                traceback.print_exception(e)
                 LOGGER.error(f"Unexpected error in the main loop: {e}  ")
+
                 break  # Exit the loop on unexpected error
 
             time.sleep(5)
 
 
     def handle_server_response (self, server_resp):
-        LOGGER.debug(f"handling server response: {server_resp} none: {server_resp==None}")
+        LOGGER.debug(f"handling server response: {server_resp} none: {server_resp == None}")
         if self.train.name is None:
             self.train.name = server_resp.train.id
             LOGGER.debug(f"Initi. {self.train.name}")
