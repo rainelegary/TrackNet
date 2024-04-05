@@ -70,40 +70,35 @@ class Client():
             location = Location(front_junction=self.origin, back_junction=self.origin)
         )
         self.generate_route()
-        print("Route: ", end="")
+
+        debug_str = "Route:"
         for junc in self.train.route.junctions:
-            print("->", junc.name, end=" ")
-        print()
-        print()
+            debug_str = debug_str + "->" + junc.name
+        LOGGER.info(debug_str + "\n\n")
                     
         threading.Thread(target=self.update_position, args=(), daemon=True).start() 
-        
 
         if proxyDetailsProvided:
             proxy_items = cmdLineProxyDetails
         else:
             proxy_items = list(proxy_details.items())
 
-
         index = random.randint(0, len(proxy_items) - 1)
-        #print (f"index: {index} index 2: {(index + 1) % (len(proxy_items))}")
-        #print(proxy_items)
         self.current_proxy = proxy_items[index]  # First item
         self.backup_proxy = proxy_items[(index + 1) % (len(proxy_items))]  # Second item   
-        print (f"Current proxy: {self.current_proxy}")     
-        print (f"Backup proxy: {self.backup_proxy}")     
+        LOGGER.info(f"Current proxy: {self.current_proxy}")     
+        LOGGER.info(f"Backup proxy: {self.backup_proxy}")     
         self.run()
 
     def generate_random_train_length(self):
-        ## TODO
-        return 5
+        return random.randint(1, 5) 
 
     def generate_route(self):
         self.train.route = Route(self.railmap.find_shortest_path(self.origin.name, self.destination.name))
         self.train.location.set_track(self.train.route.get_next_track())
         self.train.prev_junction = self.origin
         self.train.next_junction = self.train.route.get_next_junction()
-        LOGGER.debug(f"init track={self.train.route.get_next_track()}")
+        LOGGER.debug(f"init track={self.train.route.get_next_track().name}")
         LOGGER.debug("Route created")
 
     def get_track_condition(self):
@@ -148,9 +143,7 @@ class Client():
         os._exit(0)  # Exit the program immediately with a status of 0
         # utils.exit_flag = True
 
-    def set_client_state_msg(
-        self, state: TrackNet_pb2.ClientState, clientIP, clientPort
-    ):
+    def set_client_state_msg(self, state: TrackNet_pb2.ClientState, clientIP, clientPort):
         """Populates a `ClientState` message with the current state of the train, including its id, length, speed, location, track condition, and route.
 
         :param state: The `ClientState` message object to be populated with the train's current state.
@@ -406,7 +399,6 @@ class Client():
         else:
             LOGGER.debug(f"Server response has no status")
 
-    
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Process Server args")
