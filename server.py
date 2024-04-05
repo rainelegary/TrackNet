@@ -1,3 +1,4 @@
+import hashlib
 import os
 import TrackNet_pb2
 import TrackNet_pb2 as proto
@@ -21,6 +22,7 @@ from converters.railway_converter import RailwayConverter
 
 from queue import Queue
 
+from google.protobuf.message import Message
 # Global Variables
 proxy1_address = None
 proxy2_address = None
@@ -90,6 +92,7 @@ class Server:
 
         self.backup_railway_timestamp = None
         self.backup_railway = None
+        self.handled_client_states = {}
 
         self.client_state_queue = Queue()
 
@@ -105,6 +108,18 @@ class Server:
         railway_update.railway.CopyFrom(
             RailwayConverter.convert_railway_obj_to_pb(self.railway)
         )
+        
+        for train_id, (client_state_hash, master_response) in self.handled_client_states.items():
+            # Creating a new LastHandledClientState protobuf message
+            last_handled_client_state = TrackNet_pb2.LastHandledClientState()
+            last_handled_client_state.train_id = train_id
+            last_handled_client_state.client_state_hash = client_state_hash
+            
+            last_handled_client_state.serverResponse.CopyFrom(master_response)
+            
+            # Adding the LastHandledClientState to the list in RailwayUpdate
+            railway_update.last_handled_client_states.add().CopyFrom(last_handled_client_state)
+        
 
         return railway_update
 
@@ -132,36 +147,49 @@ class Server:
 
             return train
 
+    def computeHash(clienstate: Message):
+        serialized_obj = clienstate.SerializeToString()
+        hash_obj = hashlib.sha256(serialized_obj)
+        return hash_obj.hexdigest()
+    
     def handle_client_states(self):
         while not exit_flag:
             if self.client_state_queue.qsize() != 0:
                 (client_state, sock) = self.client_state_queue.get_nowait()
-                resp = self.handle_client_state(client_state)
-                master_response = TrackNet_pb2.InitConnection()
-                master_response.sender = (
-                    TrackNet_pb2.InitConnection.Sender.SERVER_MASTER
-                )
-                master_response.server_response.CopyFrom(resp)
+                clientStateHash = self.computeHash(client_state)
+                try:
+                    train = self.get_train(client_state.train, client_state.location.front_junction_id)
+                    LOGGER.debug(f" train name: {train.name} \n train location={train.location} \n new location={client_state.location}")
+                except Exception as e:
+                    LOGGER.error(f"Error getting train: {e}")
+
+                value = self.handled_client_states.get(train.name)
+                if value is not None and clientStateHash == value[0]:
+                    last_master_response = value[1]
+                    master_response.CopyFrom(last_master_response)
+                else:
+                    
+                    resp = self.handle_client_state(client_state, train)
+                    master_response = TrackNet_pb2.InitConnection()
+                    master_response.sender = TrackNet_pb2.InitConnection.Sender.SERVER_MASTER
+                    master_response.server_response.CopyFrom(resp)
+
+
                 print(master_response)
+                train_id = resp.train.id
+                self.handled_client_states[train_id] = (clientStateHash,master_response)
+                
+                # Create a separate thread for talking to slaves
+                threading.Thread(target=self.talk_to_slaves, daemon=True).start()
 
                 if not send(sock, master_response.SerializeToString()):
                     LOGGER.warning(f"ServerResponse message failed to send to proxy.")
                 else:
                     print("sent server response to proxy")
 
-                # Create a separate thread for talking to slaves
-                threading.Thread(target=self.talk_to_slaves, daemon=True).start()
+                
 
-    def handle_client_state(self, client_state):
-        try:
-            train = self.get_train(
-                client_state.train, client_state.location.front_junction_id
-            )
-            LOGGER.debug(
-                f" train name: {train.name} \n train location={train.location} \n new location={client_state.location}"
-            )
-        except Exception as e:
-            LOGGER.error(f"Error getting train: {e}")
+    def handle_client_state(self, client_state, train):
         self.apply_client_state(client_state, train)
         resp = self.issue_client_command(client_state, train)
         return resp
@@ -290,20 +318,22 @@ class Server:
                         master_resp = TrackNet_pb2.InitConnection()
                         master_resp.ParseFromString(data)
                         # Check if sender is master
-                        if (
-                            master_resp.sender
-                            == TrackNet_pb2.InitConnection.SERVER_MASTER
-                            and master_resp.HasField("railway_update")
-                        ):
-                            LOGGER.debug(
-                                f"Slave received a backup form the master: {master_resp.railway_update}"
-                            )
+                        if (master_resp.sender== TrackNet_pb2.InitConnection.SERVER_MASTER and master_resp.HasField("railway_update")):
+                            LOGGER.debug(f"Slave received a backup form the master: {master_resp.railway_update}")
                             # need to store the backup
-                            LOGGER.debug(
-                                f"Received railway update from master at {master_resp.railway_update.timestamp}"
-                            )
+                            LOGGER.debug(f"Received railway update from master at {master_resp.railway_update.timestamp}")
+
                             self.backup_railway_timestamp = (master_resp.railway_update.timestamp) # -10
                             self.backup_railway = master_resp.railway_update.railway
+
+                            for last_handled_client_state in master_resp.railway_update.last_handled_client_states:
+                                # Extract the train_id, client_state_hash, and serverResponse
+                                train_id = last_handled_client_state.train_id
+                                client_state_hash = last_handled_client_state.client_state_hash
+                                master_response = last_handled_client_state.serverResponse  
+
+                                self.handled_client_states[train_id] = (client_state_hash, master_response)
+                            
                 except socket.timeout:
                     continue  # No data received within the timeout, continue loop
                 except Exception as e:
@@ -317,11 +347,7 @@ class Server:
             LOGGER.debug("Closing connection to master")
             conn.close()
 
-    def slave_proxy_communication(
-        self,
-        sock,
-        data,
-    ):
+    def slave_proxy_communication(self,sock,data,):
         LOGGER.debug("slave recieved message from proxy")
         proxy_resp = TrackNet_pb2.InitConnection()
         try:
