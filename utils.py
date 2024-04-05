@@ -16,6 +16,8 @@ __all__ = [
     "proxy_port"
 ]
 
+
+## tracks must be longer then train -> must be greater than 5
 initial_config = {
     "junctions": ["A", "B", "C", "D"],
     "tracks": [

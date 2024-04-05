@@ -74,33 +74,28 @@ class Client():
             location = Location(front_junction=self.origin, back_junction=self.origin)
         )
         self.generate_route()
-        print("Route: ", end="")
+
+        debug_str = "Route:"
         for junc in self.train.route.junctions:
-            print("->", junc.name, end=" ")
-        print()
-        print()
+            debug_str = debug_str + "->" + junc.name
+        LOGGER.info(debug_str + "\n\n")
                     
         threading.Thread(target=self.update_position, args=(), daemon=True).start() 
-        
 
         if proxyDetailsProvided:
             proxy_items = cmdLineProxyDetails
         else:
             proxy_items = list(proxy_details.items())
 
-
         index = random.randint(0, len(proxy_items) - 1)
-        #print (f"index: {index} index 2: {(index + 1) % (len(proxy_items))}")
-        #print(proxy_items)
         self.current_proxy = proxy_items[index]  # First item
         self.backup_proxy = proxy_items[(index + 1) % (len(proxy_items))]  # Second item   
-        print (f"Current proxy: {self.current_proxy}")     
-        print (f"Backup proxy: {self.backup_proxy}")     
+        LOGGER.info(f"Current proxy: {self.current_proxy}")     
+        LOGGER.info(f"Backup proxy: {self.backup_proxy}")     
         self.run()
 
     def generate_random_train_length(self):
-        ## TODO
-        return 5
+        return random.randint(1, 5) 
 
     def generate_route(self):
         self.train.route = Route(self.railmap.find_shortest_path(self.origin.name, self.destination.name))
@@ -141,9 +136,7 @@ class Client():
                 # Adjust the speed to achieve desired movement
                 speed_factor = 10  # Adjust this factor as needed
                 effective_speed = self.train.get_speed() * speed_factor
-                distance_moved = effective_speed * (
-                    elapsed_time / 3600
-                )  # Assuming speed is in km/h
+                distance_moved = effective_speed * (elapsed_time / 3600)  # Assuming speed is in km/h
 
                 self.train.update_location(distance_moved)
                 self.last_time_updated = datetime.now()
@@ -152,9 +145,7 @@ class Client():
         os._exit(0)  # Exit the program immediately with a status of 0
         # utils.exit_flag = True
 
-    def set_client_state_msg(
-        self, state: TrackNet_pb2.ClientState, clientIP, clientPort
-    ):
+    def set_client_state_msg(self, state: TrackNet_pb2.ClientState, clientIP, clientPort):
         """Populates a `ClientState` message with the current state of the train, including its id, length, speed, location, track condition, and route.
 
         :param state: The `ClientState` message object to be populated with the train's current state.
@@ -222,51 +213,31 @@ class Client():
 
                             if self.train.route is None:
                                 if not server_resp.HasField("new_route"):
-                                    LOGGER.warning(
-                                        f"Server has not yet provided route for train."
-                                    )
+                                    LOGGER.warning(f"Server has not yet provided route for train.")
                                     ## cannot take instructions until route is assigned
                                     self.sock.close()
                                     continue
 
-                            if (
-                                server_resp.status
-                                == TrackNet_pb2.ServerResponse.UpdateStatus.CHANGE_SPEED
-                            ):
-                                LOGGER.debug(
-                                    f"CHANGE_SPEED {self.train.name} to {server_resp.speed}"
-                                )
+                            if (server_resp.status== TrackNet_pb2.ServerResponse.UpdateStatus.CHANGE_SPEED ):
+                                LOGGER.debug(f"CHANGE_SPEED {self.train.name} to {server_resp.speed}")
                                 self.train.set_speed(server_resp.speed)
 
-                            elif (
-                                server_resp.status
-                                == TrackNet_pb2.ServerResponse.UpdateStatus.REROUTE
-                            ):
+                            elif (server_resp.status== TrackNet_pb2.ServerResponse.UpdateStatus.REROUTE):
                                 LOGGER.debug(f"REROUTING {self.train.name}")
                                 self.set_route(server_resp.route)
 
-                            elif (
-                                server_resp.status
-                                == TrackNet_pb2.ServerResponse.UpdateStatus.STOP
-                            ):
+                            elif (server_resp.status== TrackNet_pb2.ServerResponse.UpdateStatus.STOP):
                                 LOGGER.debug(f"STOPPING {self.train.name}")
                                 self.train.stop()
 
-                            elif (
-                                server_resp.status
-                                == TrackNet_pb2.ServerResponse.UpdateStatus.CLEAR
-                            ):
+                            elif (server_resp.status== TrackNet_pb2.ServerResponse.UpdateStatus.CLEAR):
                                 if self.train.state == TrainState.PARKED:
                                     LOGGER.debug("UNPARKING")
                                     self.train.unpark(server_resp.speed)
                                 elif self.train.state == TrainState.STOPPED:
                                     LOGGER.debug("RESUMING MOVEMENT")
                                     self.train.resume_movement(server_resp.speed)
-                                elif (
-                                    self.train.state == TrainState.RUNNING
-                                    and self.train.current_speed
-                                    == TrainSpeed.SLOW.value
-                                ):
+                                elif (self.train.state == TrainState.RUNNING and self.train.current_speed == TrainSpeed.SLOW.value):
                                     LOGGER.debug("SPEEDING UP")
                                     self.train.set_speed(TrainSpeed.FAST.value)
 
@@ -419,7 +390,6 @@ class Client():
         else:
             LOGGER.debug(f"Server response has no status")
 
-    
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Process Server args")

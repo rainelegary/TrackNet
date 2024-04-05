@@ -1,17 +1,17 @@
+from datetime import datetime
+import os
 import select
 import socket
 import threading
 import TrackNet_pb2
 import TrackNet_pb2 as proto
 import traceback
-import time
 import TrackNet_pb2
 import logging
 import sys
-import time
 from utils import *
 import argparse
-
+import time 
 
 # Global Variables
 proxy_address = None
@@ -45,9 +45,15 @@ class Proxy:
         self.client_state_handled = {} # Map client address (IP, port) and to tuple (client_state,response_received)
         self.socket_list = []
         self.lock = threading.Lock()
+
         self.heartbeat_interval = 3
         self.heartbeat_timeout = 2
         self.slave_heartbeat_timeout = 2
+
+
+        self.proxy_time = None
+        self.adjusted_offset = None
+        
 
         self.is_main = is_main
         if is_main:
@@ -322,7 +328,11 @@ class Proxy:
             heartbeat_message = proto.InitConnection()
             heartbeat_message.sender = TrackNet_pb2.InitConnection.Sender.PROXY
             heartbeat_message.is_heartbeat = True
-            if not send(proxy_sock, heartbeat_message.SerializeToString()):
+
+            if send(proxy_sock, heartbeat_message.SerializeToString()):
+                LOGGER.debug("Sent heartbeat message to main proxy.")
+                
+            else:
                 LOGGER.warning("Failed to send heartbeat message to main proxy.")
 
             data = receive(proxy_sock)
@@ -335,7 +345,6 @@ class Proxy:
                     LOGGER.debug("Did not received heartbeat from main proxy?")
 
                 if heartbeat.HasField("master_host"):
-
                     # if no master server or new master server
                     if (
                         self.master_socket is None
@@ -377,7 +386,6 @@ class Proxy:
                 if self.handle_missed_proxy_heartbeat():
                     LOGGER.info("IS MAIN PROXY")
 
-
 	
     def send_heartbeat_loop(self):
 
@@ -399,18 +407,18 @@ class Proxy:
                             heartbeat_message.is_heartbeat = True
 
                             # Start a timer
-                            LOGGER.debug("Starting timer right before sending heartbeat:")
+                            LOGGER.debugv("Starting timer right before sending heartbeat:")
                             self.heartbeat_timer = threading.Timer(self.heartbeat_timeout, self.handle_heartbeat_timeout_loop)
                             self.heartbeat_timer.start()
 
-                            LOGGER.debug(f"Sending... heartbeat to master server {self.master_socket}")
+                            LOGGER.debugv(f"Sending... heartbeat to master server {self.master_socket}")
 
                             if not send(self.master_socket, heartbeat_message.SerializeToString()):
                                 LOGGER.warning(f"Failed to send heartbeat request to master server {self.master_socket} FD: {self.master_socket.fileno()}")
                                 self.heartbeat_timer.cancel()
                                 self.handle_heartbeat_timeout_loop()
                             else:
-                                LOGGER.debug("Sent heartbeat to master")
+                                LOGGER.debugv("Sent heartbeat to master")
                                 #self.heartbeat_timer = threading.Timer(self.heartbeat_timeout, self.handle_heartbeat_timeout_loop)
                                 #self.heartbeat_timer.start()       
                     else:
@@ -457,10 +465,16 @@ class Proxy:
                 heartbeat_message = proto.InitConnection()
                 heartbeat_message.sender = TrackNet_pb2.InitConnection.Sender.PROXY
                 heartbeat_message.is_heartbeat = True
+
+                self.proxy_time = time.time()
+                heartbeat_message.proxy_time = self.proxy_time
+                readable_proxy_time = self.convert_unix_time_to_readable(self.proxy_time)
+                LOGGER.debug("Sending... heartbeat, time: %s", readable_proxy_time)
                 LOGGER.debug(
                     f"Sending... heartbeat to master server {self.master_socket}"
                 )
                 if not send(self.master_socket, heartbeat_message.SerializeToString()):
+
                     LOGGER.warning(f"Failed to send heartbeat request to master server")
                 else:
                     # Start a timer
@@ -496,7 +510,15 @@ class Proxy:
                 )
         else:
             LOGGER.info("len (slave sockets) is 0")
-            LOGGER.info("No slave servers available to promote to master.")
+            LOGGER.info("No slave servers available to promote to master.") 
+
+    def convert_unix_time_to_readable(self, unix_time):
+        # Convert Unix timestamp to a datetime object
+        datetime_object = datetime.fromtimestamp(unix_time)
+
+        # Format the datetime object to a string as needed
+        readable_time = datetime_object.strftime('%Y-%m-%d %H:%M:%S')
+        return readable_time  
 
     def send_receive_on_socket(self, slave_socket, slave_host, slave_port):
         """Is called in choose_new_master. Send a heartbeat request to a slave server and waits to receive "slave_last_backup_timestamp" as the response."""
@@ -579,6 +601,7 @@ class Proxy:
             LOGGER.warning("No timestamps received, cannot select a new master.")
             return None
 
+
     def handle_connection(self, conn: socket.socket, address):
         try:
             # Convert address to a string key
@@ -615,9 +638,9 @@ class Proxy:
                                 )
                                 
                                 #self.handle_heartbeat_response_loop()
-                                LOGGER.debug(f"Recived heartbeat from master server. checking if timer running")
+                                LOGGER.debugv(f"Recived heartbeat from master server. checking if timer running")
                                 if self.heartbeat_timer and self.heartbeat_timer.is_alive():
-                                    LOGGER.debug(f"Timer is still running, will cancel timer")
+                                    LOGGER.debugv(f"Timer is still running, will cancel timer")
                                     self.heartbeat_timer.cancel()
 
                                 # send heartbeat
@@ -673,10 +696,10 @@ class Proxy:
                                     "Master server not connected. Unable to set master host"
                                 )
 
-                            if not send(conn, heartbeat.SerializeToString()):
-                                LOGGER.warning(
-                                    f"Failed to send heartbeat to backup proxy."
-                                )
+                            if send(conn, heartbeat.SerializeToString()):
+                                LOGGER.debug("Sent heartbeat response to backup proxy")
+                            else:
+                                LOGGER.warning(f"Failed to send heartbeat to backup proxy.")
 
                 except Exception as e:
                     LOGGER.error(traceback.format_exc())
