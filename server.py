@@ -212,7 +212,6 @@ class Server:
         self.railway.print_map()
 
     def issue_client_command(self, client_state, train):
-
         resp = TrackNet_pb2.ServerResponse()
         resp.train.id = train.name
         resp.train.length = train.length

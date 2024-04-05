@@ -72,10 +72,8 @@ class Railway:
             raise Exception(f"Train {name} already exists.")
 
     def update_train(self, train, state, location_msg: TrackNet_pb2.Location, route_msg: TrackNet_pb2.Route):
-        
-		
+        	
         LOGGER.debug(f" train name: {train.name} \n train location={train.location} \n new location={location_msg}")
-		
 
         # check if new track
         # if (train.location.front_cart["track"] is None or train.location.front_cart["track"].name != location_msg.front_track_id):
