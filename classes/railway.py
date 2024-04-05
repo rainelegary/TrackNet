@@ -193,19 +193,12 @@ class Railway:
             print(f"  Junction: {junction_name}, Parked Trains: [{trains_info}]")
 
         print("Tracks:")
-        for (
-            track_name,
-            track,
-        ) in self.map.tracks.items():  # Adjusted to iterate through items()
-            if hasattr(track, "trains") and isinstance(
-                track.trains, dict
-            ):  # Safety checks
+        for (track_name,track,) in self.map.tracks.items():  # Adjusted to iterate through items()
+            if hasattr(track, "trains") and isinstance(track.trains, dict):  # Safety checks
 
                 running_trains = track.trains.keys()  # track.trains is a dictionary
 
-                print(
-                    f"{track.name}, Length: {track.length}, Running Trains: [",
-                )
+                print(f"{track.name}, Length: {track.length}, Running Trains: ")
 
                 for running_train in running_trains:
                     train_position_front = track.trains[
@@ -220,9 +213,7 @@ class Railway:
                     print(
                         f"\t\t\t\t\t\t Train: {running_train} Speed: {track_speed} Front Position: {train_position_front} Back Position: {train_position_back}"
                     )
-                print("]")
+                #print("]")
 
             else:
-                print(
-                    f"  Track: {track_name} has no running trains or is not properly initialized."
-                )
+                print(f"  Track: {track_name} has no running trains or is not properly initialized.")
