@@ -19,7 +19,7 @@ from message_converter import MessageConverter
 from classes.conflict_analyzer import ConflictAnalyzer
 import argparse
 from converters.railway_converter import RailwayConverter
-
+import sys
 from queue import Queue
 
 from google.protobuf.message import Message
@@ -494,6 +494,11 @@ class Server:
 							proxy_sock.shutdown(socket.SHUT_RDWR)
 							proxy_sock.close()
 
+		except KeyboardInterrupt:
+			LOGGER.error(f"KeyBoard Interupt")
+			proxy_sock.shutdown(socket.SHUT_RDWR)
+			proxy_sock.close()
+			sys.exit(1)
 		except Exception as e:
 			LOGGER.error(f"Error communicating with proxy, will reconnect to proxy")
 			proxy_sock.shutdown(socket.SHUT_RDWR)
@@ -506,7 +511,6 @@ class Server:
 	def connect_to_proxy(self):
 		self.connecting_to_proxies = True
 		#LOGGER.debug(f"!!!-------Connect to proxy called in thread: {threading.current_thread().name}")
-		
 		while not exit_flag:
 			
 			# Determine the source of proxy details
@@ -535,7 +539,7 @@ class Server:
 
 			time.sleep(5)  # Sleep between connection attempts
 		self.connecting_to_proxies = False
-		LOGGER.debug(f"done connecting to proxies")
+		#LOGGER.debug(f"done connecting to proxies")
 
 
 	def attempt_proxy_connection(self, proxy_host, proxy_port, key):
