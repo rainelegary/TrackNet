@@ -478,6 +478,11 @@ class Server:
 					if self.is_master:
 						try:
 							self.master_proxy_communication(proxy_sock, data)
+						except KeyboardInterrupt:
+							LOGGER.error(f"KeyBoard Interupt")
+							proxy_sock.shutdown(socket.SHUT_RDWR)
+							proxy_sock.close()
+							sys.exit(1)
 						except Exception as e:
 							LOGGER.error(f"Error in master proxy communication: {e}")
 							traceback.print_exc()
@@ -488,6 +493,11 @@ class Server:
 					else:
 						try:
 							self.slave_proxy_communication(proxy_sock, data)
+						except KeyboardInterrupt:
+							LOGGER.error(f"KeyBoard Interupt")
+							proxy_sock.shutdown(socket.SHUT_RDWR)
+							proxy_sock.close()
+							sys.exit(1)
 						except Exception as e:
 							LOGGER.error(f"Error in slave proxy communication: {e}")
 							traceback.print_exc()

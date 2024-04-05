@@ -162,7 +162,7 @@ def create_server_socket(ip: str, port: int):
         sock.bind((ip, port))
         sock.settimeout(4)
         sock.listen(5)
-        print("Server Listening on " + ip + ":" + str(port))
+        #print("Server Listening on " + ip + ":" + str(port))
 
     except Exception as exc:
         print('Socket creation Failed: ' + str(exc))
