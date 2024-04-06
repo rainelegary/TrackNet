@@ -204,7 +204,9 @@ def receive(sock: socket.socket, returnException=False, timeout=10) -> bytes:
         sock.settimeout(timeout)
         content_length = sock.recv(4)
         data = sock.recv(bytes_to_int(content_length))
-
+    except KeyboardInterrupt:
+        LOGGER.debug(f"Keyboard interupt detected, will close")
+        sys.exit(1)
     except Exception as e:
         if returnException:
             raise e

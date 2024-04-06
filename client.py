@@ -1,5 +1,6 @@
 import argparse
 import socket
+import sys
 import traceback
 import TrackNet_pb2
 import logging
@@ -104,8 +105,16 @@ class Client():
         self.current_proxy = proxy_items[index]  # First item
         self.backup_proxy = proxy_items[(index + 1) % (len(proxy_items))]  # Second item   
         LOGGER.info(f"Current proxy: {self.current_proxy}")     
-        LOGGER.info(f"Backup proxy: {self.backup_proxy}")     
-        self.run()
+        LOGGER.info(f"Backup proxy: {self.backup_proxy}")
+        try:
+            self.run()
+        except KeyboardInterrupt:
+            LOGGER.debug(f"Keyboard interupt was detected, will close")
+            sys.exit(1)
+        except Exception as e:
+            LOGGER.debug(f"Exception: {e} was thrown, will close")
+            sys.exit(1)
+            
 
     def generate_random_train_length(self) -> int:
         """Generates a random train length between 1 and 5.
