@@ -59,7 +59,7 @@ class ConflictAnalyzer:
         The maximum number of trains parked at a junction
     """
 
-    SAFETY_DISTANCE = 3
+    SAFETY_DISTANCE = 5
     JUNCTION_CAPACITY = 2
 
     @staticmethod
@@ -305,8 +305,8 @@ class ConflictAnalyzer:
             if next_track is not None:
                 in_demand_tracks[next_track.name] = next_track
 
-        # LOGGER.debugv(f"available tracks: {available_tracks.keys()}")
-        # LOGGER.debugv(f"in demand tracks: {in_demand_tracks.keys()}")
+        LOGGER.debugv(f"available tracks: {available_tracks.keys()}")
+        LOGGER.debugv(f"in demand tracks: {in_demand_tracks.keys()}")
 
         parking_trains = {}
         moving_trains = {} # unpark / keep moving
@@ -350,6 +350,7 @@ class ConflictAnalyzer:
                 if len(parking_trains) < ConflictAnalyzer.JUNCTION_CAPACITY:
                     # junction still has capacity
                     # issue "park" command
+                    LOGGER.debug(f"{train_id} parking to wait for other train")
                     parking_trains[train_id] = train
                 elif len(parking_trains) == ConflictAnalyzer.JUNCTION_CAPACITY:
                     # junction is full 
