@@ -565,9 +565,7 @@ class Server:
 						proxy_sock = create_client_socket(proxy_host, proxy_port)
 
 						if proxy_sock:
-							LOGGER.info(
-								f"Connected to proxy at {proxy_host}:{proxy_port}"
-							)
+							LOGGER.info(f"Connected to proxy at {proxy_host}:{proxy_port}")
 							self.proxy_sockets[key] = proxy_sock
 							# Send proxy init message to identify itself as a slave
 							slave_identification_msg = TrackNet_pb2.InitConnection()

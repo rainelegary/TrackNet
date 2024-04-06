@@ -563,7 +563,7 @@ class Proxy:
                                 self.relay_server_response(init_conn.server_response)
 
                             if init_conn.HasField("is_heartbeat") and self.is_main:
-                                LOGGER.debug(f"Received heartbeat from master server. Sending response...")
+                                LOGGER.debugv(f"Received heartbeat from master server. Sending response...")
                                 
                                 #self.handle_heartbeat_response_loop()
                                 LOGGER.debugv(f"Recived heartbeat from master server. checking if timer running")
