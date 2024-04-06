@@ -104,31 +104,28 @@ class Proxy:
         LOGGER.debug(f"{client_state}")
         # Extract the target client's IP and port
         target_client_key = (f"{client_state.client.host}:{client_state.client.port}")
+        self.client_state_handled[target_client_key] = (client_state,False) 
 
-        self.client_state_handled[target_client_key] = (client_state,False)
+        if self.master_socket is not None:
+            new_message = proto.InitConnection()
+            new_message.sender = proto.InitConnection.Sender.PROXY
+            # Can't copy from entire client state
+            # Have to copy each field individually
+            new_message.client_state.client.CopyFrom(client_state.client)
+            new_message.client_state.train.CopyFrom(client_state.train)
+            new_message.client_state.location.CopyFrom(client_state.location)
+            new_message.client_state.condition = client_state.condition
+            new_message.client_state.route.CopyFrom(client_state.route)
+            new_message.client_state.speed = client_state.speed
+            # new_message.client_state.CopyFrom(client_state)
 
-        with self.lock:
-            if self.master_socket is not None:
-                new_message = proto.InitConnection()
-                new_message.sender = proto.InitConnection.Sender.PROXY
-                # Can't copy from entire client state
-                # Have to copy each field individually
-                new_message.client_state.client.CopyFrom(client_state.client)
-                new_message.client_state.train.CopyFrom(client_state.train)
-                new_message.client_state.location.CopyFrom(client_state.location)
-                new_message.client_state.condition = client_state.condition
-                new_message.client_state.route.CopyFrom(client_state.route)
-                new_message.client_state.speed = client_state.speed
-                # new_message.client_state.CopyFrom(client_state)
-
-                if self.master_socket is None:
-                    LOGGER.debug("MASTER NONE")
-                if not send(self.master_socket, new_message.SerializeToString()):
-                    LOGGER.warning(f"Failed to send client state message to master.")
-                else:
-                    LOGGER.debug("client state forwaded to master server")
+            if not send(self.master_socket, new_message.SerializeToString()):
+                LOGGER.warning(f"Failed to send client state message to master.")
             else:
-                LOGGER.warning("There is currently no master server")
+                LOGGER.debug("client state forwaded to master server")
+                
+        else:
+            LOGGER.warning("There is currently no master server")
 
     def relay_server_response(self, server_response: TrackNet_pb2.ServerResponse):
         with self.lock:
@@ -205,7 +202,7 @@ class Proxy:
             for (client_state,responseSent) in self.client_state_handled.values():
                 if responseSent == False:
                     LOGGER.debug(f"Found unhandled client state")
-                    #self.relay_client_state(client_state)
+                    self.relay_client_state(client_state)
 
         else:
             LOGGER.warning(f"Failed to send role assignmnet to newly elected master.")       
@@ -367,6 +364,11 @@ class Proxy:
                             )
                         else:
                             self.remove_slave_socket(self.master_socket,slave_port_chosen)
+                            LOGGER.debug("Will send any unhandeled client states to the new master")
+                            for (client_state,responseSent) in self.client_state_handled.values():
+                                if responseSent == False:
+                                    LOGGER.debug(f"Found unhandled client state")
+                                    self.relay_client_state(client_state)
 
                 time.sleep(self.heartbeat_interval)
             else:

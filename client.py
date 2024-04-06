@@ -58,6 +58,9 @@ class Client():
         self.client_ip = None
         self.client_port = None
         self.probabilty_of_good_track = 95
+
+        self.sentInitClientState = False
+
         self.railmap = Railmap(
             junctions=initial_config["junctions"], tracks=initial_config["tracks"]
         )
@@ -82,7 +85,8 @@ class Client():
         else:
             proxy_items = list(proxy_details.items())
 
-        index = random.randint(0, len(proxy_items) - 1)
+        #index = random.randint(0, len(proxy_items) - 1)
+        index = random.choice([0,1])
         self.current_proxy = proxy_items[index]  # First item
         self.backup_proxy = proxy_items[(index + 1) % (len(proxy_items))]  # Second item   
         LOGGER.info(f"Current proxy: {self.current_proxy}")     
@@ -114,9 +118,11 @@ class Client():
 
     def update_position(self):
         while not utils.exit_flag and not (self.train.route.destination_reached()):
+            self.last_time_updated = datetime.now()
             time.sleep(2)
 
             if self.train.state in [TrainState.PARKED, TrainState.STOPPED]:
+                #LOGGER.debug(f"Trains is parked")
                 continue
             else:
                 elapsed_time = (datetime.now() - self.last_time_updated).total_seconds()
@@ -125,9 +131,9 @@ class Client():
                 speed_factor = 10  # Adjust this factor as needed
                 effective_speed = self.train.get_speed() * speed_factor
                 distance_moved = effective_speed * (elapsed_time / 3600)  # Assuming speed is in km/h
-
+                #LOGGER.debug(f"Distance moved by train: {distance_moved}")
                 self.train.update_location(distance_moved)
-                self.last_time_updated = datetime.now()
+            
 
         LOGGER.debug(f"*****************DESTINATION REACHED*******************")
         os._exit(0)  # Exit the program immediately with a status of 0
@@ -162,86 +168,11 @@ class Client():
         self.train.location.set_track(self.train.route.get_next_track())
         LOGGER.debug(f"init track={self.train.route.get_next_track()}")
 
-    #Made new function below
-    def run_working(self):
-        """Initiates the client's main loop, continuously sending its state to the server and processing the server's response. It handles connection management, state serialization, and response deserialization. Based on the server's response, it adjusts the train's speed, reroutes, or stops as necessary.
-
-        The method uses a loop that runs until an `exit_flag` is set. It manages the socket connection, sends the train's state, and processes responses from the server. The method also handles rerouting, speed adjustments, and stopping the train based on the server's instructions.
-        """
-        while not utils.exit_flag:
-            try:
-                self.sock = create_client_socket(self.host, self.port)
-                client_ip, client_port = self.sock.getsockname()
-                print(f"{client_ip}:{client_port}")
-                if self.sock is not None:
-                    LOGGER.debug("Connected")
-                    client_state = TrackNet_pb2.ClientState()
-
-                    self.set_client_state_msg(client_state, client_ip, client_port)
-                    LOGGER.debug(f"state={client_state.location}")
-
-                    message = TrackNet_pb2.InitConnection()
-                    message.sender = TrackNet_pb2.InitConnection.Sender.CLIENT
-                    message.client_state.CopyFrom(client_state)
-
-                    if send(self.sock, message.SerializeToString()):
-                        data = receive(self.sock)
-                        resp = TrackNet_pb2.InitConnection()
-                        server_resp = TrackNet_pb2.ServerResponse()
-
-                        if data is not None:
-                            resp.ParseFromString(data)
-                            server_resp.CopyFrom(resp.server_response)
-
-                            if self.train.name is None:
-                                self.train.name = server_resp.train.id
-                                LOGGER.debug(f"Initi. {self.train.name}")
-
-                            if self.train.route is None:
-                                if not server_resp.HasField("new_route"):
-                                    LOGGER.warning(f"Server has not yet provided route for train.")
-                                    ## cannot take instructions until route is assigned
-                                    self.sock.close()
-                                    continue
-
-                            if (server_resp.status== TrackNet_pb2.ServerResponse.UpdateStatus.CHANGE_SPEED ):
-                                LOGGER.debug(f"CHANGE_SPEED {self.train.name} to {server_resp.speed}")
-                                self.train.set_speed(server_resp.speed)
-
-                            elif (server_resp.status== TrackNet_pb2.ServerResponse.UpdateStatus.REROUTE):
-                                LOGGER.debug(f"REROUTING {self.train.name}")
-                                self.set_route(server_resp.route)
-
-                            elif (server_resp.status== TrackNet_pb2.ServerResponse.UpdateStatus.STOP):
-                                LOGGER.debug(f"STOPPING {self.train.name}")
-                                self.train.stop()
-
-                            elif (server_resp.status== TrackNet_pb2.ServerResponse.UpdateStatus.CLEAR):
-                                if self.train.state == TrainState.PARKED:
-                                    LOGGER.debug("UNPARKING")
-                                    self.train.unpark(server_resp.speed)
-                                elif self.train.state == TrainState.STOPPED:
-                                    LOGGER.debug("RESUMING MOVEMENT")
-                                    self.train.resume_movement(server_resp.speed)
-                                elif (self.train.state == TrainState.RUNNING and self.train.current_speed == TrainSpeed.SLOW.value):
-                                    LOGGER.debug("SPEEDING UP")
-                                    self.train.set_speed(TrainSpeed.FAST.value)
-
-                        # self.sock.close()
-                else:
-                    LOGGER.debug(f"no connection")
-
-            except Exception as exc:
-                LOGGER.warning(f"run(): {exc}")
-
-            time.sleep(2)
-
     def run (self):
         """Initiates the client's main loop, continuously sending its state to the server and processing the server's response. It handles connection management, state serialization, and response deserialization. Based on the server's response, it adjusts the train's speed, reroutes, or stops as necessary.
 
         The method uses a loop that runs until an `exit_flag` is set. It manages the socket connection, sends the train's state, and processes responses from the server. The method also handles rerouting, speed adjustments, and stopping the train based on the server's instructions.
         """
-
         connected_to_main_proxy = True
         connected_to_proxy = False
 
@@ -283,10 +214,8 @@ class Client():
                     message.sender = TrackNet_pb2.InitConnection.Sender.CLIENT
                     message.client_state.CopyFrom(client_state)
 
-                    LOGGER.debug(f" Sending client state to proxy: {self.sock} ")
-
-                    if send(self.sock, message.SerializeToString()):
-                        LOGGER.debug(f" Sent client state to proxy ")
+                    if (self.sentInitClientState == True) and (self.train.name is None):
+                        LOGGER.debug("Will not send anymore client states untill train id is set (a server response is handled")
                         try:
                             data = receive(self.sock,returnException=True,timeout=2)
                             resp = TrackNet_pb2.InitConnection()
@@ -299,11 +228,7 @@ class Client():
                             
                         except socket.timeout:
                             #LOGGER.warning("Socket timeout. Switching to backup proxy.")
-                            LOGGER.debug(f"Socket timeout. Will resend a client state")
-                            #self.sock.close()
-                            #self.sock = None
-                            #connected_to_proxy = False
-                            #self.current_proxy = self.backup_proxy
+                            LOGGER.debug(f"Socket timeout. Will wait for a server response")
 
                         except Exception as e:
                             LOGGER.warning(f"Exception thrown after sending client state {e}, Will switch to backup proxy {self.backup_proxy}")
@@ -314,15 +239,46 @@ class Client():
                             self.current_proxy = self.backup_proxy
                             self.backup_proxy = temp
 
-                    
                     else:
-                        LOGGER.debug(f"Unable to send the client state to the proxy server. Switch to backup proxy: {self.backup_proxy} ")
-                        connected_to_proxy = False 
-                        self.sock.close()
-                        self.sock = None
-                        temp = self.current_proxy
-                        self.current_proxy = self.backup_proxy
-                        self.backup_proxy = temp
+                        if send(self.sock, message.SerializeToString()):
+                            LOGGER.debug(f" Sent client state to proxy ")
+                            self.sentInitClientState = True
+                            try:
+                                data = receive(self.sock,returnException=True,timeout=2)
+                                resp = TrackNet_pb2.InitConnection()
+                                server_resp = TrackNet_pb2.ServerResponse()
+
+                                if data is not None:
+                                    resp.ParseFromString(data)
+                                    server_resp.CopyFrom(resp.server_response)
+                                    self.handle_server_response(server_resp)
+                                
+                            except socket.timeout:
+                                #LOGGER.warning("Socket timeout. Switching to backup proxy.")
+                                LOGGER.debug(f"Socket timeout. Will resend a client state")
+                                #self.sock.close()
+                                #self.sock = None
+                                #connected_to_proxy = False
+                                #self.current_proxy = self.backup_proxy
+
+                            except Exception as e:
+                                LOGGER.warning(f"Exception thrown after sending client state {e}, Will switch to backup proxy {self.backup_proxy}")
+                                self.sock.close()
+                                self.sock = None
+                                connected_to_proxy = False
+                                temp = self.current_proxy
+                                self.current_proxy = self.backup_proxy
+                                self.backup_proxy = temp
+
+                        
+                        else:
+                            LOGGER.debug(f"Unable to send the client state to the proxy server. Switch to backup proxy: {self.backup_proxy} ")
+                            connected_to_proxy = False 
+                            self.sock.close()
+                            self.sock = None
+                            temp = self.current_proxy
+                            self.current_proxy = self.backup_proxy
+                            self.backup_proxy = temp
         
             except Exception as e:
                 LOGGER.error(f"Unexpected error in the main loop: {e}  ")
