@@ -45,12 +45,14 @@ def exit_gracefully(signum, frame):
     global exit_flag
 
     sig_type = 'Unknown'
-    if signum == signal.SIGTERM:
-        sig_type == 'SIGTERM'
-    elif signum == signal.SIGINT:
-        sig_type == 'SIGINT'
+    if signum == signal.SIGTERM.value:
+        sig_type = 'SIGTERM'
+    elif signum == signal.SIGINT.value:
+        sig_type = 'SIGINT'
+    
 
-    print('Trying to exit gracefully. ' + sig_type)
+
+    print('Trying to exit gracefully. sig:'+sig_type)
     exit_flag = True
     sys.exit(0)
 
@@ -137,7 +139,6 @@ def create_client_socket(ip: str, port: int):
                 return sock
         except socket.timeout:
             print(f"the socket connect timedout while trying to connect")
-            continue
         except KeyboardInterrupt:
             sys.exit(1)
         except Exception as e:

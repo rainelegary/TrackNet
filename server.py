@@ -89,9 +89,9 @@ class Server:
 
 		self.client_state_queue = Queue()
 
-		threading.Thread(target=self.handle_client_states, daemon=True).start()
+		threading.Thread(target=self.connect_to_proxy, daemon=True).start()
 
-		self.connect_to_proxy()
+		self.handle_client_states()
 		#test so i can commit changes
 
 	def create_railway_update_message(self) -> TrackNet_pb2.RailwayUpdate:
@@ -477,35 +477,38 @@ class Server:
 			proxy_sock.close()
 			self.proxy_sockets[key] = None
 			if self.connecting_to_proxies == False:
-				threading.Thread(target=self.connect_to_proxy(), daemon=False).start()
+				threading.Thread(target=self.connect_to_proxy(), daemon=True).start()
 
 
 	def connect_to_proxy(self):
-		self.connecting_to_proxies = True
-		#LOGGER.debug(f"!!!-------Connect to proxy called in thread: {threading.current_thread().name}")
-		while not exit_flag:
-			
-			# Determine the source of proxy details
-			proxies_to_connect = cmdLineProxyDetails if proxyDetailsProvided else proxy_details.items()
+		try:
+			self.connecting_to_proxies = True
+			#LOGGER.debug(f"!!!-------Connect to proxy called in thread: {threading.current_thread().name}")
+			while not exit_flag:
+				
+				# Determine the source of proxy details
+				proxies_to_connect = cmdLineProxyDetails if proxyDetailsProvided else proxy_details.items()
 
-			# Attempt to connect to each proxy
-			for proxy_host, proxy_port in proxies_to_connect:
-				key = f"{proxy_host}:{proxy_port}"
-				if key not in self.proxy_sockets or self.proxy_sockets[key] is None:
-					self.attempt_proxy_connection(proxy_host, proxy_port, key)
+				# Attempt to connect to each proxy
+				for proxy_host, proxy_port in proxies_to_connect:
+					key = f"{proxy_host}:{proxy_port}"
+					if key not in self.proxy_sockets or self.proxy_sockets[key] is None:
+						self.attempt_proxy_connection(proxy_host, proxy_port, key)
 
-			all_connected = all(
-				f"{proxy_host}:{proxy_port}" in self.proxy_sockets and
-				self.proxy_sockets[f"{proxy_host}:{proxy_port}"] is not None
-				for proxy_host, proxy_port in proxies_to_connect)
+				all_connected = all(
+					f"{proxy_host}:{proxy_port}" in self.proxy_sockets and
+					self.proxy_sockets[f"{proxy_host}:{proxy_port}"] is not None
+					for proxy_host, proxy_port in proxies_to_connect)
 
-			if all_connected:
-				LOGGER.info("Connected to all proxies. Stopping connection attempts.")
-				break
+				if all_connected:
+					LOGGER.info("Connected to all proxies. Stopping connection attempts.")
+					break
 
-			time.sleep(5)  # Sleep between connection attempts
-		self.connecting_to_proxies = False
-		#LOGGER.debug(f"done connecting to proxies")
+				time.sleep(5)  # Sleep between connection attempts
+			self.connecting_to_proxies = False
+			#LOGGER.debug(f"done connecting to proxies")
+		except KeyboardInterrupt:
+			sys.exit(1)
 
 
 	def attempt_proxy_connection(self, proxy_host, proxy_port, key):
@@ -521,7 +524,7 @@ class Server:
 
 			if send(proxy_sock, slave_identification_msg.SerializeToString()):
 				LOGGER.debug("Sent slave identification message to proxy")
-				threading.Thread(target=self.listen_to_proxy, args=(proxy_sock,key), daemon=False).start()
+				threading.Thread(target=self.listen_to_proxy, args=(proxy_sock,key), daemon=True).start()
 		else:
 			LOGGER.warning(f"Couldn't connect to proxy at {proxy_host}:{proxy_port}")
 			
@@ -547,7 +550,7 @@ class Server:
 								threading.Thread(
 									target=self.listen_to_proxy,
 									args=(proxy_sock,),
-									daemon=False,
+									daemon=True,
 								).start()
 						else:
 							LOGGER.warning(f"Couldn't connect to proxy at {proxy_host}:{proxy_port}")
@@ -579,7 +582,7 @@ class Server:
 								threading.Thread(
 									target=self.listen_to_proxy,
 									args=(proxy_sock,),
-									daemon=False,
+									daemon=True,
 								).start()
 						else:
 							LOGGER.warning(
