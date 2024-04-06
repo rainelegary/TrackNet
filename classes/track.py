@@ -1,6 +1,5 @@
 from classes.enums import TrackCondition, TrainSpeed
 from classes.junction import Junction
-from classes.train import Train
 import logging
 
 LOGGER = logging.getLogger(__name__)
@@ -41,14 +40,14 @@ class Track:
         self.condition = condition
         self.speed = speed
 
-    def add_train(self, train: Train):
+    def add_train(self, train):
         """Adds a train to the track.
 
         :param train: The train to be added to the track.
         """
         self.trains[train.name] = train
 
-    def remove_train(self, train: Train):
+    def remove_train(self, train):
         """Removes a train from the track.
 
         :param train: The train to be removed from the track.
