@@ -189,9 +189,7 @@ class Client():
                     if (
                         not self.sock
                     ):  # If connection failed, switch to backup and retry
-                        print(
-                            "Connection with main proxy failed, switching to backup proxy."
-                        )
+                        LOGGER.debug("Connection with main proxy failed, switching to backup proxy.")
                         temp = self.current_proxy
                         self.current_proxy = self.backup_proxy
                         self.backup_proxy = temp

@@ -40,6 +40,7 @@ proxy_details = {
 
 exit_flag = False
 
+LOGGER = logging.getLogger("utils")
 
 def exit_gracefully(signum, frame):
     global exit_flag
@@ -138,12 +139,11 @@ def create_client_socket(ip: str, port: int):
             if sock is not None:
                 return sock
         except socket.timeout:
-            print(f"the socket connect timedout while trying to connect")
+            LOGGER.debug(f"the socket connect timedout while trying to connect")
         except KeyboardInterrupt:
             sys.exit(1)
         except Exception as e:
-            print ("Failed to connect to socket at " + ip + ":" + str(port))
-            print ("exception: " + str(e))
+            LOGGER.debug(f"Failed to connect to socket at {ip} : {str(port)}")
             return None
 
     
@@ -258,4 +258,5 @@ def receive(sock: socket.socket, returnException=False, timeout=10) -> bytes:
     #    raise ValueError("Received data is empty.")
 
     return data
+
 
