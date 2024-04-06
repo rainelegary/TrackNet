@@ -35,7 +35,7 @@ cmdLineProxyDetails = []
 
 setup_logging()  ## only need to call at main entry point of application
 
-LOGGER = logging.getLogger("Server")
+LOGGER = logging.getLogger("UnAssignedServer")
 
 
 signal.signal(signal.SIGTERM, exit_gracefully)
@@ -388,6 +388,7 @@ class Server:
 					LOGGER.info(f"{self.host}:{self.port} promoted to the MASTER")
 					# self.promote_to_master()
 					self.is_master = True
+					LOGGER = logging.getLogger("MasterServer")
 					if self.backup_railway != None:
 						RailwayConverter.update_railway_with_pb(
 							self.backup_railway, self.railway
@@ -410,6 +411,7 @@ class Server:
 				else:
 					LOGGER.info(f"{self.host}:{self.port} designated as a SLAVE.")
 					self.is_master = False
+					LOGGER = logging.getLogger("SlaveServer")
 					# Connect to master if not already
 					if not self.connected_to_master:
 						# listen to master instead of initiating connection
