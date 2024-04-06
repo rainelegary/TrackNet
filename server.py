@@ -312,7 +312,7 @@ class Server:
 			conn.close()
 
 	def slave_proxy_communication(self,sock,data,):
-		LOGGER.debug("slave recieved message from proxy")
+		LOGGER.debugv("slave recieved message from proxy")
 		proxy_resp = TrackNet_pb2.InitConnection()
 		try:
 			proxy_resp.ParseFromString(data)
