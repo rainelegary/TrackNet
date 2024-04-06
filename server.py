@@ -565,9 +565,7 @@ class Server:
 						proxy_sock = create_client_socket(proxy_host, proxy_port)
 
 						if proxy_sock:
-							LOGGER.info(
-								f"Connected to proxy at {proxy_host}:{proxy_port}"
-							)
+							LOGGER.info(f"Connected to proxy at {proxy_host}:{proxy_port}")
 							self.proxy_sockets[key] = proxy_sock
 							# Send proxy init message to identify itself as a slave
 							slave_identification_msg = TrackNet_pb2.InitConnection()
@@ -593,16 +591,15 @@ class Server:
 	def connect_to_slave(self, slave_host, slave_port):
 		try:
 			# for each slave create client sockets
-			print(
-				"Before creating client socket, host: ",
-				slave_host,
-				"port: ",
-				slave_port,
-			)
+			print("Before creating client socket, host: ",slave_host,"port: ",slave_port,)
 			slave_sock = create_client_socket(slave_host, slave_port)
 			print("Type of slave sock: ", type(slave_sock))
-			self.socks_for_communicating_to_slaves.append(slave_sock)
-			LOGGER.debug(f"Added slave server {slave_host}:{slave_port}")
+			if slave_sock is None:
+				LOGGER.warning(f"Could not connect to the given slave server: {slave_host}  {slave_port}")
+			else:
+				self.socks_for_communicating_to_slaves.append(slave_sock)
+				LOGGER.debug(f"Added slave server {slave_host}:{slave_port}")
+			
 			# Start a new thread dedicated to this slave for communication
 		#            threading.Thread(target=self.handle_slave_communication, args=(slave_sock,), daemon=True).start()
 		except Exception as e:
@@ -661,8 +658,10 @@ class Server:
 			master_resp.railway_update.CopyFrom(self.create_railway_update_message())
 			print("Railway update message created")
 			print("type of slave socket: ", type(slave_socket))
-			success = send(slave_socket, master_resp.SerializeToString())
-			print(f"Railway update message sent to slave successfully: {success}")
+			if send(slave_socket, master_resp.SerializeToString()):
+				print(f"Railway update message sent to slave successfully")
+			else:
+				LOGGER.warning(f"Could not send backup message to: {slave_socket}")
 
 
 if __name__ == "__main__":

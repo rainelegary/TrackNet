@@ -397,19 +397,19 @@ class Proxy:
                             heartbeat_message.is_heartbeat = True
 
                             # Start a timer
-                            LOGGER.debug("Starting timer right before sending heartbeat:")
+                            LOGGER.debugv("Starting timer right before sending heartbeat:")
                             self.heartbeat_timer = threading.Timer(self.heartbeat_timeout, self.handle_heartbeat_timeout_loop)
-                            LOGGER.debug(f"if daemon on the heartbeat timer {self.heartbeat_timer.daemon}")
+                            LOGGER.debugv(f"if daemon on the heartbeat timer {self.heartbeat_timer.daemon}")
                             self.heartbeat_timer.start()
 
-                            LOGGER.debug(f"Sending... heartbeat to master server {self.master_socket}")
+                            LOGGER.debugv(f"Sending... heartbeat to master server {self.master_socket}")
 
                             if not send(self.master_socket, heartbeat_message.SerializeToString()):
                                 LOGGER.warning(f"Failed to send heartbeat request to master server {self.master_socket} FD: {self.master_socket.fileno()}")
                                 self.heartbeat_timer.cancel()
                                 self.handle_heartbeat_timeout_loop()
                             else:
-                                LOGGER.debug(f"Sent heartbeat to master {self.master_socket} ")
+                                LOGGER.debugv(f"Sent heartbeat to master {self.master_socket} ")
                                 #self.heartbeat_timer = threading.Timer(self.heartbeat_timeout, self.handle_heartbeat_timeout_loop)
                                 #self.heartbeat_timer.start()       
                     else:
@@ -563,7 +563,7 @@ class Proxy:
                                 self.relay_server_response(init_conn.server_response)
 
                             if init_conn.HasField("is_heartbeat") and self.is_main:
-                                LOGGER.debug(f"Received heartbeat from master server. Sending response...")
+                                LOGGER.debugv(f"Received heartbeat from master server. Sending response...")
                                 
                                 #self.handle_heartbeat_response_loop()
                                 LOGGER.debugv(f"Recived heartbeat from master server. checking if timer running")
