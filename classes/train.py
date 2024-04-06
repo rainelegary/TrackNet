@@ -51,6 +51,23 @@ class Train:
 
     def get_speed(self):
         return self.current_speed
+    
+    def get_next_track_for_conflict_analyzer(self):
+        if self.route.current_junction_index == len(self.route.junctions) - 1:
+            return None # on final junction; destination already reached
+        
+        if (
+            self.state in [TrainState.UNPARKING, TrainState.RUNNING, TrainState.PARKING]
+            and self.route.current_junction_index == len(self.route.junctions) - 2
+        ):
+            return None # on final track; no more tracks to enter
+
+
+        if self.state == TrainState.PARKED:
+            return self.route.junctions[self.route.current_junction_index].neighbors[self.route.junctions[self.route.current_junction_index + 1].name]
+        
+        if self.state in [TrainState.UNPARKING, TrainState.RUNNING, TrainState.PARKING]:
+            return self.route.junctions[self.route.current_junction_index + 1].neighbors[self.route.junctions[self.route.current_junction_index + 2].name]
 
     # This function is for testing. It prints all the attributes of the train object:
     def print_train(self):

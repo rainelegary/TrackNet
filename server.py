@@ -184,6 +184,7 @@ class Server:
 				
 
 	def handle_client_state(self, client_state, train, apply_state=True):
+		LOGGER.debugv(f"Handling client state. apply_state={apply_state}")
 		if apply_state:
 			self.apply_client_state(client_state, train)
 		resp = self.issue_client_command(client_state, train)

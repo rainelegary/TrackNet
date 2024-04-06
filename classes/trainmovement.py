@@ -15,7 +15,7 @@ class TrainMovement(Train):
         location=None 
     ):
         Train.__init__(self, name, length, location=location)
-        self.junction_delay = 0
+        self.junction_delay = 5
         #speed is set by the server
         self.stay_parked = False
 

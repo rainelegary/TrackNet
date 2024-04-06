@@ -106,7 +106,7 @@ class ConflictAnalyzer:
     def may_enter_next_track(railway, commands, train_id):
         train = railway.trains[train_id]
         current_junction = train.location.front_cart["junction"]
-        next_track = train.route.get_next_track()
+        next_track = train.get_next_track_for_conflict_analyzer()
         next_junction = train.route.get_next_junction()
 
         if next_track is None:
@@ -117,7 +117,10 @@ class ConflictAnalyzer:
 
         # break ties by train id. wait for train with smaller id to go first
         favored_train_id = sorted(list(filter(
-                lambda t: (railway.trains[t].route.get_next_track().name == next_track.name),
+                lambda t: (
+                    railway.trains[t].get_next_track_for_conflict_analyzer() is not None
+                    and railway.trains[t].get_next_track_for_conflict_analyzer().name == next_track.name
+                ),
                 current_junction.parked_trains.keys()
             )))[0]
 
@@ -134,7 +137,7 @@ class ConflictAnalyzer:
             return False # existing trains are moving opposite direction
         
         # train that has made the least progress along the track
-        back_train = sorted(next_track.trains, key=lambda t: t.location.back_cart["position"])[0]
+        back_train = sorted(next_track.trains.values(), key=lambda t: t.location.back_cart["position"])[0]
 
         # only go if the back train is far enough along the track
         return (back_train.location.back_cart["position"] > ConflictAnalyzer.SAFETY_DISTANCE)
@@ -288,8 +291,9 @@ class ConflictAnalyzer:
                 for train in track.trains.values():
                     if track.length - train.location.front_cart["position"] < ConflictAnalyzer.SAFETY_DISTANCE:
                         involved_trains[train.name] = train
-                    next_track = train.route.get_next_track()
-                    in_demand_tracks[next_track.name] = next_track
+                    next_track = train.get_next_track_for_conflict_analyzer()
+                    if next_track is not None:
+                        in_demand_tracks[next_track.name] = next_track
             else:
                 available_tracks[track.name] = track
 
@@ -297,8 +301,9 @@ class ConflictAnalyzer:
         
         for train in junction.parked_trains.values():
             involved_trains[train.name] = train
-            next_track = train.route.get_next_track()
-            in_demand_tracks[next_track.name] = next_track
+            next_track = train.get_next_track_for_conflict_analyzer()
+            if next_track is not None:
+                in_demand_tracks[next_track.name] = next_track
 
         # LOGGER.debugv(f"available tracks: {available_tracks.keys()}")
         # LOGGER.debugv(f"in demand tracks: {in_demand_tracks.keys()}")
@@ -313,10 +318,16 @@ class ConflictAnalyzer:
             may_enter_next_track = ConflictAnalyzer.may_enter_next_track(railway, commands, train_id)
 
             LOGGER.debugv(f"{train_id} may enter next track: {may_enter_next_track}")
-            LOGGER.debugv(f"{train_id} next route.get_next_track() returns {train.route.get_next_track().name}")
-
+            if train.get_next_track_for_conflict_analyzer() is not None:
+                LOGGER.debugv(f"{train_id} get_next_track_for_conflict_analyzer() returns {train.get_next_track_for_conflict_analyzer().name}")
+            else:
+                LOGGER.debugv(f"{train_id} get_next_track_for_conflict_analyzer() returns {None}")
+            
             if (
-                train.route.get_next_track().name in available_tracks
+                (
+                    train.get_next_track_for_conflict_analyzer() is None
+                    or train.get_next_track_for_conflict_analyzer().name in available_tracks
+                )
                 and may_enter_next_track
             ):
                 moving_trains[train_id] = train

@@ -32,10 +32,10 @@ cmdLineProxyDetails = []
 setup_logging()  ## only need to call at main entry point of application
 LOGGER = logging.getLogger("Client")
 
-initial_config = {
-    "junctions": ["A", "B", "C", "D"],
-    "tracks": [("A", "B", 10), ("B", "C", 10), ("C", "D", 10), ("A", "D", 40)],
-}
+# initial_config = {
+#     "junctions": ["A", "B", "C", "D"],
+#     "tracks": [("A", "B", 10), ("B", "C", 10), ("C", "D", 10), ("A", "D", 40)],
+# }
 # signal.signal(signal.SIGTERM, exit_gracefully)
 # signal.signal(signal.SIGINT, exit_gracefully)
 
