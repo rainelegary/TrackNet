@@ -122,7 +122,7 @@ def create_client_socket(ip: str, port: int, timeout=1):
             if sock is not None:
                 return sock
         except socket.timeout:
-            LOGGER.debug(f"the socket connect timedout while trying to connect")
+            LOGGER.debug(f"the socket connect timed out while trying to connect")
         except KeyboardInterrupt:
             sys.exit(1)
         except Exception as e:
