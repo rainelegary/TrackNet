@@ -283,7 +283,7 @@ class Server:
 						master_resp.ParseFromString(data)
 						# Check if sender is master
 						if (master_resp.sender== TrackNet_pb2.InitConnection.SERVER_MASTER and master_resp.HasField("railway_update")):
-							LOGGER.debug(f"Slave received a backup form the master: {master_resp.railway_update}")
+							#LOGGER.debug(f"Slave received a backup form the master: {master_resp.railway_update}")
 							# need to store the backup
 							LOGGER.debug(f"Received railway update from master at {master_resp.railway_update.timestamp}")
 
