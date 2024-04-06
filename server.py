@@ -364,6 +364,7 @@ class Server:
 			conn.close()
 
 	def slave_proxy_communication(self, sock, data):
+		global LOGGER
 		"""Handles messages received from a proxy server when operating as a slave server. 
 		This includes processing server assignment messages and responding to heartbeat 
 		checks from the proxy.
@@ -388,6 +389,7 @@ class Server:
 					LOGGER.info(f"{self.host}:{self.port} promoted to the MASTER")
 					# self.promote_to_master()
 					self.is_master = True
+					
 					LOGGER = logging.getLogger("MasterServer")
 					if self.backup_railway != None:
 						RailwayConverter.update_railway_with_pb(
