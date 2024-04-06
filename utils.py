@@ -126,17 +126,26 @@ def create_client_socket(ip: str, port: int):
     assert type(ip)   == str
     assert type(port) == int
 
-    #socket.setdefaulttimeout(0.5)
+    socket.setdefaulttimeout(1)
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-    try:
-        sock.connect((ip, port))
-    except Exception as e:
-        print ("Failed to connect to socket at " + ip + ":" + str(port))
-        print ("exception: " + str(e))
-        return None
+    while not exit_flag:
+        try:
+            
+            sock.connect((ip, port))
+            if sock is not None:
+                return sock
+        except socket.timeout:
+            print(f"the socket connect timedout while trying to connect")
+            continue
+        except KeyboardInterrupt:
+            sys.exit(1)
+        except Exception as e:
+            print ("Failed to connect to socket at " + ip + ":" + str(port))
+            print ("exception: " + str(e))
+            return None
 
-    return sock
+    
 
 
 def create_server_socket(ip: str, port: int):
@@ -198,6 +207,9 @@ def send(sock: socket.socket, msg , returnException=False) -> bool:
         sock.sendall(msg_len)
         sock.sendall(msg)
 
+    except KeyboardInterrupt:
+        sock.close()
+        sys.exit(0)
     except Exception as e:
         if returnException:
             raise e

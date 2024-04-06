@@ -265,7 +265,7 @@ class Server:
 
 			except socket.timeout:
 				continue  # Just continue listening without taking action
-
+			
 			except Exception as exc:
 				LOGGER.error("listen_to_master: " + str(exc))
 				slave_to_master_sock.shutdown(socket.SHUT_RDWR)
@@ -547,7 +547,7 @@ class Server:
 								threading.Thread(
 									target=self.listen_to_proxy,
 									args=(proxy_sock,),
-									daemon=True,
+									daemon=False,
 								).start()
 						else:
 							LOGGER.warning(f"Couldn't connect to proxy at {proxy_host}:{proxy_port}")
@@ -579,7 +579,7 @@ class Server:
 								threading.Thread(
 									target=self.listen_to_proxy,
 									args=(proxy_sock,),
-									daemon=True,
+									daemon=False,
 								).start()
 						else:
 							LOGGER.warning(
