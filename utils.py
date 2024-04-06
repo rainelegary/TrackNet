@@ -1,6 +1,7 @@
 import socket
 import logging
 import signal
+import sys
 
 __all__ = [
     "initial_config",
@@ -44,13 +45,16 @@ def exit_gracefully(signum, frame):
     global exit_flag
 
     sig_type = 'Unknown'
-    if signum == signal.SIGTERM:
-        sig_type == 'SIGTERM'
-    elif signum == signal.SIGINT:
-        sig_type == 'SIGINT'
+    if signum == signal.SIGTERM.value:
+        sig_type = 'SIGTERM'
+    elif signum == signal.SIGINT.value:
+        sig_type = 'SIGINT'
+    
 
-    print('Trying to exit gracefully. ' + sig_type)
+
+    print('Trying to exit gracefully. sig:'+sig_type)
     exit_flag = True
+    sys.exit(0)
 
 DEBUGV= 9 
 def debugv(self, message, *args, **kws):
@@ -124,17 +128,25 @@ def create_client_socket(ip: str, port: int):
     assert type(ip)   == str
     assert type(port) == int
 
-    #socket.setdefaulttimeout(0.5)
+    socket.setdefaulttimeout(1)
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-    try:
-        sock.connect((ip, port))
-    except Exception as e:
-        print ("Failed to connect to socket at " + ip + ":" + str(port))
-        print ("exception: " + str(e))
-        return None
+    while not exit_flag:
+        try:
+            
+            sock.connect((ip, port))
+            if sock is not None:
+                return sock
+        except socket.timeout:
+            print(f"the socket connect timedout while trying to connect")
+        except KeyboardInterrupt:
+            sys.exit(1)
+        except Exception as e:
+            print ("Failed to connect to socket at " + ip + ":" + str(port))
+            print ("exception: " + str(e))
+            return None
 
-    return sock
+    
 
 
 def create_server_socket(ip: str, port: int):
@@ -162,7 +174,7 @@ def create_server_socket(ip: str, port: int):
         sock.bind((ip, port))
         sock.settimeout(4)
         sock.listen(5)
-        print("Server Listening on " + ip + ":" + str(port))
+        #print("Server Listening on " + ip + ":" + str(port))
 
     except Exception as exc:
         print('Socket creation Failed: ' + str(exc))
@@ -196,6 +208,9 @@ def send(sock: socket.socket, msg , returnException=False) -> bool:
         sock.sendall(msg_len)
         sock.sendall(msg)
 
+    except KeyboardInterrupt:
+        sock.close()
+        sys.exit(0)
     except Exception as e:
         if returnException:
             raise e
