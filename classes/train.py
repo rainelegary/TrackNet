@@ -1,7 +1,4 @@
-import datetime
 import logging
-import time
-import TrackNet_pb2
 from classes.location import *
 from classes.route import *
 from classes.junction import *

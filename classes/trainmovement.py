@@ -1,10 +1,12 @@
 import time
-import TrackNet_pb2
+import logging
 from classes.location import *
 from classes.route import *
 from classes.junction import *
 from classes.enums import *
 from classes.train import Train
+
+LOGGER = logging.getLogger(__name__)
 
 class TrainMovement(Train):
     """A class for managing the movements of a train, inheriting from the Train class. 
