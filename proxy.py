@@ -12,6 +12,7 @@ import sys
 from utils import *
 import argparse
 import time 
+import signal
 
 # Global Variables
 proxy_address = None
@@ -25,6 +26,8 @@ setup_logging()  ## only need to call at main entry point of application
 
 LOGGER = logging.getLogger("Proxy")
 
+#signal.signal(signal.SIGTERM, exit_gracefully)
+#signal.signal(signal.SIGINT, exit_gracefully)
 
 class Proxy:
     def __init__(self,proxy_port=5555,listening_port=5555,is_main=False,mainProxyAddress=list(proxy_details.items())[0][0],):
@@ -756,3 +759,5 @@ if __name__ == "__main__":
             proxy.run()
         except KeyboardInterrupt:
             LOGGER.info("Keyboard interupt detected")
+            sys.exit(1)
+        

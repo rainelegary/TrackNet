@@ -15,6 +15,7 @@ from datetime import datetime
 import time
 import threading
 from utils import initial_config, proxy_details
+import utils
 from classes.conflict_analyzer import ConflictAnalyzer
 import argparse
 from converters.railway_converter import RailwayConverter
@@ -147,7 +148,7 @@ class Server:
 	
 	def handle_client_states(self):
 		LOGGER.debug(F"Handling client states thread has been started")
-		while not exit_flag:
+		while not utils.exit_flag:
 			if self.client_state_queue.qsize() != 0:
 				(client_state, sock) = self.client_state_queue.get_nowait()
 				clientStateHash = self.computeHash(client_state)
@@ -261,7 +262,7 @@ class Server:
 			LOGGER.warning("Slave failed to create listening socket for master.")
 			return
 
-		while not exit_flag:
+		while not utils.exit_flag:
 			try:
 				conn, addr = slave_to_master_sock.accept()
 				self.connected_to_master = True
@@ -438,7 +439,7 @@ class Server:
 
 	def listen_to_proxy(self, proxy_sock, key):
 		try:
-			while not exit_flag:
+			while not utils.exit_flag:
 				try:
 					data = receive(proxy_sock,timeout=5, returnException=True)
 				except socket.timeout:
@@ -490,34 +491,39 @@ class Server:
 
 
 	def connect_to_proxy(self):
-		try:
-			self.connecting_to_proxies = True
-			#LOGGER.debug(f"!!!-------Connect to proxy called in thread: {threading.current_thread().name}")
-			while not exit_flag:
+
+		all_connected = False
+		while not utils.exit_flag:
+			try:
+				self.connecting_to_proxies = True
+				#LOGGER.debug(f"!!!-------Connect to proxy called in thread: {threading.current_thread().name}")
 				
-				# Determine the source of proxy details
-				proxies_to_connect = cmdLineProxyDetails if proxyDetailsProvided else proxy_details.items()
+				while all_connected == False:
+					# Determine the source of proxy details
+					proxies_to_connect = cmdLineProxyDetails if proxyDetailsProvided else proxy_details.items()
 
-				# Attempt to connect to each proxy
-				for proxy_host, proxy_port in proxies_to_connect:
-					key = f"{proxy_host}:{proxy_port}"
-					if key not in self.proxy_sockets or self.proxy_sockets[key] is None:
-						self.attempt_proxy_connection(proxy_host, proxy_port, key)
+					# Attempt to connect to each proxy
+					for proxy_host, proxy_port in proxies_to_connect:
+						key = f"{proxy_host}:{proxy_port}"
+						if key not in self.proxy_sockets or self.proxy_sockets[key] is None:
+							self.attempt_proxy_connection(proxy_host, proxy_port, key)
 
-				all_connected = all(
-					f"{proxy_host}:{proxy_port}" in self.proxy_sockets and
-					self.proxy_sockets[f"{proxy_host}:{proxy_port}"] is not None
-					for proxy_host, proxy_port in proxies_to_connect)
+					all_connected = all(
+						f"{proxy_host}:{proxy_port}" in self.proxy_sockets and
+						self.proxy_sockets[f"{proxy_host}:{proxy_port}"] is not None
+						for proxy_host, proxy_port in proxies_to_connect)
 
-				if all_connected:
-					LOGGER.info("Connected to all proxies. Stopping connection attempts.")
-					break
+					if all_connected:
+						LOGGER.info("Connected to all proxies. Stopping connection attempts.")
+						break
 
-				time.sleep(5)  # Sleep between connection attempts
-			self.connecting_to_proxies = False
-			#LOGGER.debug(f"done connecting to proxies")
-		except KeyboardInterrupt:
-			sys.exit(1)
+					time.sleep(5)  # Sleep between connection attempts
+				self.connecting_to_proxies = False
+				#LOGGER.debug(f"done connecting to proxies")
+			except Exception:
+				LOGGER.debug("Exception occur while trying to connect to all the proxies")
+		
+
 
 
 	def attempt_proxy_connection(self, proxy_host, proxy_port, key):
@@ -538,7 +544,7 @@ class Server:
 			LOGGER.warning(f"Couldn't connect to proxy at {proxy_host}:{proxy_port}")
 			
 	def connect_to_proxyOld(self):
-		while not exit_flag:
+		while not utils.exit_flag:
 			if proxyDetailsProvided:
 				for proxy_host, proxy_port in cmdLineProxyDetails:
 					key = f"{proxy_host}:{proxy_port}"
@@ -580,9 +586,7 @@ class Server:
 							slave_identification_msg = TrackNet_pb2.InitConnection()
 							self.set_slave_identification_msg(slave_identification_msg)
 
-							if send(
-								proxy_sock, slave_identification_msg.SerializeToString()
-							):
+							if send(proxy_sock, slave_identification_msg.SerializeToString()):
 								LOGGER.debug(
 									"Sent slave identification message to proxy"
 								)
@@ -592,15 +596,13 @@ class Server:
 									daemon=True,
 								).start()
 						else:
-							LOGGER.warning(
-								f"Couldn't connect to proxy at {proxy_host}:{proxy_port}"
-							)
+							LOGGER.warning(f"Couldn't connect to proxy at {proxy_host}:{proxy_port}")
 				time.sleep(10)
 
 	def connect_to_slave(self, slave_host, slave_port):
 		try:
 			# for each slave create client sockets
-			LOGGER.debug("Before creating client socket, host: ",slave_host,"port: ",slave_port,)
+			LOGGER.debug(f"Before creating client socket, host: {slave_host} port: {slave_port}")
 			slave_sock = create_client_socket(slave_host, slave_port)
 			LOGGER.debug(f"Type of slave sock: {type(slave_sock)}")
 			if slave_sock is None:
