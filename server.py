@@ -181,6 +181,15 @@ class Server:
 					LOGGER.warning(f"ServerResponse message failed to send to proxy.")
 				else:
 					LOGGER.debug("sent server response to proxy")
+		
+		LOGGER.debug("exit flag was set, will now shutdown")
+		for (slave_socket) in self.socks_for_communicating_to_slaves:
+			slave_socket.shutdown(socket.SHUT_RDWR)
+			slave_socket.close()
+		
+		for proxy_sock in self.proxy_sockets.values():
+			proxy_sock.shutdown(socket.SHUT_RDWR)
+			proxy_sock.close()
 
 				
 

@@ -51,11 +51,9 @@ def exit_gracefully(signum, frame):
     elif signum == signal.SIGINT.value:
         sig_type = 'SIGINT'
     
-
-
     print('Trying to exit gracefully. sig:'+sig_type)
     exit_flag = True
-    sys.exit(0)
+    #sys.exit(0)
 
 DEBUGV= 9 
 def debugv(self, message, *args, **kws):
