@@ -40,8 +40,8 @@ class Proxy:
         self.socket_list = []
         self.lock = threading.Lock()
 
-        self.heartbeat_interval = 3
-        self.heartbeat_timeout = 2
+        self.heartbeat_interval = 4
+        self.heartbeat_timeout = 3
         self.slave_heartbeat_timeout = 2
 
 
@@ -375,13 +375,13 @@ class Proxy:
     def send_heartbeat_to_master_loop(self):
 
         LOGGER.debug(f"Sending heartbeat thread started: ")
-        while True:
+        while not exit_flag:
             
             if self.heartbeat_timer and self.heartbeat_timer.is_alive():
-                LOGGER.debug(f"sent a heartbeat already and timer running")
+                LOGGER.debug(f"sent a heartbeat already and timer running {self.master_socket} {self.heartbeat_timer}")
             else:
                 try:
-                    if self.master_socket:
+                    if self.master_socket is not None:
                         LOGGER.debugv(f"master socket: {self.master_socket} ")
                         if self.master_socket.fileno() < 0:
                             LOGGER.warning(f"File descriptor for socket is negative. Assume master server is down: {self.master_socket} ")
@@ -392,27 +392,28 @@ class Proxy:
                             heartbeat_message.is_heartbeat = True
 
                             # Start a timer
-                            LOGGER.debugv("Starting timer right before sending heartbeat:")
+                            LOGGER.debug("Starting timer right before sending heartbeat:")
                             self.heartbeat_timer = threading.Timer(self.heartbeat_timeout, self.handle_heartbeat_timeout_loop)
+                            LOGGER.debug(f"if daemon on the heartbeat timer {self.heartbeat_timer.daemon}")
                             self.heartbeat_timer.start()
 
-                            LOGGER.debugv(f"Sending... heartbeat to master server {self.master_socket}")
+                            LOGGER.debug(f"Sending... heartbeat to master server {self.master_socket}")
 
                             if not send(self.master_socket, heartbeat_message.SerializeToString()):
                                 LOGGER.warning(f"Failed to send heartbeat request to master server {self.master_socket} FD: {self.master_socket.fileno()}")
                                 self.heartbeat_timer.cancel()
                                 self.handle_heartbeat_timeout_loop()
                             else:
-                                LOGGER.debugv("Sent heartbeat to master")
+                                LOGGER.debug(f"Sent heartbeat to master {self.master_socket} ")
                                 #self.heartbeat_timer = threading.Timer(self.heartbeat_timeout, self.handle_heartbeat_timeout_loop)
                                 #self.heartbeat_timer.start()       
                     else:
-                        LOGGER.debugv(f"No master server: {self.master_socket}")
+                        LOGGER.debugv(f"No master server: {self.master_socket} so won't send a heartbeat")
 
                 except Exception as e:
                     LOGGER.warning(f"Error sending heartbeat to maser server: {e}")
                     self.heartbeat_timer.cancel()
-                    self.handle_heartbeat_timeout()  # Trigger timeout handling 
+                    self.handle_heartbeat_timeout_loop()  # Trigger timeout handling 
 
             time.sleep(self.heartbeat_interval)         
             
@@ -423,9 +424,17 @@ class Proxy:
             self.heartbeat_timer.cancel()
 
     def handle_heartbeat_timeout_loop(self):
-        LOGGER.info("Heartbeat response timed out. Stop sending hearbeat by setting master socket to none")
-        #self.master_server_heartbeat_thread
-        self.master_socket = None
+        if self.heartbeat_timer and self.heartbeat_timer.is_alive():
+            self.heartbeat_timer.cancel()
+        with self.lock:
+            LOGGER.info("Heartbeat response timed out. Stop sending hearbeat by setting master socket to none")
+            #self.master_server_heartbeat_thread
+            try:
+                self.master_socket.close()
+            except Exception as e:
+                LOGGER.debug(f"exception thrown when closing socket {e}")
+            self.master_socket = None
+
         if len(self.slave_sockets) > 0:
             LOGGER.debug("Number of slave sockets: %d", len(self.slave_sockets))
             chosenTuple = self.choose_new_master()
@@ -539,22 +548,24 @@ class Proxy:
 
                         elif (init_conn.sender == proto.InitConnection.Sender.SERVER_MASTER):
 
+                            if self.master_socket is None:
+                                LOGGER.debug("Received heartbeat from master server when it set to None")
+
                             if self.master_socket_hostIP != conn.getpeername()[0]:
                                 LOGGER.warning(f"Received message with sender type master from NON master server.")
 
                             if init_conn.HasField("server_response"):
                                 self.relay_server_response(init_conn.server_response)
 
-                            elif init_conn.HasField("is_heartbeat") and self.is_main:
-                                LOGGER.debugv(
-                                    "Received heartbeat from master server. Sending response..."
-                                )
+                            if init_conn.HasField("is_heartbeat") and self.is_main:
+                                LOGGER.debug(f"Received heartbeat from master server. Sending response...")
                                 
                                 #self.handle_heartbeat_response_loop()
                                 LOGGER.debugv(f"Recived heartbeat from master server. checking if timer running")
-                                if self.heartbeat_timer and self.heartbeat_timer.is_alive():
+                                if (self.heartbeat_timer is not None) and self.heartbeat_timer.is_alive():
                                     LOGGER.debugv(f"Timer is still running, will cancel timer")
                                     self.heartbeat_timer.cancel()
+                                
 
                                 # send heartbeat
                                 # LOGGER.debug(
@@ -562,10 +573,9 @@ class Proxy:
                                 # )
                                 #threading.Thread(target=self.handle_heartbeat_response, daemon=True).start()
 
-                            else:
-                                LOGGER.warning(
-                                    f"Proxy received msg from master with missing content {init_conn}"
-                                )
+                            #else:
+                                #LOGGER.warning(f"Proxy received msg from master with missing content {init_conn}")
+
                         elif (init_conn.sender == proto.InitConnection.Sender.SERVER_SLAVE):
                             
                             if init_conn.HasField("slave_details"):
@@ -615,12 +625,14 @@ class Proxy:
                                 LOGGER.warning(f"Failed to send heartbeat to backup proxy.")
 
                 except Exception as e:
+                    LOGGER.debug("Exception thrown in handle connection loop")
                     LOGGER.error(traceback.format_exc())
                     break
 
         except socket.timeout:
             LOGGER.warning(f"socket timed out.")
 
+        LOGGER.debug(f"handle connection thread closing")
         with self.lock:
             if client_key in self.client_sockets:
                 del self.client_sockets[client_key]  # Remove client from mapping
@@ -669,7 +681,7 @@ class Proxy:
                     )  #
 
                     if len(read_sockets) > 0:
-
+                        
                         conn, addr = proxy_listening_sock.accept()
                         # Pass both socket and address for easier client management
                         #print("--------------------handle connection thread is called and started")
@@ -682,7 +694,8 @@ class Proxy:
                     # check for a master if there is one start a new thread for making sure it is alive
 
                 except Exception as exc:
-                    LOGGER.error(f"run(): {exc}")
+                    LOGGER.error(f"run(): threw an exception {exc}")
+
 
         LOGGER.info("Shutting down...")
         self.shutdown(proxy_listening_sock)

@@ -415,13 +415,13 @@ class Server:
 
 		# CHECK FOR HEARTBEAT HERE
 		elif proxy_resp.HasField("is_heartbeat"):
-			LOGGER.debugv(f"Received heartbeat from proxy: {proxy_resp.is_heartbeat}")
+			LOGGER.debug(f"Received heartbeat from proxy: {proxy_resp.is_heartbeat}")
 
 			heartbeat_message = proto.InitConnection()
 			heartbeat_message.sender = TrackNet_pb2.InitConnection.Sender.SERVER_MASTER
 			heartbeat_message.is_heartbeat = True
 			if send(sock, heartbeat_message.SerializeToString()):
-				LOGGER.debugv("Sent heartbeat message to main proxy")
+				LOGGER.debug(f"Sent heartbeat message to main proxy {heartbeat_message}")
 			else:
 				LOGGER.warning("Failed to send heartbeat message to main proxy.")
 		else:
