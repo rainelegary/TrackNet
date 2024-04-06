@@ -30,7 +30,33 @@ LOGGER = logging.getLogger("Proxy")
 #signal.signal(signal.SIGINT, exit_gracefully)
 
 class Proxy:
-    def __init__(self,proxy_port=5555,listening_port=5555,is_main=False,mainProxyAddress=list(proxy_details.items())[0][0],):
+    """Manages network connections for a railway simulation proxy, handling communication between clients, servers, and other proxies.
+
+    Attributes
+    ----------
+    host : str
+        The hostname of the proxy server.
+    port : int
+        The listening port number for incoming connections.
+    proxy_port : int
+        The port number used for proxy-to-proxy communications.
+    is_main : bool
+        Indicates whether this proxy instance functions as the main proxy.
+    master_socket : socket.socket
+        The socket object used for communication with the master server.
+    slave_sockets : dict
+        A dictionary mapping slave proxy addresses to their respective socket objects.
+    client_sockets : dict
+        A dictionary mapping client addresses to their respective socket objects.
+    """
+    def __init__(self,proxy_port=5555,listening_port=5555,is_main=False,mainProxyAddress=list(proxy_details.items())[0][0]):
+        """Initializes the Proxy instance with the specified proxy port, listening port, and mode (main or backup).
+
+        :param proxy_port: The port number for proxy communications. Defaults to 5555.
+        :param listening_port: The port number for listening to incoming connections. Defaults to 5555.
+        :param is_main: A boolean indicating whether the proxy operates as the main proxy. Defaults to False.
+        :param mainProxyAddress: The address of the main proxy. This is necessary for backup proxies to know where to connect.
+        """
         LOGGER.debug(f"port: {proxy_port} listening port {listening_port}")
         self.host = socket.gethostname()
         self.port = listening_port
@@ -47,11 +73,9 @@ class Proxy:
         self.heartbeat_timeout = 3
         self.slave_heartbeat_timeout = 2
 
-
         self.proxy_time = None
         self.adjusted_offset = None
         
-
         self.is_main = is_main
         if is_main:
             self.main_proxy_host = self.host
@@ -70,6 +94,8 @@ class Proxy:
         threading.Thread(target=self.proxy_to_proxy, daemon=True).start()
 
     def set_main_proxy_host(self):
+        """Sets the hostname for the main proxy based on the proxy's 
+        operational mode and provided configuration. """
         if self.is_main:
             self.main_proxy_host = self.host
         elif proxy_address != None:
@@ -91,10 +117,22 @@ class Proxy:
             self.is_main = True
 
     def add_slave_socket(self, slave_socket: socket.socket, slave_port: int):
+        """Registers a new slave proxy connection by adding its socket and port to the 
+        ``slave_sockets`` dictionary.
+
+        :param slave_socket: The socket object associated with the slave proxy connection.
+        :param slave_port: The port number of the slave proxy.
+        """
         self.slave_sockets[(f"{slave_socket.getpeername()[0]}",slave_port)] = slave_socket
         LOGGER.debug(f"Slave ({slave_socket.getpeername()[0]},{slave_port}) added")
 
     def remove_slave_socket(self, slave_socket: socket.socket,slave_port: int):
+        """Removes a slave proxy connection from the ``slave_sockets`` dictionary based on
+        its socket object.
+
+        :param slave_socket: The socket object associated with the slave proxy to be removed.
+        :param slave_port: The port number of the slave proxy to be removed.
+        """
         try:
             del self.slave_sockets[(slave_socket.getpeername()[0],slave_port)]
         except KeyError:
@@ -103,6 +141,10 @@ class Proxy:
             LOGGER.warning(f"Error removing slave socket from list of slaves: {exc}")
 
     def relay_client_state(self, client_state: TrackNet_pb2.ClientState):
+        """Forwards a client state message from a client to the master server.
+
+        :param client_state: A protobuf message containing the state of a client.
+        """
         LOGGER.info("Relaying a client state")
         LOGGER.debug(f"{client_state}")
         # Extract the target client's IP and port
@@ -131,6 +173,11 @@ class Proxy:
             LOGGER.warning("There is currently no master server")
 
     def relay_server_response(self, server_response: TrackNet_pb2.ServerResponse):
+        """Forwards a server response from the master server to the appropriate client 
+        based on the client's address.
+
+        :param server_response: A protobuf message containing a response from the master server.
+        """
         with self.lock:
             LOGGER.debug(
                 f"Received server response from master server for client with ip:{server_response.client.host} and port:{server_response.client.port}"
@@ -164,7 +211,11 @@ class Proxy:
                 LOGGER.warning(f"Target client {target_client_key} not found.")
 
     def promote_slave_to_master(self, slave_socket: socket.socket, slave_port: int):
+        """Promotes a slave proxy to the role of master proxy. This involves updating the ``master_socket`` to the provided slave socket.
 
+        :param slave_socket: The socket object of the slave proxy being promoted.
+        :param slave_port: The port number of the slave proxy being promoted.
+        """
         self.master_socket = slave_socket
         LOGGER.debug(f"master socket was updated: {self.master_socket}")
         try:
@@ -211,6 +262,11 @@ class Proxy:
             LOGGER.warning(f"Failed to send role assignmnet to newly elected master.")       
 
     def notify_master_of_new_slave(self, init_conn: TrackNet_pb2.InitConnection):
+        """Notifies the master server about a new slave server connection. This method constructs a 
+        message with the new slave server's details and sends it to the master server.
+
+        :param init_conn: An ``InitConnection`` protobuf message containing the details of the newly connected slave server.
+        """
         # Notify master of new slave server so it can connect to it
         slave_host = init_conn.slave_details.host
         slave_port = init_conn.slave_details.port
@@ -227,6 +283,9 @@ class Proxy:
             LOGGER.warning(f"Failed to send slave details to master.")
 
     def notify_master_of_slaves(self):
+        """Sends the details of all connected slave servers to the master server. 
+        This method is typically called to update the master server with a 
+        comprehensive list of slave servers upon certain events."""
         # Notify master of new slave server so it can connect to it
         resp = TrackNet_pb2.InitConnection()
         resp.sender = TrackNet_pb2.InitConnection.Sender.PROXY
@@ -239,14 +298,18 @@ class Proxy:
         if not send(self.master_socket, resp.SerializeToString()):
             LOGGER.warning(f"Failed to send slave details to master.")
 
-    def slave_role_assignment(
-        self, slave_socket: socket.socket, init_conn: TrackNet_pb2.InitConnection
-    ):
+    def slave_role_assignment(self, slave_socket: socket.socket, init_conn: TrackNet_pb2.InitConnection):
+        """Assigns a role to a newly connected slave server. If there is no master server, 
+        the first connected slave is promoted to master. Otherwise, the new slave is simply
+        added to the list of slave servers.
+
+        :param slave_socket: The socket object associated with the newly connected slave server.
+        :param init_conn: An ``InitConnection`` protobuf message containing the details of the slave server.
+        """
         slave_host = init_conn.slave_details.host
         slave_port = init_conn.slave_details.port
 
         with self.lock:
-            
             # Check if there is no master server, and promote the first slave to master
             if self.master_socket is None:
                 LOGGER.debug("No master server so will promote this server as master ")
@@ -270,6 +333,13 @@ class Proxy:
                 self.notify_master_of_new_slave(init_conn)
 
     def handle_missed_proxy_heartbeat(self):
+        """Handles situations where a heartbeat message from the main proxy is missed. 
+        Increments a counter for missed heartbeats and, if the number of missed heartbeats 
+        exceeds a threshold, promotes the backup proxy to the main proxy role.
+
+        :return: A boolean indicating whether the current proxy has been 
+            promoted to the main proxy role.
+        """
         self.heartbeat_attempts += 1
 
         if self.heartbeat_attempts >= self.max_heartbeat_attempts:
@@ -284,6 +354,9 @@ class Proxy:
         return False
 
     def proxy_to_proxy(self):
+        """Manages the connection between backup and main proxies. A backup proxy attempts 
+        to connect to the main proxy. If the connection fails repeatedly, the backup proxy 
+        may assume the role of the main proxy."""
         connected_to_proxy = False
 
         if not self.is_main:
@@ -310,6 +383,12 @@ class Proxy:
             self.listen_to_main_proxy(proxy_sock)
 
     def listen_to_main_proxy(self, proxy_sock: socket.socket):
+        """Listens for messages from the main proxy, maintaining a heartbeat connection. 
+        This method is responsible for ensuring that the backup proxy remains updated 
+        about the status of the main proxy and takes action if the main proxy fails.
+
+        :param proxy_sock: The socket object used for communication with the main proxy.
+        """
         LOGGER.info("Keeping heartbeat with main proxy ...")
 
         while not self.is_main:
@@ -379,9 +458,10 @@ class Proxy:
                 if self.handle_missed_proxy_heartbeat():
                     LOGGER.info("IS MAIN PROXY")
 
-	
     def send_heartbeat_to_master_loop(self):
-
+        """Initiates a loop that sends heartbeat messages to the master server at regular 
+        intervals. If the master server becomes unresponsive, it triggers a timeout handling 
+        procedure."""
         LOGGER.debug(f"Sending heartbeat thread started: ")
         while not exit_flag:
             
@@ -426,12 +506,19 @@ class Proxy:
             time.sleep(self.heartbeat_interval)         
             
     def handle_heartbeat_response_loop(self):
+        """Handles the response to the heartbeat message sent by the proxy. If a heartbeat 
+        response is received from the master server, the associated timer is canceled to 
+        prevent the timeout handling procedure."""
         # LOGGER.debugv("Received heartbeat response from master server.")
         # Cancel the timer if it's still running
         if self.heartbeat_timer and self.heartbeat_timer.is_alive():
             self.heartbeat_timer.cancel()
 
     def handle_heartbeat_timeout_loop(self):
+        """Handles the scenario when a heartbeat response is not received from the 
+        master server within a specified timeout period. This method may involve 
+        promoting a slave server to the master or taking other recovery actions.
+        """
         if self.heartbeat_timer and self.heartbeat_timer.is_alive():
             self.heartbeat_timer.cancel()
         with self.lock:
@@ -458,10 +545,18 @@ class Proxy:
             LOGGER.info("len (slave sockets) is 0")
             LOGGER.info("No slave servers available to promote to master.")
 
- 
-
     def send_heartbeat_to_slaves(self, slave_socket, slave_host, slave_port):
-        """Is called in choose_new_master. Send a heartbeat request to a slave server and waits to receive "slave_last_backup_timestamp" as the response."""
+        """Sends a heartbeat message to a slave server to verify its responsiveness. 
+        This method is part of the mechanism for monitoring the health of slave servers 
+        and choosing a new master server if necessary.
+
+        Called in choose_new_master.
+
+        :param slave_socket: The socket object used for communication with the slave server.
+        :param slave_host: The hostname of the slave server.
+        :param slave_port: The port number of the slave server.
+        """
+        # Send a heartbeat request to a slave server and waits to receive "slave_last_backup_timestamp" as the response."""
         # Send request for heartbeat
         request_heartbeat = TrackNet_pb2.InitConnection()
         request_heartbeat.sender = TrackNet_pb2.InitConnection.Sender.PROXY
@@ -483,6 +578,9 @@ class Proxy:
             LOGGER.warning(f"Error in send_heartbeat_to_slaves on socket {slave_socket}: {e}")
 
     def choose_new_master(self):
+        """Chooses a new master server from the list of connected slave servers based on their 
+        last known states or other criteria. This method is invoked when the current master 
+        server becomes unresponsive or otherwise needs to be replaced."""
         self.all_slave_timestamps = {}
 
         # List to hold all thread objects
@@ -533,8 +631,14 @@ class Proxy:
             LOGGER.warning("No timestamps received, cannot select a new master.")
             return None
 
-
     def handle_connection(self, conn: socket.socket, address):
+        """Manages incoming connections on the proxy server, handling data transmission between 
+        clients, the master server, and slave servers. This method is responsible for routing 
+        messages and maintaining the proxy's internal state.
+
+        :param conn: The socket object representing the connection.
+        :param address: The address of the connecting entity.
+        """
         try:
             # Convert address to a string key
             client_key = f"{address[0]}:{address[1]}"
@@ -658,6 +762,12 @@ class Proxy:
             conn.close()
 
     def shutdown(self, proxy_listening_sock: socket.socket):
+        """Gracefully shuts down the proxy server, closing all active connections 
+        and cleaning up resources.
+
+        :param proxy_listening_sock: The main listening socket of the proxy 
+            server to be closed.
+        """
         with self.lock:
             if proxy_listening_sock is not None:
                 proxy_listening_sock.shutdown(socket.SHUT_RDWR)
@@ -670,6 +780,9 @@ class Proxy:
             LOGGER.info(f"Proxy {self.host}{self.port} shut down")
 
     def run(self):
+        """Starts the proxy server, listening for incoming connections and handling them 
+        according to their type (client, master server, or slave server). This method 
+        implements the main loop of the proxy server."""
         while not exit_flag:
             proxy_listening_sock = create_server_socket(self.host, self.port)
 
@@ -685,9 +798,7 @@ class Proxy:
                 try:
                     # select.select(socks to monitor for incoming data, socks to write to, socks to monitor for exceptions, timeout value)
                     
-                    read_sockets, _, _ = select.select(
-                        [proxy_listening_sock], [], [], 0.5
-                    )  #
+                    read_sockets, _, _ = select.select([proxy_listening_sock], [], [], 0.5)  #
 
                     if len(read_sockets) > 0:
                         
@@ -704,7 +815,6 @@ class Proxy:
 
                 except Exception as exc:
                     LOGGER.error(f"run(): threw an exception {exc}")
-
 
         LOGGER.info("Shutting down...")
         self.shutdown(proxy_listening_sock)
