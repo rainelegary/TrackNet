@@ -211,7 +211,7 @@ class Server:
 		)
 
 		# print map
-		self.railway.print_map_new()
+		self.railway.print_map()
 
 	def issue_client_command(self, client_state, train):
 		resp = TrackNet_pb2.ServerResponse()
