@@ -712,10 +712,10 @@ if __name__ == "__main__":
     isBackup = args.backup
 
     # Main proxy address and port
-    LOGGER.debug(f"Proxy address {proxy_address}")
-    LOGGER.debug(f"Proxy port number {proxy_port_num}")
-    LOGGER.debug(f"Listening port {listening_port_num}")
-    LOGGER.debug(f"Main: {isMain} and Backup: {isBackup}")
+    LOGGER.debugv(f"Proxy address {proxy_address}")
+    LOGGER.debugv(f"Proxy port number {proxy_port_num}")
+    LOGGER.debugv(f"Listening port {listening_port_num}")
+    LOGGER.debugv(f"Main: {isMain} and Backup: {isBackup}")
 
     if isMain and isBackup:
         print("Passed both -main and -backup. Proxy can not be both")

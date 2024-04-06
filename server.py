@@ -684,11 +684,11 @@ if __name__ == "__main__":
 	proxy2_port_num = args.proxyPort2
 	listening_port_num = args.listeningPort
 
-	LOGGER.debug(f"Proxy 1 address {proxy1_address}")
-	LOGGER.debug(f"Proxy 2 address {proxy2_address}")
-	LOGGER.debug(f"Proxy 1 port number {proxy1_port_num}")
-	LOGGER.debug(f"Proxy 2 port number {proxy2_port_num}")
-	LOGGER.debug(f"Listening port {listening_port_num}")
+	LOGGER.debugv(f"Proxy 1 address {proxy1_address}")
+	LOGGER.debugv(f"Proxy 2 address {proxy2_address}")
+	LOGGER.debugv(f"Proxy 1 port number {proxy1_port_num}")
+	LOGGER.debugv(f"Proxy 2 port number {proxy2_port_num}")
+	LOGGER.debugv(f"Listening port {listening_port_num}")
 
 	if proxy1_port_num == None:
 		proxy1_port_num = 5555
