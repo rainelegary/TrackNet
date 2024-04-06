@@ -1,7 +1,5 @@
 import logging
-from classes.junction import Junction
-from classes.track import Track
-from classes.train import Train
+
 LOGGER = logging.getLogger(__name__)
 
 class Junction:
@@ -25,7 +23,7 @@ class Junction:
         self.neighbors = {}  # Mapping neighbor junction names to track objects
         self.parked_trains = {}  # Store parked trains by name
 
-    def add_neighbor(self, neighbor_junction: Junction, track: Track):
+    def add_neighbor(self, neighbor_junction, track):
         """Adds a neighboring junction and the track that connects this junction to the neighbor.
 
         :param neighbor_junction: The neighboring junction object.
@@ -33,14 +31,14 @@ class Junction:
         """
         self.neighbors[neighbor_junction.name] = track
 
-    def park_train(self, train: Train):
+    def park_train(self, train):
         """Parks a train at this junction, adding it to the ``parked_trains`` dictionary.
 
         :param train: The train object to be parked at the junction.
         """
         self.parked_trains[train.name] = train
 
-    def depart_train(self, train: Train):
+    def depart_train(self, train):
         """Departs a train from this junction, removing it from the ``parked_trains`` dictionary.
 
         :param train: The train object to be departed from the junction.
