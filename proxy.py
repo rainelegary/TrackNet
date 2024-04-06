@@ -100,7 +100,7 @@ class Proxy:
             LOGGER.warning(f"Error removing slave socket from list of slaves: {exc}")
 
     def relay_client_state(self, client_state: TrackNet_pb2.ClientState):
-        LOGGER.info("Received client state")
+        LOGGER.info("Relaying a client state")
         LOGGER.debug(f"{client_state}")
         # Extract the target client's IP and port
         target_client_key = (f"{client_state.client.host}:{client_state.client.port}")
@@ -166,6 +166,7 @@ class Proxy:
     def promote_slave_to_master(self, slave_socket: socket.socket, slave_port: int):
 
         self.master_socket = slave_socket
+        LOGGER.debug(f"master socket was updated: {self.master_socket}")
         try:
             self.master_socket_hostIP = slave_socket.getpeername()[0]
         except Exception as e:
@@ -174,7 +175,7 @@ class Proxy:
             )
 
         self.remove_slave_socket(self.master_socket,slave_port)
-        LOGGER.info(f"Promoting {self.master_socket_hostIP} to MASTER, was previously a slave listening on port {slave_port}")
+        LOGGER.info(f"Promoting {self.master_socket_hostIP} to MASTER, was previously a slave listening on port {slave_port}, current master socket: {self.master_socket}")
         # LOGGER.info(f"{slave_socket.getpeername()} promoted to MASTER")
 
         # notify the newly promoted master server of its new role
@@ -199,11 +200,11 @@ class Proxy:
         if send(slave_socket, proxy_message.SerializeToString()):
             LOGGER.debug(f"Sent role assignmnet to newly elected master.")
 
-            LOGGER.debug("Will send unhandeled client states to new master")
+            LOGGER.debug("Will send any unhandeled client states to the new master")
 
             for (client_state,responseSent) in self.client_state_handled.values():
                 if responseSent == False:
-                    LOGGER.debug(f"Will send client state {client_state} to new master")
+                    #LOGGER.debug(f"Will send client state {client_state} to new master")
                     self.relay_client_state(client_state)
 
         else:
@@ -245,8 +246,10 @@ class Proxy:
         slave_port = init_conn.slave_details.port
 
         with self.lock:
+            
             # Check if there is no master server, and promote the first slave to master
             if self.master_socket is None:
+                LOGGER.debug("No master server so will promote this server as master ")
                 self.promote_slave_to_master(slave_socket,slave_port)
 
             # Already have master so assign slave role
@@ -543,7 +546,7 @@ class Proxy:
                         init_conn.ParseFromString(data)
 
                         if init_conn.sender == proto.InitConnection.Sender.CLIENT:
-                            
+                            LOGGER.debug(f"Received a client state from client")
                             self.relay_client_state(init_conn.client_state)
 
                         elif (init_conn.sender == proto.InitConnection.Sender.SERVER_MASTER):
@@ -581,6 +584,7 @@ class Proxy:
                             if init_conn.HasField("slave_details"):
 
                                 if self.is_main:
+                                    LOGGER.debug(f"Slave server has connect, will now decide its role")
                                     self.slave_role_assignment(conn, init_conn)
                                 else:
                                     slave_port = init_conn.slave_details.port
