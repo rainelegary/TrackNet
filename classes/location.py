@@ -13,15 +13,9 @@ class Location:
     :param prev_junction: the node it's coming from
     """
 
-    def __init__(
-        self,
-        front_junction: Junction = None,
-        back_junction: Junction = None,
-        front_track: Track = None,
-        back_track: Track = None,
-        front_position: float = 0,
-        back_position: float = 0,
-    ):
+    def __init__(self,front_junction: Junction=None, back_junction: Junction=None,
+        front_track: Track=None, back_track: Track=None, front_position: float=0,
+        back_position: float=0):
         """
         For each cart, each field works as follows.
 

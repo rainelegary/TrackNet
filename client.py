@@ -132,7 +132,7 @@ class Client():
                 # Adjust the speed to achieve desired movement
                 speed_factor = 10  # Adjust this factor as needed
                 effective_speed = self.train.get_speed() * speed_factor
-                distance_moved = effective_speed * (elapsed_time / 3600)  # Assuming speed is in km/h
+                distance_moved = int(effective_speed * (elapsed_time / 3600))  # Assuming speed is in km/h
 
                 self.train.update_location(distance_moved)
                 self.last_time_updated = datetime.now()
