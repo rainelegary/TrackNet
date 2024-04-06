@@ -204,8 +204,8 @@ class Proxy:
 
             for (client_state,responseSent) in self.client_state_handled.values():
                 if responseSent == False:
-                    #LOGGER.debug(f"Will send client state {client_state} to new master")
-                    self.relay_client_state(client_state)
+                    LOGGER.debug(f"Found unhandled client state")
+                    #self.relay_client_state(client_state)
 
         else:
             LOGGER.warning(f"Failed to send role assignmnet to newly elected master.")       
