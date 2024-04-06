@@ -101,7 +101,7 @@ def bytes_to_int(value: bytes) -> int:
     return int.from_bytes(value, 'big')
 
 
-def create_client_socket(ip: str, port: int):
+def create_client_socket(ip: str, port: int, timeout=1):
     """Create a TCP/IP socket at the given port.
 
     :param ip: A string representing the IP address to connect to.
@@ -112,12 +112,12 @@ def create_client_socket(ip: str, port: int):
     assert type(ip)   == str
     assert type(port) == int
 
-    socket.setdefaulttimeout(1)
+    socket.setdefaulttimeout(timeout)
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     while not exit_flag:
         try:
-            
+           
             sock.connect((ip, port))
             if sock is not None:
                 return sock

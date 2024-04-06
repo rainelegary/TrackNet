@@ -604,10 +604,10 @@ class Server:
 	def connect_to_slave(self, slave_host, slave_port):
 		try:
 			# for each slave create client sockets
-			LOGGER.debug(f"Sleeping for five seconds before trying to connect to slave")
-			time.sleep(5)
+			#LOGGER.debug(f"Sleeping for five seconds before trying to connect to slave")
+			#time.sleep(5)
 			LOGGER.debug(f"Before creating client socket, host: {slave_host} port: {slave_port}")
-			slave_sock = create_client_socket(slave_host, slave_port)
+			slave_sock = create_client_socket(slave_host, slave_port, timeout=6)
 			LOGGER.debug(f"Type of slave sock: {type(slave_sock)}")
 			if slave_sock is None:
 				LOGGER.warning(f"Could not connect to the given slave server: {slave_host}  {slave_port}")
