@@ -185,12 +185,14 @@ class Server:
 		
 		LOGGER.debug("exit flag was set, will now shutdown")
 		for (slave_socket) in self.socks_for_communicating_to_slaves:
-			slave_socket.shutdown(socket.SHUT_RDWR)
-			slave_socket.close()
+			if slave_socket is not None:
+				slave_socket.shutdown(socket.SHUT_RDWR)
+				slave_socket.close()
 		
 		for proxy_sock in self.proxy_sockets.values():
-			proxy_sock.shutdown(socket.SHUT_RDWR)
-			proxy_sock.close()
+			if proxy_sock is not None:
+				proxy_sock.shutdown(socket.SHUT_RDWR)
+				proxy_sock.close()
 
 				
 
@@ -425,13 +427,13 @@ class Server:
 
 		# CHECK FOR HEARTBEAT HERE
 		elif proxy_resp.HasField("is_heartbeat"):
-			LOGGER.debug(f"Received heartbeat from proxy: {proxy_resp.is_heartbeat}")
+			LOGGER.debugv(f"Received heartbeat from proxy: {proxy_resp.is_heartbeat}")
 
 			heartbeat_message = proto.InitConnection()
 			heartbeat_message.sender = TrackNet_pb2.InitConnection.Sender.SERVER_MASTER
 			heartbeat_message.is_heartbeat = True
 			if send(sock, heartbeat_message.SerializeToString()):
-				LOGGER.debug(f"Sent heartbeat message to main proxy {heartbeat_message}")
+				LOGGER.debugv(f"Sent heartbeat message to main proxy {heartbeat_message}")
 			else:
 				LOGGER.warning("Failed to send heartbeat message to main proxy.")
 		else:
@@ -482,7 +484,7 @@ class Server:
 			proxy_sock.close()
 			sys.exit(1)
 		except Exception as e:
-			LOGGER.error(f"Error communicating with proxy, will reconnect to proxy")
+			LOGGER.error(f"Error communicating with proxy, will reconnect to proxy, exception: {e}")
 			proxy_sock.shutdown(socket.SHUT_RDWR)
 			proxy_sock.close()
 			self.proxy_sockets[key] = None
@@ -602,6 +604,7 @@ class Server:
 	def connect_to_slave(self, slave_host, slave_port):
 		try:
 			# for each slave create client sockets
+			time.sleep(2)
 			LOGGER.debug(f"Before creating client socket, host: {slave_host} port: {slave_port}")
 			slave_sock = create_client_socket(slave_host, slave_port)
 			LOGGER.debug(f"Type of slave sock: {type(slave_sock)}")
