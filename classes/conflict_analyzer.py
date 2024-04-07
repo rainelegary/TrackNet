@@ -65,6 +65,12 @@ class ConflictAnalyzer:
 
     @staticmethod
     def resolve_conflicts_simple(railway, commands):
+
+        for train in railway.trains.values():
+            command = TrackNet_pb2.ServerResponse()
+            command.status = TrackNet_pb2.ServerResponse.UpdateStatus.CLEAR
+            command.speed = TrainSpeed.FAST.value
+            commands[train.name] = command
         
         LOGGER.debug("Resolving bad track conditions")
         for track_id in railway.map.tracks.keys():
@@ -82,7 +88,7 @@ class ConflictAnalyzer:
                     LOGGER.debug(f"{train_id} may enter {next_track.name}")
                 command = TrackNet_pb2.ServerResponse()
                 command.status = TrackNet_pb2.ServerResponse.UpdateStatus.CLEAR
-                command.speed = TrainSpeed.FAST.value
+                command.speed = commands[train_id].speed
                 commands[train_id] = command
             else:
                 # park
@@ -90,7 +96,7 @@ class ConflictAnalyzer:
                     LOGGER.debug(f"{train_id} may not enter {next_track.name}")
                 command = TrackNet_pb2.ServerResponse()
                 command.status = TrackNet_pb2.ServerResponse.UpdateStatus.PARK
-                command.speed = TrainSpeed.FAST.value
+                command.speed = commands[train_id].speed
                 commands[train_id] = command
 
         return commands
