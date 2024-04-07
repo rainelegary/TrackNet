@@ -215,14 +215,18 @@ class Server:
 		
 		LOGGER.debug("exit flag was set, will now shutdown")
 		for (slave_socket) in self.socks_for_communicating_to_slaves:
-			if slave_socket is not None:
+			try:
 				slave_socket.shutdown(socket.SHUT_RDWR)
 				slave_socket.close()
+			except Exception as e:
+				pass
 		
 		for proxy_sock in self.proxy_sockets.values():
-			if proxy_sock is not None:
+			try:
 				proxy_sock.shutdown(socket.SHUT_RDWR)
 				proxy_sock.close()
+			except Exception as e:
+				pass
 
 	def handle_client_state(self, client_state, train, apply_state=True):
 		if apply_state:

@@ -625,7 +625,7 @@ class Proxy:
                 else:
                     LOGGER.warning(f"Error cannot find the socket for the slave chosen {most_recent_slave}") 
             except socket.gaierror as e:
-                print(f"Failed to get the IP address of {chosen_slave_host}: {e}")
+                LOGGER.warning(f"Failed to get the IP address of {chosen_slave_host}: {e}")
                 return None
         else:
             LOGGER.warning("No timestamps received, cannot select a new master.")
