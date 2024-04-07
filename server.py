@@ -454,6 +454,8 @@ class Server:
 				backup_timestamp_message = proto.SlaveBackupTimestamp()
 				if self.backup_railway_timestamp:
 					backup_timestamp_message.timestamp = self.backup_railway_timestamp
+				else:
+					backup_timestamp_message.timestamp = 0
 				backup_timestamp_message.host = socket.gethostbyname(self.host) 
 				backup_timestamp_message.port = self.port
 				response.slave_backup_timestamp.CopyFrom(backup_timestamp_message)
