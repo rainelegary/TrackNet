@@ -58,7 +58,8 @@ class Client():
         self.sock = None
         self.client_ip = None
         self.client_port = None
-        self.probabilty_of_good_track = 95
+        self.probabilty_track_stay_good = 0.95
+        self.probability_track_stay_bad = 0.8
         self.railmap = Railmap(
             junctions=initial_config["junctions"], tracks=initial_config["tracks"]
         )
@@ -108,12 +109,12 @@ class Client():
     def get_track_condition(self):
         """Determines the track condition based on a predefined probability.
 
-        :return: Returns GOOD track condition with a 95% probability and BAD track condition with a 5% probability.
+        :return: Returns track condition as GOOD or BAD
         :rtype: TrackNet_pb2.ClientState.TrackCondition
         """
         return (
             TrackNet_pb2.TrackCondition.GOOD
-            if random.random() < self.probabilty_of_good_track
+            if random.random() < self.probabilty_track_stay_good
             else TrackNet_pb2.TrackCondition.BAD
         )
 
