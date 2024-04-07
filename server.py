@@ -90,7 +90,6 @@ class Server:
 
 		self.connecting_to_proxies = False
 
-		self.isMaster = False
 		self.proxy_host = "csx1.ucalgary.ca"
 		self.proxy_port = 5555
 
@@ -105,9 +104,20 @@ class Server:
 		self.client_state_queue = Queue()
 
 		threading.Thread(target=self.connect_to_proxy, daemon=True).start()
+		threading.Thread(target=self.printRailwayMap, daemon=True).start()
 
 		self.handle_client_states()
 
+	def printRailwayMap(self):
+		while not utils.exit_flag:
+			time.sleep(5)
+			if self.is_master == True:
+				with self.lock:
+					print("----------------------------------------------------------------------")
+					LOGGER.debug(f"Printing State of Railway: ")
+					self.railway.print_map()
+					print("----------------------------------------------------------------------")
+			
 	def create_railway_update_message(self) -> TrackNet_pb2.RailwayUpdate:
 		"""Creates and returns a RailwayUpdate message containing the current 
 		state of the railway network.
@@ -244,7 +254,7 @@ class Server:
 			client_state.route,
 		)
 
-		self.railway.print_map()
+		#self.railway.print_map()
 
 	def issue_client_command(self, client_state, train):
 		"""Generates a server response based on the client's current 
@@ -396,7 +406,7 @@ class Server:
 							self.backup_railway, self.railway
 						)
 						# self.railway.map.print_map()
-						self.railway.print_map()
+						#self.railway.print_map()
 					else:
 						LOGGER.info(f"no backup railway")
 
