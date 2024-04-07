@@ -553,8 +553,9 @@ class Proxy:
                 self.promote_slave_to_master(new_master_socket,slave_port)
             else:
                 LOGGER.debug("Unable to promote a master from current list of slaves.")
-                # clean the dictionary with the slave sockets
-                self.cleanSlaveSockets()
+                
+            # clean the dictionary with the slave sockets after sending hearbeat to slave servers 
+            self.cleanSlaveSockets()
 
                 
         else:
