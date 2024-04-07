@@ -31,11 +31,10 @@ train = Train(
 train.route = Route(railway.map.find_shortest_path("A", "C"))
 train.route.current_junction_index = 1
 
-train.location.set_next_track_front_cart(railway.map.tracks["Track (A, B)"])
+train.location.front_cart["track"] = railway.map.tracks["Track (A, B)"]
 train.location.front_cart["position"] = 100
 train.location.set_junction_front_cart(railway.map.junctions["B"])
-
-train.location.set_next_track_back_cart(railway.map.tracks["Track (B, C)"])
+train.location.back_cart["track"] = railway.map.tracks["Track (B, C)"]
 train.location.back_cart["position"] = 90
 train.location.set_junction_back_cart(railway.map.junctions["C"])
 

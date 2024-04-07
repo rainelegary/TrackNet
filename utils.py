@@ -1,6 +1,9 @@
 import socket
 import logging
 import signal
+import sys
+
+LOGGER = logging.getLogger("utils")
 
 __all__ = [
     "initial_config",
@@ -39,23 +42,27 @@ proxy_details = {
 
 exit_flag = False
 
+LOGGER = logging.getLogger("utils")
 
 def exit_gracefully(signum, frame):
     global exit_flag
 
     sig_type = 'Unknown'
-    if signum == signal.SIGTERM:
-        sig_type == 'SIGTERM'
-    elif signum == signal.SIGINT:
-        sig_type == 'SIGINT'
-
-    print('Trying to exit gracefully. ' + sig_type)
+    if signum == signal.SIGTERM.value:
+        sig_type = 'SIGTERM'
+    elif signum == signal.SIGINT.value:
+        sig_type = 'SIGINT'
+    
+    print('Trying to exit gracefully. sig:'+sig_type)
     exit_flag = True
+    #sys.exit(0)
+
 
 DEBUGV= 9 
 def debugv(self, message, *args, **kws):
     # Yes, logger takes its '*args' as 'args'.
     self._log(DEBUGV, message, args, **kws) 
+
 
 def setup_logging():
     logging.addLevelName(DEBUGV, "DEBUGV")
@@ -72,17 +79,11 @@ def setup_logging():
 
 
 def int_to_bytes(value: int, length: int) -> bytes:
-    """Convert the given integer into a bytes object with the specified
-       number of bits. Uses network byte order.
+    """Convert the given int into a bytes object with `length` number of bits. 
 
-    PARAMETERS
-    ==========
-    value: An int to be converted.
-    length: The number of bytes this number occupies.
-
-    RETURNS
-    =======
-    A bytes object representing the integer.
+    :param value: An int to be converted.
+    :param length: The number of bytes this number occupies.
+    :returns: A bytes object representing the integer.
     """
 
     assert type(value) == int
@@ -92,64 +93,51 @@ def int_to_bytes(value: int, length: int) -> bytes:
 
 
 def bytes_to_int(value: bytes) -> int:
-    """Convert the given bytes object into an integer. Uses network
-       byte order.
+    """Convert the bytes object into an int. 
 
-    PARAMETERS
-    ==========
-    value: An bytes object to be converted.
-
-    RETURNS
-    =======
-    An integer representing the bytes object.
+    :param value: An bytes object to be converted.
+    :returns: integer representing the bytes object.
     """
-
     assert type(value) == bytes
     return int.from_bytes(value, 'big')
 
 
-def create_client_socket(ip: str, port: int):
-    """Create a TCP/IP socket at the specified port.
+def create_client_socket(ip: str, port: int, timeout=1):
+    """Create a TCP/IP socket at the given port.
 
-    PARAMETERS
-    ==========
-    ip: A string representing the IP address to connect to.
-    port: An integer representing the port to connect to.
-
-    RETURNS
-    =======
-    If successful, a connected socket object.
-    Otherwise, return None.
+    :param ip: A string representing the IP address to connect to.
+    :param port: An integer representing the port to connect to.
+    :returns: A connected socket object or None if unsuccessful.
     """
 
     assert type(ip)   == str
     assert type(port) == int
 
-    #socket.setdefaulttimeout(0.5)
+    socket.setdefaulttimeout(timeout)
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-    try:
-        sock.connect((ip, port))
-    except Exception as e:
-        print ("Failed to connect to socket at " + ip + ":" + str(port))
-        print ("exception: " + str(e))
-        return None
-
-    return sock
+    while not exit_flag:
+        try:
+           
+            sock.connect((ip, port))
+            if sock is not None:
+                return sock
+        except socket.timeout:
+            LOGGER.debug(f"the socket connect timed out while trying to connect")
+        except KeyboardInterrupt:
+            sys.exit(1)
+        except Exception as e:
+            LOGGER.debug(f"Failed to connect to socket at {ip} : {str(port)}")
+            return None
 
 
 def create_server_socket(ip: str, port: int):
-    """Create a TCP/IP socket at the specified port.
+    """Create a TCP/IP socket at the given port.
 
-    PARAMETERS
-    ==========
-    ip: A string representing the IP address to connect to.
-    port: An integer representing the port to connect to.
+    :parma ip: A string representing the IP address to connect to.
+    :param port: An integer representing the port to connect to.
 
-    RETURNS
-    =======
-    If successful, a connected socket object.
-    Otherwise, return None.
+    :returns: A  connected socket object or None if unsuccessful
     """
     assert type(ip) == str
     assert type(port) == int
@@ -163,7 +151,7 @@ def create_server_socket(ip: str, port: int):
         sock.bind((ip, port))
         sock.settimeout(4)
         sock.listen(5)
-        print("Server Listening on " + ip + ":" + str(port))
+        #print("Server Listening on " + ip + ":" + str(port))
 
     except Exception as exc:
         print('Socket creation Failed: ' + str(exc))
@@ -177,15 +165,9 @@ def send(sock: socket.socket, msg , returnException=False) -> bool:
     """ First Sends the number of bytes in msg padded to 4 bytes, then sends
     provided data across the given socket.
 
-    PARAMETERS
-    ==========
-    sock: A socket object to use for sending.
-    msg:  A string containing the data to send.
-
-    RETURNS
-    =======
-    True if all data successfully sent over socket.
-    False otherwise.
+    :param sock: A socket object to use for sending.
+    :param msg: A string containing the data to send.
+    :returns: True if all data successfully sent over socket, otherwise False
     """
     try:
         assert type(sock) == socket.socket
@@ -193,9 +175,12 @@ def send(sock: socket.socket, msg , returnException=False) -> bool:
 
         msg_len = int_to_bytes(len(msg), 4)
 
-    
         sock.sendall(msg_len)
         sock.sendall(msg)
+
+    except KeyboardInterrupt:
+        sock.close()
+        sys.exit(0)
 
     except Exception as e:
         if returnException:
@@ -208,16 +193,10 @@ def send(sock: socket.socket, msg , returnException=False) -> bool:
 
 
 def receive(sock: socket.socket, returnException=False, timeout=10) -> bytes:
-    """Receives 4 bytes of data indicating length of incomming message then receives
-    message.
+    """Receives 4 bytes of data (length of incomming message) then receives message.
 
-    PARAMETERS
-    ==========
-    sock: A socket object to use for receiving.
-
-    RETURNS
-    =======
-    A string containing the received data or None if an error occured.
+    :parma sock: A socket object to use for receiving.
+    :returns: A string containing the received data or None if an error occured.
     """
     assert type(sock) == socket.socket
     data = b''
@@ -226,22 +205,15 @@ def receive(sock: socket.socket, returnException=False, timeout=10) -> bytes:
         sock.settimeout(timeout)
         content_length = sock.recv(4)
         data = sock.recv(bytes_to_int(content_length))
-
-        # bytes_to_recv = bytes_to_int(content_length)
-        #while bytes_to_recv > 0:
-        #    recv = sock.recv(bytes_to_recv)
-
-        #    bytes_to_recv = bytes_to_recv - len(recv)
-        #    data = data + recv
-
+    except KeyboardInterrupt:
+        LOGGER.debug(f"Keyboard interupt detected, will close")
+        sys.exit(1)
     except Exception as e:
         if returnException:
             raise e
         else:
             return None
 
-    #if not data:
-    #    raise ValueError("Received data is empty.")
-
     return data
+
 
