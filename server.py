@@ -231,7 +231,7 @@ class Server:
 		# resp.status = TrackNet_pb2.ServerResponse.UpdateStatus.CLEAR
 
 		if (datetime.now() - self.previous_conflict_analysis_time) > timedelta(seconds=self.conflict_analysis_interval):
-			self.client_commands = ConflictAnalyzer.resolve_conflicts(self.railway, self.client_commands)
+			self.client_commands = ConflictAnalyzer.resolve_conflicts_simple(self.railway, self.client_commands)
 			self.previous_conflict_analysis_time = datetime.now()
 
 		command = self.client_commands[train.name]

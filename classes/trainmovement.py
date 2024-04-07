@@ -58,11 +58,10 @@ class TrainMovement(Train):
         self.location.set_to_park()
         self.state = TrainState.PARKED
         self.current_speed = 0
+        self.route.increment_junction_index()
   
         time.sleep(self.junction_delay)
 
-        self.route.increment_junction_index()
-        
         if not self.stay_parked and not self.route.destination_reached():
             self.leave_junction()
 

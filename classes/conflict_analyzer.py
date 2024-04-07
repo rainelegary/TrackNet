@@ -62,6 +62,98 @@ class ConflictAnalyzer:
     SAFETY_DISTANCE = 5
     JUNCTION_CAPACITY = 2
 
+
+    @staticmethod
+    def resolve_conflicts_simple(railway, commands):
+        
+        LOGGER.debug("Resolving bad track conditions")
+        for track_id in railway.map.tracks.keys():
+            if len(railway.map.tracks[track_id].trains) > 1:
+                raise CollisionException("Multiple trains on same track")
+            commands = ConflictAnalyzer.resolve_bad_track_condition(railway, commands, track_id)
+
+        LOGGER.debug("Resolving track entry")
+        for train_id in railway.trains.keys():
+            may_enter_next_track = ConflictAnalyzer.may_enter_next_track(railway, commands, train_id)
+            next_track = railway.trains[train_id].get_next_track_for_conflict_analyzer()
+            if may_enter_next_track:
+                # clear
+                if next_track is not None:
+                    LOGGER.debug(f"{train_id} may enter {next_track.name}")
+                command = TrackNet_pb2.ServerResponse()
+                command.status = TrackNet_pb2.ServerResponse.UpdateStatus.CLEAR
+                command.speed = TrainSpeed.FAST.value
+                commands[train_id] = command
+            else:
+                # park
+                if next_track is not None:
+                    LOGGER.debug(f"{train_id} may not enter {next_track.name}")
+                command = TrackNet_pb2.ServerResponse()
+                command.status = TrackNet_pb2.ServerResponse.UpdateStatus.PARK
+                command.speed = TrainSpeed.FAST.value
+                commands[train_id] = command
+
+        return commands
+    
+
+    @staticmethod
+    def may_enter_next_track(railway, commands, train_id):
+        train = railway.trains[train_id]
+        current_junction = train.location.front_cart["junction"]
+        next_track = train.get_next_track_for_conflict_analyzer()
+        next_junction = train.route.get_next_junction()
+
+        if next_track is not None:
+            LOGGER.debug(f"Testing if {train_id} may enter {next_track.name}")
+
+        if next_track is None:
+            return False
+
+        # break ties by train id. wait for train with smaller id to go first
+        favored_train_id = sorted(list(filter(
+                lambda t: (
+                    railway.trains[t].get_next_track_for_conflict_analyzer() is not None
+                    and railway.trains[t].get_next_track_for_conflict_analyzer().name == next_track.name
+                ),
+                railway.trains.keys()
+            )))[0]
+
+        if favored_train_id != train_id:
+            return False
+
+        if len(next_track.trains) == 0: 
+            return True # track is empty
+
+        # # At this point in the code, we have ruled out the possibility that the track is empty.
+        # # Now determine direction of trains on track
+        # track_heading = next(iter(next_track.trains.values())).route.get_next_junction().name
+        # if track_heading != next_junction.name:
+        #     return False # existing trains are moving opposite direction
+        
+        # # train that has made the least progress along the track
+        # back_train = sorted(next_track.trains.values(), key=lambda t: t.location.back_cart["position"])[0]
+
+        # # only go if the back train is far enough along the track
+        # return (back_train.location.back_cart["position"] > ConflictAnalyzer.SAFETY_DISTANCE)
+
+        return False
+
+
+    @staticmethod
+    def resolve_bad_track_condition(railway, commands, track_id):
+        if railway.map.tracks[track_id].condition == TrackCondition.BAD:
+            for train in railway.map.tracks[track_id].trains.values():
+                LOGGER.debug(f"{train.name} must move slowly due to poor track conditions")
+                # message creation inside the for loop as the messages must be separate objects, 
+                # as they may be overwritten in different ways in the future
+                command = TrackNet_pb2.ServerResponse() 
+                command.status = TrackNet_pb2.ServerResponse.UpdateStatus.CHANGE_SPEED
+                command.speed = TrainSpeed.SLOW.value
+                commands[train.name] = command
+        
+        return commands
+    
+
     @staticmethod
     def resolve_conflicts(railway, commands):
         # priority queue of conflicts (address high priority ones first) (TODO for later demoes)
@@ -99,61 +191,6 @@ class ConflictAnalyzer:
         # LOGGER.debug(commands["Train0"].speed)
 
         # returns a dictionary containing the commands to give to each train.
-        return commands
-    
-
-    @staticmethod
-    def may_enter_next_track(railway, commands, train_id):
-        train = railway.trains[train_id]
-        current_junction = train.location.front_cart["junction"]
-        next_track = train.get_next_track_for_conflict_analyzer()
-        next_junction = train.route.get_next_junction()
-
-        if next_track is None:
-            return True
-
-        if train.state not in [TrainState.PARKED, TrainState.PARKING]:
-            return True # train is moving on a track
-
-        # break ties by train id. wait for train with smaller id to go first
-        favored_train_id = sorted(list(filter(
-                lambda t: (
-                    railway.trains[t].get_next_track_for_conflict_analyzer() is not None
-                    and railway.trains[t].get_next_track_for_conflict_analyzer().name == next_track.name
-                ),
-                current_junction.parked_trains.keys()
-            )))[0]
-
-        if favored_train_id != train_id:
-            return False
-
-        if len(next_track.trains) == 0: 
-            return True # track is empty
-
-        # At this point in the code, we have ruled out the possibility that the track is empty.
-        # Now determine direction of trains on track
-        track_heading = next(iter(next_track.trains.values())).route.get_next_junction().name
-        if track_heading != next_junction.name:
-            return False # existing trains are moving opposite direction
-        
-        # train that has made the least progress along the track
-        back_train = sorted(next_track.trains.values(), key=lambda t: t.location.back_cart["position"])[0]
-
-        # only go if the back train is far enough along the track
-        return (back_train.location.back_cart["position"] > ConflictAnalyzer.SAFETY_DISTANCE)
-
-
-    @staticmethod
-    def resolve_bad_track_condition(railway, commands, track_id):
-        if railway.map.tracks[track_id].condition == TrackCondition.BAD:
-            for train in railway.map.tracks[track_id].trains.values():
-                # message creation inside the for loop as the messages must be separate objects, 
-                # as they may be overwritten in different ways in the future
-                command = TrackNet_pb2.ServerResponse() 
-                command.status = TrackNet_pb2.ServerResponse.UpdateStatus.CHANGE_SPEED
-                command.speed = TrainSpeed.SLOW.value
-                commands[train.name] = command
-        
         return commands
     
 
