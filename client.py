@@ -1,5 +1,6 @@
 import argparse
 import socket
+import sys
 import traceback
 import TrackNet_pb2
 import logging
@@ -40,17 +41,31 @@ initial_config = {
 
 
 class Client():
+    """A client class responsible for simulating a train's interaction with a server, including sending its state and receiving updates. This class manages the connection to the server, serializes train state information, sends it to the server, and handles responses to adjust the train's movement or route accordingly.
+
+    Attributes
+    ----------
+    host : str
+      The hostname or IP address of the server to connect to. Defaults to "csx2.ucalgary.ca".
+
+    port : int
+      The port number on the server to connect to. Defaults to 5555.
+
+    sock : socket.socket
+      Socket object for the client. Initially set to None.
+
+    train : TrainMovement
+      A TrainMovement object representing the client's train.
+
+    probabilty_of_good_track : int
+      The probability (as a percentage) that the track condition is good. Defaults to 95.
+    """
     
     def __init__(self, host: str ="csx2.ucalgary.ca", port: int =5555):
-        """ A client class responsible for simulating a train's interaction with a server, including sending its state and receiving updates.
+        """ Initializes the client instance, setting up the railway map, generating a route for the train, and starting a thread to update the train's position. It also initializes proxy connection details if provided through command line arguments.
 
         :param host: The hostname or IP address of the server to connect to.
-        :param port: The port number to connect to on the server.
-        :ivar host: Hostname or IP address of the server.
-        :ivar port: Port number for the server connection.
-        :ivar sock: Socket object for the client. Initially set to None.
-        :ivar train: A Train object representing the client's train.
-        :ivar probabilty_of_good_track: The probability (as a percentage) that the track condition is good.
+        :param port: The port number on the server to connect to.
         """
         self.host = host
         self.port = port
@@ -90,13 +105,26 @@ class Client():
         self.current_proxy = proxy_items[index]  # First item
         self.backup_proxy = proxy_items[(index + 1) % (len(proxy_items))]  # Second item   
         LOGGER.info(f"Current proxy: {self.current_proxy}")     
-        LOGGER.info(f"Backup proxy: {self.backup_proxy}")     
-        self.run()
+        LOGGER.info(f"Backup proxy: {self.backup_proxy}")
+        try:
+            self.run()
+        except KeyboardInterrupt:
+            LOGGER.debug(f"Keyboard interupt was detected, will close")
+            sys.exit(1)
+        except Exception as e:
+            LOGGER.debug(f"Exception: {e} was thrown, will close")
+            sys.exit(1)
+            
 
-    def generate_random_train_length(self):
+    def generate_random_train_length(self) -> int:
+        """Generates a random train length between 1 and 5.
+
+        :return: A random integer representing the train's length.
+        """
         return random.randint(1, 5) 
 
     def generate_route(self):
+        """Generates a route for the train based on the railway map. """
         self.train.route = Route(self.railmap.find_shortest_path(self.origin.name, self.destination.name))
         self.train.location.set_track(self.train.route.get_next_track())
         self.train.prev_junction = self.origin
@@ -104,11 +132,10 @@ class Client():
         LOGGER.debug(f"init track={self.train.route.get_next_track().name}")
         LOGGER.debug("Route created")
 
-    def get_track_condition(self):
+    def get_track_condition(self) -> TrackNet_pb2.TrackCondition:
         """Determines the track condition based on a predefined probability.
 
-        :return: Returns GOOD track condition with a 95% probability and BAD track condition with a 5% probability.
-        :rtype: TrackNet_pb2.ClientState.TrackCondition
+        :return: GOOD with a 95% probability, otherwise BAD.
         """
         return (
             TrackNet_pb2.TrackCondition.GOOD
@@ -117,6 +144,7 @@ class Client():
         )
 
     def update_position(self):
+        """A loop that runs continuously to update the train's position and checks if the destination is reached. """
         while not utils.exit_flag and not (self.train.route.destination_reached()):
             self.last_time_updated = datetime.now()
             time.sleep(2)
@@ -137,14 +165,14 @@ class Client():
 
         LOGGER.debug(f"*****************DESTINATION REACHED*******************")
         os._exit(0)  # Exit the program immediately with a status of 0
-        # utils.exit_flag = True
 
     def set_client_state_msg(self, state: TrackNet_pb2.ClientState, clientIP, clientPort):
-        """Populates a `ClientState` message with the current state of the train, including its id, length, speed, location, track condition, and route.
+        """Populates a `ClientState` message with the current state of the train.
 
-        :param state: The `ClientState` message object to be populated with the train's current state.
+        :param state: The `ClientState` message object to be populated.
+        :param clientIP: IP address of the client.
+        :param clientPort: Port number of the client.
         """
-
         state.client.host = clientIP
         state.client.port = clientPort
 
@@ -161,6 +189,10 @@ class Client():
                 state.route.junction_ids.append(junction_obj.name)
 
     def set_route(self, route: TrackNet_pb2.Route):
+        """Sets a new route for the train based on the route information received from the server.
+
+        :param route: A protobuf Route message detailing the new route.
+        """
         new_route = []
         for junc in route.junction_ids:
             new_route.append(self.railmap.junctions[junc])
@@ -168,11 +200,9 @@ class Client():
         self.train.location.set_track(self.train.route.get_next_track())
         LOGGER.debug(f"init track={self.train.route.get_next_track()}")
 
-    def run (self):
-        """Initiates the client's main loop, continuously sending its state to the server and processing the server's response. It handles connection management, state serialization, and response deserialization. Based on the server's response, it adjusts the train's speed, reroutes, or stops as necessary.
-
-        The method uses a loop that runs until an `exit_flag` is set. It manages the socket connection, sends the train's state, and processes responses from the server. The method also handles rerouting, speed adjustments, and stopping the train based on the server's instructions.
-        """
+    def run(self):
+        """Initiates the client's main loop, managing the socket connection, 
+        sending the train's state, and processing responses from the server."""
         connected_to_main_proxy = True
         connected_to_proxy = False
 
@@ -186,12 +216,8 @@ class Client():
                     
                     #self.sock.settimeout(10)  # Set a 10-second timeout for the socket
 
-                    if (
-                        not self.sock
-                    ):  # If connection failed, switch to backup and retry
-                        print(
-                            "Connection with main proxy failed, switching to backup proxy."
-                        )
+                    if (not self.sock):  # If connection failed, switch to backup and retry
+                        LOGGER.debug("Connection with main proxy failed, switching to backup proxy.")
                         temp = self.current_proxy
                         self.current_proxy = self.backup_proxy
                         self.backup_proxy = temp
@@ -286,8 +312,11 @@ class Client():
 
             time.sleep(5)
 
+    def handle_server_response (self, server_resp: TrackNet_pb2.ServerResponse):
+        """Handles the response received from the server, adjusting the train's speed, route, or stopping the train as instructed by the server.
 
-    def handle_server_response (self, server_resp):
+        :param server_resp: The server response as a protobuf message.
+        """
         LOGGER.debug(f"handling server response: {server_resp} none: {server_resp==None}")
         if self.train.name is None:
             self.train.name = server_resp.train.id

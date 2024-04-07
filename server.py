@@ -15,6 +15,7 @@ from datetime import datetime
 import time
 import threading
 from utils import initial_config, proxy_details
+import utils
 from classes.conflict_analyzer import ConflictAnalyzer
 import argparse
 from converters.railway_converter import RailwayConverter
@@ -34,28 +35,42 @@ cmdLineProxyDetails = []
 
 setup_logging()  ## only need to call at main entry point of application
 
-LOGGER = logging.getLogger("Server")
+LOGGER = logging.getLogger("UnAssignedServer")
 
 
 signal.signal(signal.SIGTERM, exit_gracefully)
 signal.signal(signal.SIGINT, exit_gracefully)
 
 
-# Slave server
 class Server:
+	""" Manages train objects and network connections for a railway simulation server. This class is responsible for handling incoming client connections, processing train state updates, and managing the railway network's state.
+
+	Attributes
+    ----------
+   	host : str
+      The hostname or IP address the server listens on. Defaults to the machine's hostname.
+
+   	port : int
+      The port number the server listens on. Defaults to 5555.
+
+   	sock : socket.socket
+      The main socket object for the server. Used to accept incoming connections.
+
+	railway : Railway
+      An instance of the Railway class, representing the server's simulation of the railway network.
+
+  	is_master : bool
+      A flag indicating whether this server instance is operating as the master server.
+	"""
 
 	def __init__(self, host: str = "localhost", port: int = 5555):
-		"""A server class that manages train objects and handles network connections.
+		"""Initializes the server instance with the specified host and port. 
+		Sets up the railway simulation and starts threads for managing network 
+		connections and processing client updates.
 
-		:param host: The hostname or IP address to listen on.
-		:param port: The port number to listen on.
-		:ivar host: Hostname or IP address of the server.
-		:ivar port: Port number on which the server listens.
-		:ivar sock: Socket object for the server. Initially set to None.
-		:ivar trains: A list of Train objects managed by the server.
-		:ivar train_counter: A counter to assign unique IDs to trains.
+      	:param host: The hostname or IP address to listen on.
+      	:param port: The port number to listen on.
 		"""
-
 		self.railway = Railway(
 			trains=None,
 			junctions=initial_config["junctions"],
@@ -75,7 +90,6 @@ class Server:
 
 		self.connecting_to_proxies = False
 
-		self.isMaster = False
 		self.proxy_host = "csx1.ucalgary.ca"
 		self.proxy_port = 5555
 
@@ -90,67 +104,84 @@ class Server:
 		self.client_state_queue = Queue()
 
 		threading.Thread(target=self.connect_to_proxy, daemon=True).start()
+		threading.Thread(target=self.printRailwayMap, daemon=True).start()
 
 		self.handle_client_states()
-		#test so i can commit changes
 
+	def printRailwayMap(self):
+		while not utils.exit_flag:
+			time.sleep(5)
+			if self.is_master == True:
+				with self.lock:
+					print("----------------------------------------------------------------------")
+					LOGGER.debug(f"Printing State of Railway: ")
+					self.railway.print_map()
+					print("----------------------------------------------------------------------")
+			
 	def create_railway_update_message(self) -> TrackNet_pb2.RailwayUpdate:
+		"""Creates and returns a RailwayUpdate message containing the current 
+		state of the railway network.
+
+      	:return: A RailwayUpdate protobuf message.
+		"""
 		railway_update = TrackNet_pb2.RailwayUpdate()
 		railway_update.timestamp = time.time()
-
-		railway_update.railway.CopyFrom(
-			RailwayConverter.convert_railway_obj_to_pb(self.railway)
-		)
+		railway_update.railway.CopyFrom(RailwayConverter.convert_railway_obj_to_pb(self.railway))
 		
 		for train_id, (client_state_hash, server_response) in self.handled_client_states.items():
 			# Creating a new LastHandledClientState protobuf message
 			last_handled_client_state = TrackNet_pb2.LastHandledClientState()
 			last_handled_client_state.train_id = train_id
 			last_handled_client_state.client_state_hash = client_state_hash
-			
 			last_handled_client_state.serverResponse.CopyFrom(server_response)
 			
 			# Adding the LastHandledClientState to the list in RailwayUpdate
 			railway_update.last_handled_client_states.add().CopyFrom(last_handled_client_state)
 		
-
 		return railway_update
 
 	def get_train(self, train: TrackNet_pb2.Train, origin_id: str):
-		"""Retrieves a Train object based on its ID. If the train does not exist, it creates a new Train object.
+		"""Retrieves or creates a Train object based on the provided protobuf Train message.
 
-		:param train: The train identifier or a Train object with an unset ID to create a new Train.
-		:return: Returns the Train object matching the given ID, or a new Train object if the ID is not set.
-		:raises Exception: Logs an error if the train ID does not exist in the list of trains.
+		:param train: A protobuf message representing the train.
+		:param origin_id: The ID of the train's origin junction.
+		:return: A TrainMovement object representing the train.
 		"""
 		if not train.HasField("id"):
 			LOGGER.debug("No id in client state, will create a new train: ")
 			trainObject = self.railway.create_new_train(train.length, origin_id)
-
 			train.id = trainObject.name
+
 			return trainObject
+		
 		else:
 			try:
 				train = self.railway.trains[train.id]
 			except:
-				LOGGER.error(
-					f"Train {train.id} does not exits in list of trains. Creating new train..."
-				)
+				LOGGER.error(f"Train {train.id} does not exits in list of trains. Creating new train...")
 				return self.railway.create_new_train(train.length, origin_id)
 
 			return train
 
 	def computeHash(self, clienstate: Message):
+		"""Computes and returns a SHA256 hash of the given protobuf message.
+
+		:param clientstate: A protobuf message to hash.
+		:return: A hexadecimal string representing the hash of the message.
+		"""
 		serialized_obj = clienstate.SerializeToString()
 		hash_obj = hashlib.sha256(serialized_obj)
 		return hash_obj.hexdigest()
 	
 	def handle_client_states(self):
+		"""Processes queued client state updates in a background thread. Applies state 
+		updates to the railway simulation and generates server responses."""
 		LOGGER.debug(F"Handling client states thread has been started")
-		while not exit_flag:
+		while not utils.exit_flag:
 			if self.client_state_queue.qsize() != 0:
 				(client_state, sock) = self.client_state_queue.get_nowait()
 				clientStateHash = self.computeHash(client_state)
+
 				try:
 					train = self.get_train(client_state.train, client_state.location.front_junction_id)
 					LOGGER.debug(f" train name: {train.name} \n train location={train.location} \n new location={client_state.location}")
@@ -159,6 +190,7 @@ class Server:
 
 				resp = TrackNet_pb2.ServerResponse()
 				value = self.handled_client_states.get(train.name)
+
 				if value is not None and clientStateHash == value[0]:
 					#last_master_response = value[1]
 					resp.CopyFrom(self.handle_client_state(client_state, train, apply_state=False))
@@ -168,7 +200,6 @@ class Server:
 				master_response = TrackNet_pb2.InitConnection()
 				master_response.sender = TrackNet_pb2.InitConnection.Sender.SERVER_MASTER
 				master_response.server_response.CopyFrom(resp)
-
 
 				print(master_response)
 				train_id = resp.train.id
@@ -180,9 +211,18 @@ class Server:
 				if not send(sock, master_response.SerializeToString()):
 					LOGGER.warning(f"ServerResponse message failed to send to proxy.")
 				else:
-					print("sent server response to proxy")
-
-				
+					LOGGER.debug("sent server response to proxy")
+		
+		LOGGER.debug("exit flag was set, will now shutdown")
+		for (slave_socket) in self.socks_for_communicating_to_slaves:
+			if slave_socket is not None:
+				slave_socket.shutdown(socket.SHUT_RDWR)
+				slave_socket.close()
+		
+		for proxy_sock in self.proxy_sockets.values():
+			if proxy_sock is not None:
+				proxy_sock.shutdown(socket.SHUT_RDWR)
+				proxy_sock.close()
 
 	def handle_client_state(self, client_state, train, apply_state=True):
 		if apply_state:
@@ -191,8 +231,12 @@ class Server:
 		return resp
 
 	def apply_client_state(self, client_state, train):
-		# assume client_state location is set
+		"""Applies the given client state update to the specified train in the railway simulation.
 
+		:param client_state: A protobuf message containing the client's state update.
+		:param train: The TrainMovement object to update.
+		"""
+		# assume client_state location is set
 		# set train info
 
 		# check train condition
@@ -210,10 +254,16 @@ class Server:
 			client_state.route,
 		)
 
-		# print map
-		self.railway.print_map_new()
+		#self.railway.print_map()
 
 	def issue_client_command(self, client_state, train):
+		"""Generates a server response based on the client's current 
+		state and the specified train's needs.
+
+		:param client_state: A protobuf message containing the client's state update.
+		:param train: The TrainMovement object to consider in the response.
+		:return: A ServerResponse protobuf message.
+		"""
 		resp = TrackNet_pb2.ServerResponse()
 		resp.train.id = train.name
 		resp.train.length = train.length
@@ -235,16 +285,24 @@ class Server:
 
 		return resp
 
-	def set_slave_identification_msg(
-		self, slave_identification_msg: TrackNet_pb2.InitConnection
-	):
+	def set_slave_identification_msg(self, slave_identification_msg: TrackNet_pb2.InitConnection):
+		"""Populates a ``InitConnection`` protobuf message with identification details for a 
+		slave server, indicating that the message sender is a server acting in a slave capacity.
+
+   		:param slave_identification_msg: The ``InitConnection`` protobuf message to be populated with slave server details.
+		"""
 		slave_identification_msg.sender = TrackNet_pb2.InitConnection.SERVER_SLAVE
 		slave_identification_msg.slave_details.host = self.host
 		# slave_identification_msg.slave_details.port = slave_to_master_port
 		slave_identification_msg.slave_details.port = self.port
 
-
 	def listen_for_master(self, host, port):
+		"""Sets up a server socket to listen for connections from a master server. When a 
+		connection is established, it starts a new thread to handle communication with the master.
+
+		:param host: The hostname or IP address the slave server listens on for master connections.
+		:param port: The port number the slave server listens on for master connections.
+		"""
 		slave_to_master_sock = create_server_socket(host, port)
 		LOGGER.debug("Slave created listening socket, waiting for master backups")
 
@@ -252,16 +310,13 @@ class Server:
 			LOGGER.warning("Slave failed to create listening socket for master.")
 			return
 
-		while not exit_flag:
+		while not utils.exit_flag:
 			try:
 				conn, addr = slave_to_master_sock.accept()
 				self.connected_to_master = True
-				LOGGER.debug(
-					"Master has connected to slave server, listening for updates..."
-				)
-				threading.Thread(
-					target=self.handle_master_communication, args=(conn,), daemon=True
-				).start()
+				LOGGER.debug("Master has connected to slave server, listening for updates...")
+				
+				threading.Thread(target=self.handle_master_communication, args=(conn,), daemon=True).start()
 
 			except socket.timeout:
 				continue  # Just continue listening without taking action
@@ -274,6 +329,13 @@ class Server:
 				slave_to_master_sock = create_server_socket(self.host, self.port)
 
 	def handle_master_communication(self, conn):
+		"""Handles communication with a connected master server. It listens for updates 
+		from the master and processes them as necessary. This includes updating the local 
+		state based on master's railway updates and keeping track of last handled client 
+		states.
+
+   		:param conn: The socket connection to the master server.
+		"""
 		try:
 			while self.connected_to_master:
 				try:
@@ -311,7 +373,15 @@ class Server:
 			LOGGER.debug("Closing connection to master")
 			conn.close()
 
-	def slave_proxy_communication(self,sock,data,):
+	def slave_proxy_communication(self, sock, data):
+		global LOGGER
+		"""Handles messages received from a proxy server when operating as a slave server. 
+		This includes processing server assignment messages and responding to heartbeat 
+		checks from the proxy.
+
+		:param sock: The socket connection to the proxy server.
+		:param data: The raw data received from the proxy server.
+		"""
 		LOGGER.debugv("slave recieved message from proxy")
 		proxy_resp = TrackNet_pb2.InitConnection()
 		try:
@@ -329,12 +399,14 @@ class Server:
 					LOGGER.info(f"{self.host}:{self.port} promoted to the MASTER")
 					# self.promote_to_master()
 					self.is_master = True
+					
+					LOGGER = logging.getLogger("MasterServer")
 					if self.backup_railway != None:
 						RailwayConverter.update_railway_with_pb(
 							self.backup_railway, self.railway
 						)
 						# self.railway.map.print_map()
-						self.railway.print_map()
+						#self.railway.print_map()
 					else:
 						LOGGER.info(f"no backup railway")
 
@@ -351,6 +423,7 @@ class Server:
 				else:
 					LOGGER.info(f"{self.host}:{self.port} designated as a SLAVE.")
 					self.is_master = False
+					LOGGER = logging.getLogger("SlaveServer")
 					# Connect to master if not already
 					if not self.connected_to_master:
 						# listen to master instead of initiating connection
@@ -387,12 +460,17 @@ class Server:
 			LOGGER.warning(f"Slave received msg from prox. slave_proxy_communication couldn't handle content: {proxy_resp}")
 
 	def master_proxy_communication(self, sock, data):
+		"""Handles messages received from a proxy server when operating as a master server. 
+		This method processes information such as slave server details, client state updates 
+		from proxies, and heartbeat messages.
+
+		:param sock: The socket connection to the proxy server.
+		:param data: The raw data received from the proxy server.
+		"""
 		# Data also needs to include an update of a new slave
 		proxy_resp = TrackNet_pb2.InitConnection()
 		proxy_resp.ParseFromString(data)
 		# LOGGER.debug(f"Master server received response from proxy\n{proxy_resp}")
-
-		
 
 		if proxy_resp.HasField("slave_details"):
 			LOGGER.debug("Received slave server details from proxy")
@@ -415,21 +493,27 @@ class Server:
 
 		# CHECK FOR HEARTBEAT HERE
 		elif proxy_resp.HasField("is_heartbeat"):
-			LOGGER.debug(f"Received heartbeat from proxy: {proxy_resp.is_heartbeat}")
+			LOGGER.debugv(f"Received heartbeat from proxy: {proxy_resp.is_heartbeat}")
 
 			heartbeat_message = proto.InitConnection()
 			heartbeat_message.sender = TrackNet_pb2.InitConnection.Sender.SERVER_MASTER
 			heartbeat_message.is_heartbeat = True
 			if send(sock, heartbeat_message.SerializeToString()):
-				LOGGER.debug(f"Sent heartbeat message to main proxy {heartbeat_message}")
+				LOGGER.debugv(f"Sent heartbeat message to main proxy {heartbeat_message}")
 			else:
 				LOGGER.warning("Failed to send heartbeat message to main proxy.")
 		else:
 			LOGGER.warning(f"Server received msg from proxy with missing content: {proxy_resp}")
 
 	def listen_to_proxy(self, proxy_sock, key):
+		"""Listens for messages from a proxy server in a background thread 
+		and processes them accordingly.
+
+		:param proxy_sock: The socket connected to the proxy server.
+		:param key: A unique identifier for the proxy connection.
+		"""
 		try:
-			while not exit_flag:
+			while not utils.exit_flag:
 				try:
 					data = receive(proxy_sock,timeout=5, returnException=True)
 				except socket.timeout:
@@ -472,46 +556,58 @@ class Server:
 			proxy_sock.close()
 			sys.exit(1)
 		except Exception as e:
-			LOGGER.error(f"Error communicating with proxy, will reconnect to proxy")
+			LOGGER.error(f"Error communicating with proxy, will reconnect to proxy, exception: {e}")
 			proxy_sock.shutdown(socket.SHUT_RDWR)
 			proxy_sock.close()
 			self.proxy_sockets[key] = None
 			if self.connecting_to_proxies == False:
 				threading.Thread(target=self.connect_to_proxy(), daemon=True).start()
 
-
 	def connect_to_proxy(self):
-		try:
-			self.connecting_to_proxies = True
-			#LOGGER.debug(f"!!!-------Connect to proxy called in thread: {threading.current_thread().name}")
-			while not exit_flag:
+		"""Establishes connections to proxy servers and maintains them. 
+		Manages the reconnection process if connections are lost."""
+		all_connected = False
+		while not utils.exit_flag:
+			try:
+				self.connecting_to_proxies = True
+				#LOGGER.debug(f"!!!-------Connect to proxy called in thread: {threading.current_thread().name}")
 				
-				# Determine the source of proxy details
-				proxies_to_connect = cmdLineProxyDetails if proxyDetailsProvided else proxy_details.items()
+				while all_connected == False:
+					# Determine the source of proxy details
+					proxies_to_connect = cmdLineProxyDetails if proxyDetailsProvided else proxy_details.items()
 
-				# Attempt to connect to each proxy
-				for proxy_host, proxy_port in proxies_to_connect:
-					key = f"{proxy_host}:{proxy_port}"
-					if key not in self.proxy_sockets or self.proxy_sockets[key] is None:
-						self.attempt_proxy_connection(proxy_host, proxy_port, key)
+					# Attempt to connect to each proxy
+					for proxy_host, proxy_port in proxies_to_connect:
+						key = f"{proxy_host}:{proxy_port}"
+						if key not in self.proxy_sockets or self.proxy_sockets[key] is None:
+							self.attempt_proxy_connection(proxy_host, proxy_port, key)
 
-				all_connected = all(
-					f"{proxy_host}:{proxy_port}" in self.proxy_sockets and
-					self.proxy_sockets[f"{proxy_host}:{proxy_port}"] is not None
-					for proxy_host, proxy_port in proxies_to_connect)
+					all_connected = all(
+						f"{proxy_host}:{proxy_port}" in self.proxy_sockets and
+						self.proxy_sockets[f"{proxy_host}:{proxy_port}"] is not None
+						for proxy_host, proxy_port in proxies_to_connect)
 
-				if all_connected:
-					LOGGER.info("Connected to all proxies. Stopping connection attempts.")
-					break
+					if all_connected:
+						LOGGER.info("Connected to all proxies. Stopping connection attempts.")
+						break
 
-				time.sleep(5)  # Sleep between connection attempts
-			self.connecting_to_proxies = False
-			#LOGGER.debug(f"done connecting to proxies")
-		except KeyboardInterrupt:
-			sys.exit(1)
+					time.sleep(5)  # Sleep between connection attempts
+				self.connecting_to_proxies = False
+				#LOGGER.debug(f"done connecting to proxies")
+			except Exception:
+				LOGGER.debug("Exception occur while trying to connect to all the proxies")
+		
 
 
 	def attempt_proxy_connection(self, proxy_host, proxy_port, key):
+		"""Attempts to establish a connection to a proxy server. If successful, 
+		it sends a slave identification message to the proxy and starts a thread to 
+		listen to messages from this proxy.
+
+		:param proxy_host: The hostname or IP address of the proxy server.
+		:param proxy_port: The port number of the proxy server.
+		:param key: A unique identifier for the proxy connection, typically combining host and port.
+		"""
 		LOGGER.info(f"Connecting to proxy at {proxy_host}:{proxy_port}")
 		proxy_sock = create_client_socket(proxy_host, proxy_port)
 
@@ -529,7 +625,7 @@ class Server:
 			LOGGER.warning(f"Couldn't connect to proxy at {proxy_host}:{proxy_port}")
 			
 	def connect_to_proxyOld(self):
-		while not exit_flag:
+		while not utils.exit_flag:
 			if proxyDetailsProvided:
 				for proxy_host, proxy_port in cmdLineProxyDetails:
 					key = f"{proxy_host}:{proxy_port}"
@@ -565,17 +661,13 @@ class Server:
 						proxy_sock = create_client_socket(proxy_host, proxy_port)
 
 						if proxy_sock:
-							LOGGER.info(
-								f"Connected to proxy at {proxy_host}:{proxy_port}"
-							)
+							LOGGER.info(f"Connected to proxy at {proxy_host}:{proxy_port}")
 							self.proxy_sockets[key] = proxy_sock
 							# Send proxy init message to identify itself as a slave
 							slave_identification_msg = TrackNet_pb2.InitConnection()
 							self.set_slave_identification_msg(slave_identification_msg)
 
-							if send(
-								proxy_sock, slave_identification_msg.SerializeToString()
-							):
+							if send(proxy_sock, slave_identification_msg.SerializeToString()):
 								LOGGER.debug(
 									"Sent slave identification message to proxy"
 								)
@@ -585,32 +677,40 @@ class Server:
 									daemon=True,
 								).start()
 						else:
-							LOGGER.warning(
-								f"Couldn't connect to proxy at {proxy_host}:{proxy_port}"
-							)
+							LOGGER.warning(f"Couldn't connect to proxy at {proxy_host}:{proxy_port}")
 				time.sleep(10)
 
 	def connect_to_slave(self, slave_host, slave_port):
+		"""Initiates a connection to a slave server for distributing the load 
+		and ensuring high availability.
+
+		:param slave_host: The hostname or IP address of the slave server.
+		:param slave_port: The port number the slave server listens on.
+		"""
 		try:
 			# for each slave create client sockets
-			print(
-				"Before creating client socket, host: ",
-				slave_host,
-				"port: ",
-				slave_port,
-			)
-			slave_sock = create_client_socket(slave_host, slave_port)
-			print("Type of slave sock: ", type(slave_sock))
-			self.socks_for_communicating_to_slaves.append(slave_sock)
-			LOGGER.debug(f"Added slave server {slave_host}:{slave_port}")
+			#LOGGER.debug(f"Sleeping for five seconds before trying to connect to slave")
+			#time.sleep(5)
+			LOGGER.debug(f"Before creating client socket, host: {slave_host} port: {slave_port}")
+			slave_sock = create_client_socket(slave_host, slave_port, timeout=6)
+			LOGGER.debug(f"Type of slave sock: {type(slave_sock)}")
+			if slave_sock is None:
+				LOGGER.warning(f"Could not connect to the given slave server: {slave_host}  {slave_port}")
+			else:
+				self.socks_for_communicating_to_slaves.append(slave_sock)
+				LOGGER.debug(f"Added slave server {slave_host}:{slave_port}")
+			
 			# Start a new thread dedicated to this slave for communication
 		#            threading.Thread(target=self.handle_slave_communication, args=(slave_sock,), daemon=True).start()
 		except Exception as e:
 			LOGGER.error(f"Could not connect to slave {slave_host}:{slave_port}: {e}")
 
 	def serialize_train(self, train_obj, train_pb):
-		"""
-		Fills in the details of a Protobuf Train message from a Train object.
+		"""Serializes a train object into a protobuf message, including its location and 
+		route information.
+
+		:param train_obj: The train object to serialize.
+		:param train_pb: The protobuf Train message to be populated with the train object's data.
 		"""
 		train_pb.id = train_obj.name
 		train_pb.length = train_obj.length
@@ -626,8 +726,11 @@ class Server:
 			self.serialize_route(train_obj.route, train_pb.route)
 
 	def serialize_location(self, location_obj, location_pb):
-		"""
-		Fills in the details of a Protobuf Location message from a Location object.
+		"""Serializes a location object into a protobuf message, including details 
+		of the front and back cart positions.
+
+		:param location_obj: The location object to serialize.
+		:param location_pb: The protobuf Location message to be populated with the location object's data.
 		"""
 		if location_obj.front_cart["track"]:
 			location_pb.front_track_id = location_obj.front_cart["track"].name
@@ -642,8 +745,11 @@ class Server:
 		location_pb.back_position = location_obj.back_cart["position"]
 
 	def serialize_route(self, route_obj, route_pb):
-		"""
-		Fills in the details of a Protobuf Route message from a Route object.
+		"""Serializes a route object into a protobuf message, including its sequence 
+		of junctions and current position in the route.
+
+		:param route_obj: The route object to serialize.
+		:param route_pb: The protobuf Route message to be populated with the route object's data.
 		"""
 		for junction in route_obj.junctions:
 			junction_pb = route_pb.junctions.add()
@@ -653,6 +759,13 @@ class Server:
 			route_pb.destination.id = route_obj.destination.name
 
 	def talk_to_slaves(self):  # needs to send railway update to slaves
+		"""Sends the latest railway update message to all connected slave servers. 
+		This method is typically invoked after receiving updates from clients or from 
+		the master server to ensure all slave servers have the latest state.
+
+   		This method iterates through sockets connected to slave servers, 
+		prepares a railway update message, and sends it to each slave.
+		"""
 		print(f"number of slaves: {len(self.socks_for_communicating_to_slaves)}")
 		for slave_socket in self.socks_for_communicating_to_slaves:
 			# Prepare the client state message
@@ -661,8 +774,10 @@ class Server:
 			master_resp.railway_update.CopyFrom(self.create_railway_update_message())
 			print("Railway update message created")
 			print("type of slave socket: ", type(slave_socket))
-			success = send(slave_socket, master_resp.SerializeToString())
-			print(f"Railway update message sent to slave successfully: {success}")
+			if send(slave_socket, master_resp.SerializeToString()):
+				print(f"Railway update message sent to slave successfully")
+			else:
+				LOGGER.warning(f"Could not send backup message to: {slave_socket}")
 
 
 if __name__ == "__main__":
