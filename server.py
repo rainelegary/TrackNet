@@ -104,19 +104,22 @@ class Server:
 		self.client_state_queue = Queue()
 
 		threading.Thread(target=self.connect_to_proxy, daemon=True).start()
-		threading.Thread(target=self.printRailwayMap, daemon=True).start()
 
+		threading.Thread(target=self.printRailwayMapold, daemon=True).start()
+
+		#self.window = None
 		self.handle_client_states()
 
-	def printRailwayMap(self):
+	def printRailwayMapold(self):
 		while not utils.exit_flag:
 			time.sleep(5)
 			if self.is_master == True:
-				with self.lock:
-					print("----------------------------------------------------------------------")
-					LOGGER.debug(f"Printing State of Railway: ")
-					self.railway.print_map()
-					print("----------------------------------------------------------------------")
+				text = "----------------------------------------------------------------------\n"
+				text += "Printing State of Railway: \n"
+				text += self.railway.get_map_string()
+				text += "----------------------------------------------------------------------\n"
+				LOGGER.debug(text)
+
 			
 	def create_railway_update_message(self) -> TrackNet_pb2.RailwayUpdate:
 		"""Creates and returns a RailwayUpdate message containing the current 
@@ -184,7 +187,7 @@ class Server:
 
 				try:
 					train = self.get_train(client_state.train, client_state.location.front_junction_id)
-					LOGGER.debug(f" train name: {train.name} \n train location={train.location} \n new location={client_state.location}")
+					LOGGER.debugv(f" train name: {train.name} \n train location={train.location} \n new location={client_state.location}")
 				except Exception as e:
 					LOGGER.error(f"Error getting train: {e}")
 
@@ -830,3 +833,4 @@ if __name__ == "__main__":
 			cmdLineProxyDetails.append((proxy2_address, proxy2_port_num))
 
 	Server(port=listening_port_num)
+
