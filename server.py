@@ -295,7 +295,10 @@ class Server:
 		#resp.speed = TrainSpeed.FAST.value
 		#resp.status = TrackNet_pb2.ServerResponse.UpdateStatus.CLEAR
 
-		if (datetime.now() - self.previous_conflict_analysis_time) > timedelta(seconds=self.conflict_analysis_interval):
+		if (
+			(datetime.now() - self.previous_conflict_analysis_time > timedelta(seconds=self.conflict_analysis_interval))
+			or (train.name not in self.client_commands)
+		):
 			self.client_commands = ConflictAnalyzer.resolve_conflicts_simple(self.railway, self.client_commands)
 			self.previous_conflict_analysis_time = datetime.now()
 		else:
@@ -310,7 +313,6 @@ class Server:
 		else:
 			print("NO SPEED!!!!")
 
-		return resp
 		return resp
 
 	def set_slave_identification_msg(self, slave_identification_msg: TrackNet_pb2.InitConnection):
