@@ -712,6 +712,11 @@ class Server:
 			else:
 				self.socks_for_communicating_to_slaves.append(slave_sock)
 				LOGGER.debug(f"Added slave server {slave_host}:{slave_port}")
+
+				# added slave server, will send a backup to all slaves 
+				# Create a separate thread for talking to slaves
+				threading.Thread(target=self.talk_to_slaves, daemon=True).start()
+
 			
 			# Start a new thread dedicated to this slave for communication
 		#            threading.Thread(target=self.handle_slave_communication, args=(slave_sock,), daemon=True).start()
