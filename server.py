@@ -779,18 +779,23 @@ class Server:
    		This method iterates through sockets connected to slave servers, 
 		prepares a railway update message, and sends it to each slave.
 		"""
-		print(f"number of slaves: {len(self.socks_for_communicating_to_slaves)}")
+		LOGGER.debug(f"number of slaves: {len(self.socks_for_communicating_to_slaves)}")
 		for slave_socket in self.socks_for_communicating_to_slaves:
 			# Prepare the client state message
 			master_resp = TrackNet_pb2.InitConnection()
 			master_resp.sender = TrackNet_pb2.InitConnection.SERVER_MASTER
 			master_resp.railway_update.CopyFrom(self.create_railway_update_message())
-			print("Railway update message created")
-			print("type of slave socket: ", type(slave_socket))
-			if send(slave_socket, master_resp.SerializeToString()):
-				print(f"Railway update message sent to slave successfully")
+			LOGGER.debug("Railway update message created")
+			LOGGER.debug("type of slave socket: ", type(slave_socket))
+			if slave_socket.fileno() < 0:
+				# slave socket is closed
+				LOGGER.debug(f"Removing an unavailable slave")
+				self.socks_for_communicating_to_slaves.remove(slave_socket)
 			else:
-				LOGGER.warning(f"Could not send backup message to: {slave_socket}")
+				if send(slave_socket, master_resp.SerializeToString()):
+					LOGGER.debug(f"Railway update message sent to slave successfully")
+				else:
+					LOGGER.warning(f"Could not send backup message to: {slave_socket}")
 
 
 if __name__ == "__main__":
