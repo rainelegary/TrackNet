@@ -277,9 +277,6 @@ class Client():
                                 self.current_proxy = self.backup_proxy
                                 self.backup_proxy = temp
 
-
-
-
                         except Exception as e:
                             LOGGER.warning(f"Exception thrown after sending client state {e}, Will switch to backup proxy {self.backup_proxy}")
                             self.sock.close()
