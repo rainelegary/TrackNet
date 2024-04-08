@@ -112,6 +112,11 @@ class Server:
 		threading.Thread(target=self.printRailwayMapold, daemon=True).start()
 
 		#self.window = None
+		# LOGGER.debug(f" Time {time.time()} ")
+		# timeobj = time.time()
+		# LOGGER.debug(f" Time {timeobj} conversion to readable: { datetime.fromtimestamp(timeobj).strftime('%Y-%m-%d %H:%M:%S') }")
+		
+		
 		self.handle_client_states()
 
 	def printRailwayMapold(self):
@@ -389,10 +394,10 @@ class Server:
 							
 							readable_date = dt_obj.strftime('%Y-%m-%d %H:%M:%S') # Format datetime object to string in a readable format
 
-							LOGGER.debug(f"Received railway update from master at {readable_date}")
+							LOGGER.debug(f"Received railway update from master. Time given by master server: {readable_date}")
 							LOGGER.debug(f"Backup Railway: {master_resp.railway_update.railway}")
 
-							self.backup_railway_timestamp = (master_resp.railway_update.timestamp) # -10
+							self.backup_railway_timestamp = (master_resp.railway_update.timestamp) 
 							self.backup_railway = master_resp.railway_update.railway
 
 							for last_handled_client_state in master_resp.railway_update.last_handled_client_states:
