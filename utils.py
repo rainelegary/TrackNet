@@ -25,9 +25,9 @@ initial_config = {
     "junctions": ["A", "B", "C", "D"],
     "tracks": [
         ("A", "B", 10),
-        ("B", "C", 10),
-        ("C", "D", 10),
-        ("A", "D", 40)
+        ("B", "C", 20),
+        ("C", "D", 30),
+        ("A", "D", 3000)
     ]
 }
 
@@ -69,11 +69,12 @@ def setup_logging():
     logging.Logger.debugv = debugv
     formatter = logging.Formatter(fmt='%(lineno)d %(asctime)s %(levelname)s@%(name)s: %(message)s', datefmt='%H:%M:%S')
     handler = logging.StreamHandler()
-    #handler.setLevel(DEBUGV)
-    handler.setLevel(logging.DEBUG)
+    handler.setLevel(DEBUGV)
+    # handler.setLevel(logging.DEBUG)
     handler.setFormatter(formatter)
 
-    logging.root.setLevel(logging.DEBUG)
+    # logging.root.setLevel(logging.DEBUG)
+    logging.root.setLevel(DEBUGV)
     logging.root.addHandler(handler)
 
 

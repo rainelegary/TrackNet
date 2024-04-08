@@ -50,6 +50,7 @@ class Train:
     def set_speed(self, new_speed: int):
         """Sets the train's speed to a new value.
 
+    def set_speed(self, new_speed: int):
         :param new_speed: The new speed for the train.
         """
         self.current_speed = new_speed
@@ -60,7 +61,28 @@ class Train:
         :return: The current speed of the train.
         """
         return self.current_speed
+    
+    def get_next_track_for_conflict_analyzer(self):
+        LOGGER.debug(f"Find the next track for {self.name}")
+        LOGGER.debug(f"{self.name} has current junction index of {self.route.current_junction_index}")
+        if self.route.current_junction_index == len(self.route.junctions) - 1:
+            return None # on final junction; destination already reached
+        
+        if (
+            self.state in [TrainState.UNPARKING, TrainState.RUNNING, TrainState.PARKING]
+            and self.route.current_junction_index == len(self.route.junctions) - 2
+        ):
+            return None # on final track; no more tracks to enter
 
+
+        if self.state == TrainState.PARKED:
+            
+            return self.route.junctions[self.route.current_junction_index].neighbors[self.route.junctions[self.route.current_junction_index + 1].name]
+        
+        if self.state in [TrainState.UNPARKING, TrainState.RUNNING, TrainState.PARKING]:
+            return self.route.junctions[self.route.current_junction_index + 1].neighbors[self.route.junctions[self.route.current_junction_index + 2].name]
+
+    # This function is for testing. It prints all the attributes of the train object:
     def print_train(self):
         """Prints all attributes of the train for testing purposes."""
         next_junction = self.next_junction.name if self.next_junction else "None"

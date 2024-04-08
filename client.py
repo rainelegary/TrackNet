@@ -32,10 +32,10 @@ cmdLineProxyDetails = []
 setup_logging()  ## only need to call at main entry point of application
 LOGGER = logging.getLogger("Client")
 
-initial_config = {
-    "junctions": ["A", "B", "C", "D"],
-    "tracks": [("A", "B", 10), ("B", "C", 10), ("C", "D", 10), ("A", "D", 40)],
-}
+# initial_config = {
+#     "junctions": ["A", "B", "C", "D"],
+#     "tracks": [("A", "B", 10), ("B", "C", 10), ("C", "D", 10), ("A", "D", 40)],
+# }
 # signal.signal(signal.SIGTERM, exit_gracefully)
 # signal.signal(signal.SIGINT, exit_gracefully)
 
@@ -61,7 +61,7 @@ class Client():
       The probability (as a percentage) that the track condition is good. Defaults to 95.
     """
     
-    def __init__(self, host: str ="csx2.ucalgary.ca", port: int =5555):
+    def __init__(self, host: str ="csx2.ucalgary.ca", port: int =5555, origin=None, destination=None):
         """ Initializes the client instance, setting up the railway map, generating a route for the train, and starting a thread to update the train's position. It also initializes proxy connection details if provided through command line arguments.
 
         :param host: The hostname or IP address of the server to connect to.
@@ -72,7 +72,8 @@ class Client():
         self.sock = None
         self.client_ip = None
         self.client_port = None
-        self.probabilty_of_good_track = 95
+        self.probabilty_track_stay_good = 0.95
+        self.probability_track_stay_bad = 0.8
 
         self.sentInitClientState = False
 
@@ -80,8 +81,12 @@ class Client():
             junctions=initial_config["junctions"], tracks=initial_config["tracks"]
         )
         self.last_time_updated = datetime.now()
-
-        self.origin, self.destination = self.railmap.get_origin_destination_junction()
+        
+        if origin == None:
+            self.origin, self.destination = self.railmap.get_origin_destination_junction()
+        else:
+            self.origin = self.railmap.junctions[origin]
+            self.destination = self.railmap.junctions[destination]
         self.train = TrainMovement(
             length=self.generate_random_train_length(),
             location = Location(front_junction=self.origin, back_junction=self.origin)
@@ -135,11 +140,12 @@ class Client():
     def get_track_condition(self) -> TrackNet_pb2.TrackCondition:
         """Determines the track condition based on a predefined probability.
 
-        :return: GOOD with a 95% probability, otherwise BAD.
+        :return: Returns track condition as GOOD or BAD
+        :rtype: TrackNet_pb2.ClientState.TrackCondition
         """
         return (
             TrackNet_pb2.TrackCondition.GOOD
-            if random.random() < self.probabilty_of_good_track
+            if random.random() < self.probabilty_track_stay_good
             else TrackNet_pb2.TrackCondition.BAD
         )
 
@@ -188,6 +194,8 @@ class Client():
             for junction_obj in self.train.route.junctions:
                 state.route.junction_ids.append(junction_obj.name)
 
+            state.route.current_junction_index = self.train.route.current_junction_index
+
     def set_route(self, route: TrackNet_pb2.Route):
         """Sets a new route for the train based on the route information received from the server.
 
@@ -196,7 +204,7 @@ class Client():
         new_route = []
         for junc in route.junction_ids:
             new_route.append(self.railmap.junctions[junc])
-        self.train.route = Route(new_route)
+        self.train.route = Route(new_route, route.current_junction_index)
         self.train.location.set_track(self.train.route.get_next_track())
         LOGGER.debug(f"init track={self.train.route.get_next_track()}")
 
@@ -234,7 +242,8 @@ class Client():
                     client_state = TrackNet_pb2.ClientState()
                     
                     self.set_client_state_msg(client_state, self.client_ip, self.client_port)
-                    LOGGER.debug(f"state={client_state.location}")
+                    LOGGER.debug(f"state:\n{client_state.location}")
+                    self.train.print_train()
 
                     message = TrackNet_pb2.InitConnection()
                     message.sender = TrackNet_pb2.InitConnection.Sender.CLIENT
@@ -307,7 +316,9 @@ class Client():
                             self.backup_proxy = temp
         
             except Exception as e:
+                traceback.print_exception(e)
                 LOGGER.error(f"Unexpected error in the main loop: {e}  ")
+
                 break  # Exit the loop on unexpected error
 
             time.sleep(5)
@@ -332,6 +343,7 @@ class Client():
         if server_resp.HasField("status"):
             if server_resp.status == TrackNet_pb2.ServerResponse.UpdateStatus.CHANGE_SPEED:
                 LOGGER.debug(f"CHANGE_SPEED {self.train.name} to {server_resp.speed}")
+                self.train.stay_parked = False
                 self.train.set_speed(server_resp.speed)
 
             elif server_resp.status == TrackNet_pb2.ServerResponse.UpdateStatus.REROUTE:
@@ -343,15 +355,19 @@ class Client():
                 self.train.stop()
                                 
             elif server_resp.status == TrackNet_pb2.ServerResponse.UpdateStatus.CLEAR:
+                self.train.stay_parked = False
                 if self.train.state == TrainState.PARKED:
                     LOGGER.debug("UNPARKING")
-                    self.train.unpark(server_resp.speed)
+                    self.train.leave_junction()
                 elif self.train.state == TrainState.STOPPED:
                     LOGGER.debug("RESUMING MOVEMENT")
                     self.train.resume_movement(server_resp.speed)
                 elif self.train.state == TrainState.RUNNING and self.train.current_speed == TrainSpeed.SLOW.value:
                     LOGGER.debug("SPEEDING UP")
-                    self.train.set_speed(TrainSpeed.FAST.value) 
+                    self.train.set_speed(TrainSpeed.FAST.value)
+            
+            elif server_resp.status == TrackNet_pb2.ServerResponse.UpdateStatus.PARK:
+                self.train.stay_parked = True
         else:
             LOGGER.debug(f"Server response has no status")
 
@@ -363,6 +379,8 @@ if __name__ == '__main__':
     parser.add_argument('-proxy2', type=str, help='Address for proxy2')
     parser.add_argument('-proxyPort1', type=int, help='Proxy 1 port number')
     parser.add_argument('-proxyPort2', type=int, help='Proxy 2 port number')
+    parser.add_argument('-start', type=str, help='Start junction')
+    parser.add_argument('-destination', type=str, help='Destination junction')
     
     
     args = parser.parse_args()
@@ -371,6 +389,8 @@ if __name__ == '__main__':
     proxy2_address = args.proxy2
     proxy1_port_num = args.proxyPort1
     proxy2_port_num = args.proxyPort2
+    start_junction = args.start
+    destination_junction = args.destination
 
     LOGGER.debug(f"Proxy 1 address {proxy1_address}")
     LOGGER.debug(f"Proxy 2 address {proxy2_address}")
@@ -394,4 +414,4 @@ if __name__ == '__main__':
             cmdLineProxyDetails.append((proxy1_address, proxy1_port_num))
         if proxy2_address != None:
             cmdLineProxyDetails.append((proxy2_address, proxy2_port_num))
-    Client()
+    Client(origin=start_junction, destination=destination_junction)

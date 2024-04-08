@@ -53,7 +53,18 @@ class TrainMovement(Train):
             self.location.set_junction_back_cart(self.next_junction)
             LOGGER.debug(f"{self.name}'s back has reached {self.location.back_cart['junction'].name} junction.")
             self.handle_arrival_at_junction()
-            
+
+        if self.state == TrainState.PARKED and not self.stay_parked and not self.route.destination_reached():
+            self.leave_junction()
+
+    def leave_junction(self):
+        next_track = self.route.get_next_track()
+        self.location.set_track(next_track)
+        self.prev_junction = self.next_junction
+        self.next_junction = self.route.get_next_junction()
+        self.current_speed = TrainSpeed.FAST.value
+        self.state = TrainState.UNPARKING
+
     def handle_arrival_at_junction(self):
         """Handles the train's arrival at a junction, including parking, 
         waiting, and potentially moving to the next track in trains route.
@@ -63,24 +74,14 @@ class TrainMovement(Train):
         self.location.set_to_park()
         self.state = TrainState.PARKED
         self.current_speed = 0
-  
+        self.route.increment_junction_index()
+
         LOGGER.debug(f"Waiting at junction {self.next_junction.name} for {self.junction_delay} seconds...")
         # 5 seconds delay needed to ensure server railway is synched correctly
-        time.sleep(self.junction_delay) 
+        time.sleep(self.junction_delay)
 
-        self.route.increment_junction_index()
-        
-        if not self.stay_parked:
-            if not self.route.destination_reached():
-                next_track = self.route.get_next_track()
-                self.location.set_track(next_track)
-                self.prev_junction = self.next_junction
-                self.next_junction = self.route.get_next_junction()
-                self.current_speed = next_track.speed.value
-                self.state = TrainState.UNPARKING
-                
-            else:
-                LOGGER.debug(f"{self.name} has completed its route and is parked.")
+        if not self.stay_parked and not self.route.destination_reached():
+            self.leave_junction()
 
     def stop(self):
         """Stops the train by setting its current speed to 0 and changing its state to STOPPED."""

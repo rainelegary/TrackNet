@@ -79,7 +79,7 @@ class Railway:
         else:
             raise Exception(f"Train {name} already exists.")
 
-    def update_train(self, train: Train, state, location_msg: TrackNet_pb2.Location, route_msg: TrackNet_pb2.Route):
+    def update_train(self, train, state, location_obj: Location, route_obj: Route):
         """Updates the state and location of a specified train based on the provided protobuf messages.
 
         :param train: The Train object to update.
@@ -87,18 +87,26 @@ class Railway:
         :param location_msg: A protobuf message containing the new location information.
         :param route_msg: A protobuf message containing the new route information.
         """
-        LOGGER.debugv(f" train name: {train.name} \n train location={train.location} \n new location={location_msg}")
+        front_track_id = location_obj.front_cart["track"].name
+        front_junction_id = location_obj.front_cart["junction"].name
+        front_position = location_obj.front_cart["position"]
+        back_track_id = location_obj.back_cart["track"].name
+        back_junction_id = location_obj.back_cart["junction"].name
+        back_position = location_obj.back_cart["position"]
+        
+        LOGGER.debug(f" train name: {train.name} \n train location={train.location} \n new location={location_obj}")
+		
 
         # check if new track
         if (train.state in [TrainState.PARKED, TrainState.PARKING]) and (state in [TrainState.RUNNING, TrainState.UNPARKING]):
             # add to new track
-            self.map.tracks[location_msg.front_track_id].add_train(train)
+            self.map.tracks[front_track_id].add_train(train)
 			
 			# remove train from junction
-            LOGGER.debugv(f"Remove {train.name} from {location_msg.back_junction_id}")
+            LOGGER.debug(f"Remove {train.name} from {back_junction_id}")
             try:
                 ## remove train front cart junc?
-                self.map.junctions[location_msg.back_junction_id].depart_train(train)
+                self.map.junctions[back_junction_id].depart_train(train)
             except Exception as exc:
                 LOGGER.debugv("ERROR removing train from junction: " + str(exc))
 
@@ -112,28 +120,23 @@ class Railway:
             except:
                 pass
             # add tain to new junction
-            self.map.junctions[location_msg.front_junction_id].park_train(train)
+            self.map.junctions[front_junction_id].park_train(train)
 
         LOGGER.debugv(f"train_state={train.state} client_state={state}")
 
-        updated_location = Location()
-        updated_location.front_cart = {
-            "track": self.map.tracks[location_msg.front_track_id],
-            "junction": self.map.junctions[location_msg.front_junction_id],
-            "position": location_msg.front_position,
-        }
-        updated_location.back_cart = {
-            "track": self.map.tracks[location_msg.back_track_id],
-            "junction": self.map.junctions[location_msg.back_junction_id],
-            "position": location_msg.back_position,
-        }
-        self.trains[train.name].location = updated_location
+        self.trains[train.name].location = location_obj
         self.trains[train.name].state = state
+        self.trains[train.name].route = route_obj
+
+        if self.trains[train.name].location.back_cart["junction"] == self.trains[train.name].route.destination:
+            try: 
+                self.map.junctions[back_junction_id].depart_train(train)
+            except Exception as exc:
+                LOGGER.debug("ERROR removing train fro junction: " + str(exc))
 
         # update route
         # train = self.trains[train.name]
-        # possibly causing error
-        # self.set_route_for_train(route_msg,train)
+        # self.set_route_for_train(route_msg, train)
         # train.route = MessageConverter.route_msg_to_obj(route_msg, self.map.junctions)
 
     def set_route_for_train(self, route: TrackNet_pb2.Route, train: Train):
@@ -145,7 +148,7 @@ class Railway:
         new_route = []
         for junc in route.junctions:
             new_route.append(self.map.junctions[junc])
-        train.route = Route(new_route)
+        train.route = Route(new_route, route.current_junction_index)
         train.location.set_track(self.train.route.get_next_track())
         LOGGER.debugv(f"init track={self.train.route.get_next_track()}")
 

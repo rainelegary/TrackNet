@@ -11,7 +11,7 @@ from classes.enums import *
 from classes.railway import Railway
 from classes.train import Train
 import traceback
-from datetime import datetime
+from datetime import datetime, timedelta
 import time
 import threading
 from utils import initial_config, proxy_details
@@ -19,6 +19,7 @@ import utils
 from classes.conflict_analyzer import ConflictAnalyzer
 import argparse
 from converters.railway_converter import RailwayConverter
+from message_converter import MessageConverter
 import sys
 from queue import Queue
 
@@ -79,7 +80,10 @@ class Server:
 
 		self.host = socket.gethostname()
 		self.port = port
+		self.host = socket.gethostname()
+		self.port = port
 
+		self.lock = threading.Lock()
 		self.lock = threading.Lock()
 
 		self.connected_to_master = False
@@ -87,20 +91,29 @@ class Server:
 		self.slave_sockets = {}
 		self.proxy_sockets = {}
 		self.socks_for_communicating_to_slaves = []
+		self.connected_to_master = False
+		self.is_master = False
+		self.slave_sockets = {}
+		self.proxy_sockets = {}
+		self.socks_for_communicating_to_slaves = []
 
 		self.connecting_to_proxies = False
-
+		self.isMaster = False
 		self.proxy_host = "csx1.ucalgary.ca"
 		self.proxy_port = 5555
 
 		self.conflict_analysis_interval = 1
-		self.previous_conflict_analysis_time = datetime.now()
+		self.previous_conflict_analysis_time = datetime.now() - timedelta(seconds=self.conflict_analysis_interval)
 		self.client_commands = {}
 
 		self.backup_railway_timestamp = None
 		self.backup_railway = None
 		self.handled_client_states = {}
+		self.backup_railway_timestamp = None
+		self.backup_railway = None
+		self.handled_client_states = {}
 
+		self.client_state_queue = Queue()
 		self.client_state_queue = Queue()
 
 		self.listening_for_backups = threading.Thread(target=self.listen_for_master, args=(self.host, self.port))
@@ -256,11 +269,20 @@ class Server:
 			)
 
 		# update train location
+		location = MessageConverter.location_msg_to_obj(
+			client_state.location, 
+			junction_refs=self.railway.map.junctions,
+			track_refs=self.railway.map.tracks
+		)
+		route = MessageConverter.route_msg_to_obj(
+			client_state.route,
+			junction_refs=self.railway.map.junctions
+		)
 		self.railway.update_train(
 			train,
 			TrainState(client_state.train.state),
-			client_state.location,
-			client_state.route,
+			location,
+			route,
 		)
 
 		#self.railway.print_map()
@@ -277,21 +299,24 @@ class Server:
 		resp.train.id = train.name
 		resp.train.length = train.length
 		resp.client.CopyFrom(client_state.client)
-		LOGGER.debug(f"trains speed being set to {TrainSpeed.FAST.value}")
-		resp.speed = TrainSpeed.FAST.value
-		resp.status = TrackNet_pb2.ServerResponse.UpdateStatus.CLEAR
+		#LOGGER.debug(f"trains speed being set to {TrainSpeed.FAST.value}")
+		#resp.speed = TrainSpeed.FAST.value
+		#resp.status = TrackNet_pb2.ServerResponse.UpdateStatus.CLEAR
 
-		# if (datetime.now() - self.previous_conflict_analysis_time) > timedelta(seconds=self.conflict_analysis_interval):
-		# self.client_commands = ConflictAnalyzer.resolve_conflicts(self.railway, self.client_commands)
-		#    self.previous_conflict_analysis_time = datetime.now()
+		if (datetime.now() - self.previous_conflict_analysis_time) > timedelta(seconds=self.conflict_analysis_interval):
+			self.client_commands = ConflictAnalyzer.resolve_conflicts_simple(self.railway, self.client_commands)
+			self.previous_conflict_analysis_time = datetime.now()
 
-		# command = self.client_commands[train.name]
-		# resp.status = command.status
-		# if command.HasField("new_route"):
-		#     resp.new_route = command.new_route
-		# if command.HasField("speed"):
-		#     resp.speed = command.speed
+		command = self.client_commands[train.name]
+		resp.status = command.status
+		if command.HasField("new_route"):
+			resp.new_route = command.new_route
+		if command.HasField("speed"):
+			resp.speed = command.speed
+		else:
+			print("NO SPEED!!!!")
 
+		return resp
 		return resp
 
 	def set_slave_identification_msg(self, slave_identification_msg: TrackNet_pb2.InitConnection):
