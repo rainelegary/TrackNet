@@ -230,16 +230,14 @@ class Proxy:
         :param slave_port: The port number of the slave proxy being promoted.
         """
         self.master_socket = slave_socket
-        LOGGER.debug(f"master socket was updated: {self.master_socket}")
+        LOGGER.debugv(f"master socket was updated: {self.master_socket}")
         try:
             self.master_socket_hostIP = slave_socket.getpeername()[0]
         except Exception as e:
-            LOGGER.warning(
-                f"Exception {e} was thrown when setting master_socket_hostIP "
-            )
+            LOGGER.warning(f"Exception {e} was thrown when setting master_socket_hostIP ")
 
         self.remove_slave_socket(self.master_socket,slave_port)
-        LOGGER.info(f"Promoting {self.master_socket_hostIP} to MASTER, was previously a slave listening on port {slave_port}, current master socket: {self.master_socket}")
+        LOGGER.info(f"Promoting {self.master_socket_hostIP} to MASTER, was previously a slave listening on port {slave_port}") #current master socket: {self.master_socket}")
         # LOGGER.info(f"{slave_socket.getpeername()} promoted to MASTER")
 
         # notify the newly promoted master server of its new role
