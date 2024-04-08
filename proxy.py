@@ -599,10 +599,7 @@ class Proxy:
             # Create a new Thread for each slave socket to send and receive messages
             self.all_slave_timestamps[(slaveHost,slavePort)] = (-1)
 
-            thread = threading.Thread(
-                target=self.send_heartbeat_to_slaves,
-                args=(slave_socket,slaveHost, slavePort),
-            )
+            thread = threading.Thread(target=self.send_heartbeat_to_slaves,args=(slave_socket,slaveHost, slavePort),daemon=True)
             threads.append(thread)
             thread.start()
 

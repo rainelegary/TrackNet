@@ -105,7 +105,7 @@ class Server:
 		
 		self.client_state_queue = Queue()
 
-		self.listening_for_backups = threading.Thread(target=self.listen_for_master, args=(self.host, self.port))
+		self.listening_for_backups = threading.Thread(target=self.listen_for_master, args=(self.host, self.port), daemon=True)
 		self.listening_for_backups.start() # will start thread for listening for master backup
 
 		threading.Thread(target=self.connect_to_proxy, daemon=True).start()
@@ -340,7 +340,7 @@ class Server:
 			LOGGER.warning("Slave failed to create listening socket for master.")
 			return
 
-		while not self.is_master and not utils.exit_flag:
+		while (not self.is_master) and (not utils.exit_flag):
 			try:
 				conn, addr = slave_to_master_sock.accept()
 				self.connected_to_master = True
@@ -675,62 +675,6 @@ class Server:
 				threading.Thread(target=self.listen_to_proxy, args=(proxy_sock,key), daemon=True).start()
 		else:
 			LOGGER.warning(f"Couldn't connect to proxy at {proxy_host}:{proxy_port}")
-			
-	# def connect_to_proxyOld(self):
-	# 	while not utils.exit_flag:
-	# 		if proxyDetailsProvided:
-	# 			for proxy_host, proxy_port in cmdLineProxyDetails:
-	# 				key = f"{proxy_host}:{proxy_port}"
-	# 				#LOGGER.debug(F"prox sockets: {self.proxy_sockets} key {key}")
-	# 				if key not in self.proxy_sockets or (self.proxy_sockets[key]).fileno() < 0:
-	# 					LOGGER.info(f"Connecting to proxy at {proxy_host}:{proxy_port}")
-	# 					proxy_sock = create_client_socket(proxy_host, proxy_port)
-						
-	# 					if proxy_sock:
-	# 						LOGGER.info(f"Connected to proxy at {proxy_host}:{proxy_port}")
-	# 						self.proxy_sockets[key] = proxy_sock
-	# 						# Send proxy init message to identify itself as a slave
-	# 						slave_identification_msg = TrackNet_pb2.InitConnection()
-	# 						self.set_slave_identification_msg(slave_identification_msg)
-
-	# 						if send(proxy_sock, slave_identification_msg.SerializeToString()):
-	# 							LOGGER.debug("Sent slave identification message to proxy")
-	# 							threading.Thread(
-	# 								target=self.listen_to_proxy,
-	# 								args=(proxy_sock,),
-	# 								daemon=True,
-	# 							).start()
-	# 					else:
-	# 						LOGGER.warning(f"Couldn't connect to proxy at {proxy_host}:{proxy_port}")
-					
-						
-	# 			time.sleep(10)
-	# 		else:
-	# 			for proxy_host, proxy_port in proxy_details.items():
-	# 				key = f"{proxy_host}:{proxy_port}"
-	# 				if key not in self.proxy_sockets or self.proxy_sockets[key] is None:
-	# 					LOGGER.info(f"Connecting to proxy at {proxy_host}:{proxy_port}")
-	# 					proxy_sock = create_client_socket(proxy_host, proxy_port)
-
-	# 					if proxy_sock:
-	# 						LOGGER.info(f"Connected to proxy at {proxy_host}:{proxy_port}")
-	# 						self.proxy_sockets[key] = proxy_sock
-	# 						# Send proxy init message to identify itself as a slave
-	# 						slave_identification_msg = TrackNet_pb2.InitConnection()
-	# 						self.set_slave_identification_msg(slave_identification_msg)
-
-	# 						if send(proxy_sock, slave_identification_msg.SerializeToString()):
-	# 							LOGGER.debug(
-	# 								"Sent slave identification message to proxy"
-	# 							)
-	# 							threading.Thread(
-	# 								target=self.listen_to_proxy,
-	# 								args=(proxy_sock,),
-	# 								daemon=True,
-	# 							).start()
-	# 					else:
-	# 						LOGGER.warning(f"Couldn't connect to proxy at {proxy_host}:{proxy_port}")
-	# 			time.sleep(10)
 
 	def connect_to_slave(self, slave_host, slave_port):
 		"""Initiates a connection to a slave server for distributing the load 
