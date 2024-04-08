@@ -72,13 +72,13 @@ class ConflictAnalyzer:
             command.speed = TrainSpeed.FAST.value
             commands[train.name] = command
         
-        LOGGER.debug("Resolving bad track conditions")
+        LOGGER.debugv("Resolving bad track conditions")
         for track_id in railway.map.tracks.keys():
             if len(railway.map.tracks[track_id].trains) > 1:
                 raise CollisionException("Multiple trains on same track")
             commands = ConflictAnalyzer.resolve_bad_track_condition(railway, commands, track_id)
 
-        LOGGER.debug("Resolving track entry")
+        LOGGER.debugv("Resolving track entry")
         for train_id in railway.trains.keys():
             may_enter_next_track = ConflictAnalyzer.may_enter_next_track(railway, commands, train_id)
             next_track = railway.trains[train_id].get_next_track_for_conflict_analyzer()

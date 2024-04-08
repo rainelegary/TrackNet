@@ -96,7 +96,7 @@ class Railway:
         back_junction_id = location_obj.back_cart["junction"].name
         back_position = location_obj.back_cart["position"]
         
-        LOGGER.debug(f" train name: {train.name} \n train location={train.location} \n new location={location_obj}")
+        LOGGER.debugv(f" train name: {train.name} \n train location={train.location} \n new location={location_obj}")
 		
 
         # check if new track
@@ -105,7 +105,7 @@ class Railway:
             self.map.tracks[front_track_id].add_train(train)
 			
 			# remove train from junction
-            LOGGER.debug(f"Remove {train.name} from {back_junction_id}")
+            LOGGER.debugv(f"Remove {train.name} from {back_junction_id}")
             try:
                 ## remove train front cart junc?
                 self.map.junctions[back_junction_id].depart_train(train)
