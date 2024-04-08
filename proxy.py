@@ -788,12 +788,18 @@ class Proxy:
             server to be closed.
         """
         with self.lock:
-            if proxy_listening_sock is not None:
+            try:
                 proxy_listening_sock.shutdown(socket.SHUT_RDWR)
-                proxy_listening_sock.close()
+                proxy_listening_sock.close() 
+            except Exception:
+                pass
             for socket in self.socket_list:
-                socket.shutdown(socket.SHUT_RDWR)
-                socket.close()
+                try: 
+                    socket.shutdown(socket.SHUT_RDWR)
+                    socket.close()
+                except Exception:
+                    pass
+
             self.socket_list.clear()
             self.client_sockets.clear()
             LOGGER.info(f"Proxy {self.host}{self.port} shut down")
@@ -837,7 +843,7 @@ class Proxy:
 
         LOGGER.info("Shutting down...")
         self.shutdown(proxy_listening_sock)
-        proxy_listening_sock.close()
+        
 
 
 if __name__ == "__main__":
