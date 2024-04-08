@@ -886,9 +886,10 @@ if __name__ == "__main__":
             LOGGER = logging.getLogger("BackupProxy")
             if proxy_port_num == None:
                 print("Did not pass a proxy port number. ")
-
+                sys.exit(1)
             if proxy_address == None:
                 print("Did not pass a proxy address")
+                sys.exit(1)
 
 
         if listening_port_num == None:
