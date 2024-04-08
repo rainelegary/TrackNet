@@ -857,7 +857,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    proxy_address = args.proxy_addres
+    proxy_address = args.proxy_address
     proxy_port_num = args.proxyPort
     listening_port_num = args.listeningPort
 
