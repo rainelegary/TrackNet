@@ -26,8 +26,8 @@ setup_logging()  ## only need to call at main entry point of application
 
 LOGGER = logging.getLogger("Proxy")
 
-#signal.signal(signal.SIGTERM, exit_gracefully)
-#signal.signal(signal.SIGINT, exit_gracefully)
+signal.signal(signal.SIGTERM, exit_gracefully)
+signal.signal(signal.SIGINT, exit_gracefully)
 
 class Proxy:
     """Manages network connections for a railway simulation proxy, handling communication between clients, servers, and other proxies.
@@ -116,6 +116,19 @@ class Proxy:
             self.main_proxy_host = self.host
             self.is_main = True
 
+    def cleanSlaveSockets(self):
+        for ((slave_host,slave_port),time) in self.all_slave_timestamps.items(): 
+            if time == -1:
+                try:
+                    del self.slave_sockets[(slave_host,slave_port)]
+                    LOGGER.debug(f"Deleted slave ({slave_host},{slave_port}) as no longer connected")
+                except KeyError:
+                    LOGGER.debug(f"Could not delete slave ({slave_host},{slave_port}) due to key error")
+                except Exception as e:
+                    LOGGER.debug(f"Could not delete slave ({slave_host},{slave_port}) due to unexpected exception: {e}")
+
+
+
     def add_slave_socket(self, slave_socket: socket.socket, slave_port: int):
         """Registers a new slave proxy connection by adding its socket and port to the 
         ``slave_sockets`` dictionary.
@@ -194,7 +207,7 @@ class Proxy:
             relay_resp.sender = proto.InitConnection.Sender.PROXY
             relay_resp.server_response.CopyFrom(server_response)
 
-            LOGGER.debug(f"Relaying server response message to client on socket: {target_client_socket}")
+            LOGGER.debug(f"Relaying server response message to client: {target_client_key}")
             LOGGER.debug(f"{relay_resp}")
             # Forward the server's message to the target client
             if target_client_socket:
@@ -217,16 +230,14 @@ class Proxy:
         :param slave_port: The port number of the slave proxy being promoted.
         """
         self.master_socket = slave_socket
-        LOGGER.debug(f"master socket was updated: {self.master_socket}")
+        LOGGER.debugv(f"master socket was updated: {self.master_socket}")
         try:
             self.master_socket_hostIP = slave_socket.getpeername()[0]
         except Exception as e:
-            LOGGER.warning(
-                f"Exception {e} was thrown when setting master_socket_hostIP "
-            )
+            LOGGER.warning(f"Exception {e} was thrown when setting master_socket_hostIP ")
 
         self.remove_slave_socket(self.master_socket,slave_port)
-        LOGGER.info(f"Promoting {self.master_socket_hostIP} to MASTER, was previously a slave listening on port {slave_port}, current master socket: {self.master_socket}")
+        LOGGER.info(f"Promoting {self.master_socket_hostIP} to MASTER, was previously a slave listening on port {slave_port}") #current master socket: {self.master_socket}")
         # LOGGER.info(f"{slave_socket.getpeername()} promoted to MASTER")
 
         # notify the newly promoted master server of its new role
@@ -330,6 +341,8 @@ class Proxy:
                     LOGGER.warning(f"Failed to send role assignmnet to slave.")
 
                 # self.notify_master_of_slaves()
+                LOGGER.debug(f"Will sleep for 20 seconds before notifying master of new slave")
+                time.sleep(2)
                 self.notify_master_of_new_slave(init_conn)
 
     def handle_missed_proxy_heartbeat(self):
@@ -372,10 +385,7 @@ class Proxy:
                     proxy_sock.settimeout(self.heartbeat_timeout)
 
                 else:
-                    LOGGER.warning(
-                        f"Failed to connect to main proxy. Trying again in 5 seconds ..."
-                    )
-                    time.sleep(self.heartbeat_interval)
+                    LOGGER.warning(f"Failed to connect to main proxy.")
                     if self.handle_missed_proxy_heartbeat():
                         LOGGER.info("IS MAIN PROXY")
                         return
@@ -418,9 +428,7 @@ class Proxy:
                         or self.master_socket_hostIP != heartbeat.master_host
                     ):
                         LOGGER.debug("Updating master server ...")
-                        LOGGER.info(
-                            f"slave sockets: {self.slave_sockets}, items: {self.slave_sockets.items()}"
-                        )
+                        #LOGGER.info(f"slave sockets: {self.slave_sockets}, items: {self.slave_sockets.items()}")
                         foundMasterServer = False
                         slave_port_chosen = None
 
@@ -432,14 +440,10 @@ class Proxy:
                                         slave_port_chosen = slave_port
                                         self.master_socket = slave
                                         self.master_socket_hostIP = slave.getpeername()[0]
-                                        LOGGER.debug(
-                                            "Master server updated to %s",
-                                            heartbeat.master_host,
-                                        )
+                                        LOGGER.debug(f"Master server updated to {heartbeat.master_host}")
                                 except Exception as e:
-                                    LOGGER.warning(
-                                        f"Exception {e} was thrown when finding master server from slaves"
-                                    )
+                                    LOGGER.warning(f"Exception {e} was thrown when finding master server from slaves")
+
                         if foundMasterServer == False:
                             LOGGER.warning(
                                 f"BackUp Proxy doesn't have connection to the master server ? {heartbeat.master_host}"
@@ -514,6 +518,7 @@ class Proxy:
         if self.heartbeat_timer and self.heartbeat_timer.is_alive():
             self.heartbeat_timer.cancel()
 
+
     def handle_heartbeat_timeout_loop(self):
         """Handles the scenario when a heartbeat response is not received from the 
         master server within a specified timeout period. This method may involve 
@@ -538,9 +543,12 @@ class Proxy:
                 (new_master_socket,slave_port) = chosenTuple
                 self.promote_slave_to_master(new_master_socket,slave_port)
             else:
-                LOGGER.warning(
-                    "Unexpected return: Received none from choose_new_master."
-                )
+                LOGGER.debug("Unable to promote a master from current list of slaves.")
+                
+            # clean the dictionary with the slave sockets after sending hearbeat to slave servers 
+            self.cleanSlaveSockets()
+
+                
         else:
             LOGGER.info("len (slave sockets) is 0")
             LOGGER.info("No slave servers available to promote to master.")
@@ -570,7 +578,7 @@ class Proxy:
                 start_time = time.time()
                 timestampReceived = False
                 while (((time.time() - start_time) <= self.slave_heartbeat_timeout) and (timestampReceived == False)):
-                    if self.all_slave_timestamps.get((slave_host, slave_port), 0) != 0:
+                    if self.all_slave_timestamps.get((slave_host, slave_port), 0) != (-1):
                         timestampReceived = True
                     time.sleep(0.1)  # Sleep for a short time to avoid busy waiting
                 
@@ -588,7 +596,7 @@ class Proxy:
 
         for ((slaveHost,slavePort),slave_socket) in self.slave_sockets.items():
             # Create a new Thread for each slave socket to send and receive messages
-            self.all_slave_timestamps[(slaveHost,slavePort)] = 0
+            self.all_slave_timestamps[(slaveHost,slavePort)] = (-1)
 
             thread = threading.Thread(
                 target=self.send_heartbeat_to_slaves,
@@ -601,32 +609,39 @@ class Proxy:
         for thread in threads:
             thread.join()
 
-        LOGGER.debug("-----------Priniting all the slave timestamps-----------")
-        for key, value in self.all_slave_timestamps.items():
-            LOGGER.debug(f"Key: {key}, Value: {value}")
+        # LOGGER.debug("-----------Priniting all the slave timestamps-----------")
+        # for key, value in self.all_slave_timestamps.items():
+        #     LOGGER.debug(f"Key: {key}, Value: {value}")
 
         # After all threads complete, you can process the timestamps
         if self.all_slave_timestamps:
             max_key = max(self.all_slave_timestamps, key=self.all_slave_timestamps.get)
-            LOGGER.debug(f"key chosen {max_key}")
-            (chosen_slave_host,chosen_slave_port) = max_key
-            LOGGER.info(f"New master chosen in choose_new_master based on timestamp: {(chosen_slave_host,chosen_slave_port)}" )
-            try:
-                ip_address = socket.gethostbyname(chosen_slave_host)
-                LOGGER.debug(f"The IP address of {chosen_slave_host} is {ip_address}")
-                most_recent_slave = (ip_address,chosen_slave_port)
-
-                LOGGER.debug("-----------Priniting all the slave sockets-----------")
-                for key, value in self.slave_sockets.items():
-                    LOGGER.debug(f"Key: {key}, Value: {value}")
-
-                if (most_recent_slave) in self.slave_sockets:
-                    return (self.slave_sockets[(most_recent_slave)],chosen_slave_port)
-                else:
-                    LOGGER.warning(f"Error cannot find the socket for the slave chosen {most_recent_slave}") 
-            except socket.gaierror as e:
-                print(f"Failed to get the IP address of {chosen_slave_host}: {e}")
+            if(self.all_slave_timestamps[max_key] == (-1)):
+                # then no slave is connected
+                LOGGER.debug(f"All slaves are dead, will not be able to promote a slave to master server")
                 return None
+            else:
+                LOGGER.debug(f"key chosen {max_key}")
+                (chosen_slave_host,chosen_slave_port) = max_key
+                LOGGER.info(f"New master chosen in choose_new_master based on timestamp: {(chosen_slave_host,chosen_slave_port)}" )
+                try:
+                    ip_address = socket.gethostbyname(chosen_slave_host)
+                    LOGGER.debugv(f"The IP address of {chosen_slave_host} is {ip_address}")
+                    most_recent_slave = (ip_address,chosen_slave_port)
+
+                    # LOGGER.debug("-----------Priniting all the slave sockets-----------")
+                    # for key, value in self.slave_sockets.items():
+                    #     LOGGER.debug(f"Key: {key}, Value: {value}")
+
+                    if (most_recent_slave) in self.slave_sockets:
+                        return (self.slave_sockets[(most_recent_slave)],chosen_slave_port)
+                    else:
+                        LOGGER.warning(f"Error cannot find the socket for the slave chosen {most_recent_slave}") 
+                except socket.gaierror as e:
+                    LOGGER.warning(f"Failed to get the IP address of {chosen_slave_host}: {e}")
+                except Exception as e:
+                    LOGGER.warning(f"Unexpected exception when choossing new slave {max_key}:{self.all_slave_timestamps[max_key]}: {e}")
+                    return None
         else:
             LOGGER.warning("No timestamps received, cannot select a new master.")
             return None
@@ -696,6 +711,7 @@ class Proxy:
                                     LOGGER.debug(f"Slave server has connect, will now decide its role")
                                     self.slave_role_assignment(conn, init_conn)
                                 else:
+
                                     slave_port = init_conn.slave_details.port
                                     self.add_slave_socket(conn,slave_port)
 
@@ -769,12 +785,18 @@ class Proxy:
             server to be closed.
         """
         with self.lock:
-            if proxy_listening_sock is not None:
+            try:
                 proxy_listening_sock.shutdown(socket.SHUT_RDWR)
-                proxy_listening_sock.close()
+                proxy_listening_sock.close() 
+            except Exception:
+                pass
             for socket in self.socket_list:
-                socket.shutdown(socket.SHUT_RDWR)
-                socket.close()
+                try: 
+                    socket.shutdown(socket.SHUT_RDWR)
+                    socket.close()
+                except Exception:
+                    pass
+
             self.socket_list.clear()
             self.client_sockets.clear()
             LOGGER.info(f"Proxy {self.host}{self.port} shut down")
@@ -818,7 +840,7 @@ class Proxy:
 
         LOGGER.info("Shutting down...")
         self.shutdown(proxy_listening_sock)
-        proxy_listening_sock.close()
+        
 
 
 if __name__ == "__main__":

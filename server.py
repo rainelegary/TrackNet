@@ -117,19 +117,22 @@ class Server:
 		self.client_state_queue = Queue()
 
 		threading.Thread(target=self.connect_to_proxy, daemon=True).start()
-		threading.Thread(target=self.printRailwayMap, daemon=True).start()
 
+		threading.Thread(target=self.printRailwayMapold, daemon=True).start()
+
+		#self.window = None
 		self.handle_client_states()
 
-	def printRailwayMap(self):
+	def printRailwayMapold(self):
 		while not utils.exit_flag:
 			time.sleep(5)
 			if self.is_master == True:
-				with self.lock:
-					print("----------------------------------------------------------------------")
-					LOGGER.debug(f"Printing State of Railway: ")
-					self.railway.print_map()
-					print("----------------------------------------------------------------------")
+				text = "----------------------------------------------------------------------\n"
+				text += "Printing State of Railway: \n"
+				text += self.railway.get_map_string()
+				text += "----------------------------------------------------------------------\n"
+				LOGGER.debug(text)
+
 			
 	def create_railway_update_message(self) -> TrackNet_pb2.RailwayUpdate:
 		"""Creates and returns a RailwayUpdate message containing the current 
@@ -197,7 +200,7 @@ class Server:
 
 				try:
 					train = self.get_train(client_state.train, client_state.location.front_junction_id)
-					LOGGER.debug(f" train name: {train.name} \n train location={train.location} \n new location={client_state.location}")
+					LOGGER.debugv(f" train name: {train.name} \n train location={train.location} \n new location={client_state.location}")
 				except Exception as e:
 					LOGGER.error(f"Error getting train: {e}")
 
@@ -228,14 +231,18 @@ class Server:
 		
 		LOGGER.debug("exit flag was set, will now shutdown")
 		for (slave_socket) in self.socks_for_communicating_to_slaves:
-			if slave_socket is not None:
+			try:
 				slave_socket.shutdown(socket.SHUT_RDWR)
 				slave_socket.close()
+			except Exception as e:
+				pass
 		
 		for proxy_sock in self.proxy_sockets.values():
-			if proxy_sock is not None:
+			try:
 				proxy_sock.shutdown(socket.SHUT_RDWR)
 				proxy_sock.close()
+			except Exception as e:
+				pass
 
 	def handle_client_state(self, client_state, train, apply_state=True):
 		if apply_state:
@@ -372,7 +379,11 @@ class Server:
 						if (master_resp.sender== TrackNet_pb2.InitConnection.SERVER_MASTER and master_resp.HasField("railway_update")):
 							#LOGGER.debug(f"Slave received a backup form the master: {master_resp.railway_update}")
 							# need to store the backup
-							LOGGER.debug(f"Received railway update from master at {master_resp.railway_update.timestamp}")
+							dt_obj = datetime.fromtimestamp(master_resp.railway_update.timestamp)
+							
+							readable_date = dt_obj.strftime('%Y-%m-%d %H:%M:%S') # Format datetime object to string in a readable format
+
+							LOGGER.debug(f"Received railway update from master at {master_resp.railway_update.timestamp} , {float(master_resp.railway_update.timestamp)} and readable version {readable_date}")
 
 							self.backup_railway_timestamp = (master_resp.railway_update.timestamp) # -10
 							self.backup_railway = master_resp.railway_update.railway
@@ -468,6 +479,8 @@ class Server:
 				backup_timestamp_message = proto.SlaveBackupTimestamp()
 				if self.backup_railway_timestamp:
 					backup_timestamp_message.timestamp = self.backup_railway_timestamp
+				else:
+					backup_timestamp_message.timestamp = 0
 				backup_timestamp_message.host = socket.gethostbyname(self.host) 
 				backup_timestamp_message.port = self.port
 				response.slave_backup_timestamp.CopyFrom(backup_timestamp_message)
@@ -724,6 +737,11 @@ class Server:
 			else:
 				self.socks_for_communicating_to_slaves.append(slave_sock)
 				LOGGER.debug(f"Added slave server {slave_host}:{slave_port}")
+
+				# added slave server, will send a backup to all slaves 
+				# Create a separate thread for talking to slaves
+				threading.Thread(target=self.talk_to_slaves, daemon=True).start()
+
 			
 			# Start a new thread dedicated to this slave for communication
 		#            threading.Thread(target=self.handle_slave_communication, args=(slave_sock,), daemon=True).start()
@@ -791,18 +809,23 @@ class Server:
    		This method iterates through sockets connected to slave servers, 
 		prepares a railway update message, and sends it to each slave.
 		"""
-		print(f"number of slaves: {len(self.socks_for_communicating_to_slaves)}")
+		LOGGER.debug(f"number of slaves: {len(self.socks_for_communicating_to_slaves)}")
 		for slave_socket in self.socks_for_communicating_to_slaves:
 			# Prepare the client state message
 			master_resp = TrackNet_pb2.InitConnection()
 			master_resp.sender = TrackNet_pb2.InitConnection.SERVER_MASTER
 			master_resp.railway_update.CopyFrom(self.create_railway_update_message())
-			print("Railway update message created")
-			print("type of slave socket: ", type(slave_socket))
-			if send(slave_socket, master_resp.SerializeToString()):
-				print(f"Railway update message sent to slave successfully")
+			LOGGER.debug("Railway update message created")
+			LOGGER.debug(f"type of slave socket: {type(slave_socket)}")
+			if slave_socket.fileno() < 0:
+				# slave socket is closed
+				LOGGER.debug(f"Removing an unavailable slave")
+				self.socks_for_communicating_to_slaves.remove(slave_socket)
 			else:
-				LOGGER.warning(f"Could not send backup message to: {slave_socket}")
+				if send(slave_socket, master_resp.SerializeToString()):
+					LOGGER.debug(f"Railway update message sent to slave successfully")
+				else:
+					LOGGER.warning(f"Could not send backup message to: {slave_socket}")
 
 
 if __name__ == "__main__":
@@ -851,3 +874,4 @@ if __name__ == "__main__":
 			cmdLineProxyDetails.append((proxy2_address, proxy2_port_num))
 
 	Server(port=listening_port_num)
+

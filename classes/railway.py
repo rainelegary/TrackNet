@@ -108,7 +108,7 @@ class Railway:
                 ## remove train front cart junc?
                 self.map.junctions[back_junction_id].depart_train(train)
             except Exception as exc:
-                LOGGER.debug("ERROR removing train fro junction: " + str(exc))
+                LOGGER.debugv("ERROR removing train from junction: " + str(exc))
 
 
         # check if new junction
@@ -122,8 +122,8 @@ class Railway:
             # add tain to new junction
             self.map.junctions[front_junction_id].park_train(train)
 
-        LOGGER.debug(f"train_state={train.state} client_state={state}")
-            
+        LOGGER.debugv(f"train_state={train.state} client_state={state}")
+
         self.trains[train.name].location = location_obj
         self.trains[train.name].state = state
         self.trains[train.name].route = route_obj
@@ -150,7 +150,7 @@ class Railway:
             new_route.append(self.map.junctions[junc])
         train.route = Route(new_route, route.current_junction_index)
         train.location.set_track(self.train.route.get_next_track())
-        LOGGER.debug(f"init track={self.train.route.get_next_track()}")
+        LOGGER.debugv(f"init track={self.train.route.get_next_track()}")
 
     def print_map(self):
         """Prints an overview of the railway map, including details of junctions, tracks, and trains."""
@@ -180,3 +180,35 @@ class Railway:
                     print(f"Track: {track_name}, Length: {track.length}m - No running trains")
         else:
             print("No Tracks to display.")
+
+    def get_map_string(self):
+        """Returns a string overview of the railway map, including details of junctions, tracks, and trains."""
+        map_overview = ""
+
+        # Adding Junctions with parked trains to the string
+        if self.map.junctions:
+            map_overview += "Junctions:\n"
+            for junction_name, junction in self.map.junctions.items():
+                trains_info = ", ".join(junction.parked_trains) if junction.parked_trains else "None"
+                map_overview += f"  Junction: {junction_name}, Parked Trains: [{trains_info}]\n"
+        else:
+            map_overview += "No Junctions to display.\n"
+
+        # Adding Tracks with running trains to the string
+        map_overview += "\nTracks:\n"
+        if self.map.tracks:
+            for track_name, track in self.map.tracks.items():
+                if hasattr(track, "trains") and track.trains:
+                    map_overview += f"Track: {track_name}, Length: {track.length}m, Speed Limit: {track.speed}km/h\n"
+                    for train_id, train_data in track.trains.items():
+                        # Rounding positions to two decimal places
+                        front_position = round(train_data.location.front_cart['position'], 2)
+                        back_position = round(train_data.location.back_cart['position'], 2)
+                        map_overview += f"  - Train: {train_id}, Speed: {train_data.current_speed}km/h, " \
+                                        f"Position: Front {front_position}m - Back {back_position}m\n"
+                else:
+                    map_overview += f"Track: {track_name}, Length: {track.length}m - No running trains\n"
+        else:
+            map_overview += "No Tracks to display.\n"
+
+        return map_overview
