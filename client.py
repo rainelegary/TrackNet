@@ -74,6 +74,8 @@ class Client():
         self.client_port = None
         self.probabilty_track_stay_good = 0.95
         self.probability_track_stay_bad = 0.8
+        self.timeout_counter = 0
+        self.timeoutLimit = 2
 
         self.sentInitClientState = False
 
@@ -264,6 +266,19 @@ class Client():
                         except socket.timeout:
                             #LOGGER.warning("Socket timeout. Switching to backup proxy.")
                             LOGGER.debug(f"Socket timeout. Will wait for a server response")
+                            self.timeout_counter +=1
+                            if self.timeout_counter >= self.timeoutLimit:
+                                LOGGER.debug(f"Timed out {self.timeout_counter} times, Will switch to backup proxy {self.backup_proxy}")
+                                self.timeout_counter = 0
+                                self.sock.close()
+                                self.sock = None
+                                connected_to_proxy = False
+                                temp = self.current_proxy
+                                self.current_proxy = self.backup_proxy
+                                self.backup_proxy = temp
+
+
+
 
                         except Exception as e:
                             LOGGER.warning(f"Exception thrown after sending client state {e}, Will switch to backup proxy {self.backup_proxy}")
