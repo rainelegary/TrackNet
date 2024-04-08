@@ -337,8 +337,7 @@ class Server:
 		:param host: The hostname or IP address the slave server listens on for master connections.
 		:param port: The port number the slave server listens on for master connections.
 		"""
-		if slave_to_master_sock is None:
-			slave_to_master_sock = create_server_socket(host, port)
+		slave_to_master_sock = create_server_socket(host, port)
 		LOGGER.debug("Slave created listening socket, waiting for master backups")
 
 		if slave_to_master_sock is None:
@@ -362,6 +361,14 @@ class Server:
 				slave_to_master_sock.close()
 				LOGGER.info("Restarting listening socket...")
 				slave_to_master_sock = create_server_socket(self.host, self.port)
+		
+		LOGGER.debug(f"No longer wating for master to connect")
+		try:
+			slave_to_master_sock.shutdown(socket.SHUT_RDWR)
+			slave_to_master_sock.close()
+		except:
+			pass
+		
 
 	def handle_master_communication(self, conn):
 		"""Handles communication with a connected master server. It listens for updates 
@@ -462,11 +469,11 @@ class Server:
 					self.is_master = False
 					LOGGER = logging.getLogger("SlaveServer")
 					# Connect to master if not already
-					if not self.connected_to_master and (not self.listening_for_backups.is_alive()):
-						# listen to master instead of initiating connection
-						# self.listen_for_master(self.host, 4444)
-						#threading.Thread(target=self.listen_for_master, args=(self.host, self.port)).start()
-						self.listening_for_backups.start()
+					# if not self.connected_to_master and (not self.listening_for_backups.is_alive()):
+					# 	# listen to master instead of initiating connection
+					# 	# self.listen_for_master(self.host, 4444)
+					# 	#threading.Thread(target=self.listen_for_master, args=(self.host, self.port)).start()
+					# 	self.listening_for_backups.start()
 
 		elif proxy_resp.HasField("is_heartbeat"):
 
