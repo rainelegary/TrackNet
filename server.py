@@ -382,7 +382,7 @@ class Server:
 							
 							readable_date = dt_obj.strftime('%Y-%m-%d %H:%M:%S') # Format datetime object to string in a readable format
 
-							LOGGER.debug(f"Received railway update from master at {master_resp.railway_update.timestamp} , {float(master_resp.railway_update.timestamp)} and readable version {readable_date}")
+							LOGGER.debug(f"Received railway update from master at {readable_date}")
 
 							self.backup_railway_timestamp = (master_resp.railway_update.timestamp) # -10
 							self.backup_railway = master_resp.railway_update.railway
