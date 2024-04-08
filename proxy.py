@@ -353,12 +353,13 @@ class Proxy:
         :return: A boolean indicating whether the current proxy has been 
             promoted to the main proxy role.
         """
+        global LOGGER
         self.heartbeat_attempts += 1
 
         if self.heartbeat_attempts >= self.max_heartbeat_attempts:
             self.is_main = True
             LOGGER.debug("Setting self to main proxy")
-            LOGGER.info("Calling send heartbeat")
+            LOGGER = logging.getLogger("MainProxy")
             #self.send_heartbeat()
             if self.master_socket:
                 self.master_server_heartbeat_thread.start()
