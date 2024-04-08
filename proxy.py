@@ -385,10 +385,7 @@ class Proxy:
                     proxy_sock.settimeout(self.heartbeat_timeout)
 
                 else:
-                    LOGGER.warning(
-                        f"Failed to connect to main proxy. Trying again in 5 seconds ..."
-                    )
-                    time.sleep(self.heartbeat_interval)
+                    LOGGER.warning(f"Failed to connect to main proxy.")
                     if self.handle_missed_proxy_heartbeat():
                         LOGGER.info("IS MAIN PROXY")
                         return
