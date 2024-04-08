@@ -342,7 +342,7 @@ class Proxy:
 
                 # self.notify_master_of_slaves()
                 LOGGER.debug(f"Will sleep for 20 seconds before notifying master of new slave")
-                time.sleep(20)
+                time.sleep(2)
                 self.notify_master_of_new_slave(init_conn)
 
     def handle_missed_proxy_heartbeat(self):
