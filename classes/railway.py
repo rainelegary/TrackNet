@@ -79,7 +79,7 @@ class Railway:
         else:
             raise Exception(f"Train {name} already exists.")
 
-    def update_train(self, train, state, location_obj: Location, route_obj: Route):
+    def update_train(self, train, state, location_obj: Location, route_obj: Route) -> bool:
         """Updates the state and location of a specified train based on the provided protobuf messages.
 
         :param train: The Train object to update.
@@ -87,6 +87,8 @@ class Railway:
         :param location_msg: A protobuf message containing the new location information.
         :param route_msg: A protobuf message containing the new route information.
         """
+        train_done = False
+
         front_track_id = location_obj.front_cart["track"].name
         front_junction_id = location_obj.front_cart["junction"].name
         front_position = location_obj.front_cart["position"]
@@ -131,8 +133,11 @@ class Railway:
         if self.trains[train.name].location.back_cart["junction"] == self.trains[train.name].route.destination:
             try: 
                 self.map.junctions[back_junction_id].depart_train(train)
+                train_done = True
             except Exception as exc:
                 LOGGER.debug("ERROR removing train fro junction: " + str(exc))
+
+        return train_done
 
         # update route
         # train = self.trains[train.name]
