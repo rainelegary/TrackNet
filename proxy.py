@@ -612,9 +612,9 @@ class Proxy:
         for thread in threads:
             thread.join()
 
-        LOGGER.debug("-----------Priniting all the slave timestamps-----------")
-        for key, value in self.all_slave_timestamps.items():
-            LOGGER.debug(f"Key: {key}, Value: {value}")
+        # LOGGER.debug("-----------Priniting all the slave timestamps-----------")
+        # for key, value in self.all_slave_timestamps.items():
+        #     LOGGER.debug(f"Key: {key}, Value: {value}")
 
         # After all threads complete, you can process the timestamps
         if self.all_slave_timestamps:
@@ -629,12 +629,12 @@ class Proxy:
                 LOGGER.info(f"New master chosen in choose_new_master based on timestamp: {(chosen_slave_host,chosen_slave_port)}" )
                 try:
                     ip_address = socket.gethostbyname(chosen_slave_host)
-                    LOGGER.debug(f"The IP address of {chosen_slave_host} is {ip_address}")
+                    LOGGER.debugv(f"The IP address of {chosen_slave_host} is {ip_address}")
                     most_recent_slave = (ip_address,chosen_slave_port)
 
-                    LOGGER.debug("-----------Priniting all the slave sockets-----------")
-                    for key, value in self.slave_sockets.items():
-                        LOGGER.debug(f"Key: {key}, Value: {value}")
+                    # LOGGER.debug("-----------Priniting all the slave sockets-----------")
+                    # for key, value in self.slave_sockets.items():
+                    #     LOGGER.debug(f"Key: {key}, Value: {value}")
 
                     if (most_recent_slave) in self.slave_sockets:
                         return (self.slave_sockets[(most_recent_slave)],chosen_slave_port)
