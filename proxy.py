@@ -24,8 +24,8 @@ isBackup = None
 
 setup_logging()  ## only need to call at main entry point of application
 
+#global LOGGER
 LOGGER = logging.getLogger("Proxy")
-
 #signal.signal(signal.SIGTERM, exit_gracefully)
 #signal.signal(signal.SIGINT, exit_gracefully)
 
@@ -847,7 +847,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Proxess Proxy args")
 
-    parser.add_argument("-proxy_addres", type=str, help="Address for proxy")
+    parser.add_argument("-proxy_address", type=str, help="Address for proxy")
     parser.add_argument("-proxyPort", type=int, help="Proxy port number")
     parser.add_argument("-listeningPort", type=int, help="Listening port number")
 
@@ -871,12 +871,25 @@ if __name__ == "__main__":
     LOGGER.debugv(f"Listening port {listening_port_num}")
     LOGGER.debugv(f"Main: {isMain} and Backup: {isBackup}")
 
+
+    
+
     if isMain and isBackup:
         print("Passed both -main and -backup. Proxy can not be both")
+    elif (isMain == False) and (isBackup == False):
+        print("Did not pass -main or -backup.")
     else:
+        
+        if isMain:
+            LOGGER = logging.getLogger("MainProxy")
+        else:
+            LOGGER = logging.getLogger("BackupProxy")
+            if proxy_port_num == None:
+                print("Did not pass a proxy port number. ")
 
-        if proxy_port_num == None:
-            proxy_port_num = 5555
+            if proxy_address == None:
+                print("Did not pass a proxy address")
+
 
         if listening_port_num == None:
             listening_port_num = 5555
@@ -892,4 +905,5 @@ if __name__ == "__main__":
         except KeyboardInterrupt:
             LOGGER.info("Keyboard interupt detected")
             sys.exit(1)
+
         
