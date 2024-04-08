@@ -267,12 +267,15 @@ class Server:
 			client_state.route,
 			junction_refs=self.railway.map.junctions
 		)
-		self.railway.update_train(
+		train_done = self.railway.update_train(
 			train,
 			TrainState(client_state.train.state),
 			location,
 			route,
 		)
+
+		if train_done:
+			del self.client_commands[train.name]
 
 		#self.railway.print_map()
 
