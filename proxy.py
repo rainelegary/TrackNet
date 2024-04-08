@@ -207,7 +207,7 @@ class Proxy:
             relay_resp.sender = proto.InitConnection.Sender.PROXY
             relay_resp.server_response.CopyFrom(server_response)
 
-            LOGGER.debug(f"Relaying server response message to client on socket: {target_client_socket}")
+            LOGGER.debug(f"Relaying server response message to client: {target_client_key}")
             LOGGER.debug(f"{relay_resp}")
             # Forward the server's message to the target client
             if target_client_socket:

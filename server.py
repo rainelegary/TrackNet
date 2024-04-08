@@ -786,7 +786,7 @@ class Server:
 			master_resp.sender = TrackNet_pb2.InitConnection.SERVER_MASTER
 			master_resp.railway_update.CopyFrom(self.create_railway_update_message())
 			LOGGER.debug("Railway update message created")
-			LOGGER.debug("type of slave socket: ", type(slave_socket))
+			LOGGER.debug(f"type of slave socket: {type(slave_socket)}")
 			if slave_socket.fileno() < 0:
 				# slave socket is closed
 				LOGGER.debug(f"Removing an unavailable slave")
