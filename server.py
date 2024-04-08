@@ -208,7 +208,7 @@ class Server:
 				master_response.sender = TrackNet_pb2.InitConnection.Sender.SERVER_MASTER
 				master_response.server_response.CopyFrom(resp)
 
-				print(master_response)
+				LOGGER.debugv(f"master_response: {master_response}")
 				train_id = resp.train.id
 				self.handled_client_states[train_id] = (clientStateHash,master_response.server_response)
 				
@@ -218,7 +218,7 @@ class Server:
 				if not send(sock, master_response.SerializeToString()):
 					LOGGER.warning(f"ServerResponse message failed to send to proxy.")
 				else:
-					LOGGER.debug("sent server response to proxy")
+					LOGGER.debug("Sent server response to proxy successfully")
 		
 		LOGGER.debug("exit flag was set, will now shutdown")
 		for (slave_socket) in self.socks_for_communicating_to_slaves:
@@ -302,8 +302,8 @@ class Server:
 			self.client_commands = ConflictAnalyzer.resolve_conflicts_simple(self.railway, self.client_commands)
 			self.previous_conflict_analysis_time = datetime.now()
 		else:
-			LOGGER.debug(f"No new commands: {self.previous_conflict_analysis_time} {self.conflict_analysis_interval}")
-		LOGGER.debug(f"client commands: {self.client_commands}")
+			LOGGER.debugv(f"No new commands: {self.previous_conflict_analysis_time} {self.conflict_analysis_interval}")
+		LOGGER.debugv(f"client commands: {self.client_commands}")
 		command = self.client_commands[train.name]
 		resp.status = command.status
 		if command.HasField("new_route"):
@@ -311,7 +311,7 @@ class Server:
 		if command.HasField("speed"):
 			resp.speed = command.speed
 		else:
-			print("NO SPEED!!!!")
+			LOGGER.warning("NO SPEED!!!!")
 
 		return resp
 
@@ -391,7 +391,7 @@ class Server:
 
 							LOGGER.debug(f"Received railway update from master at {readable_date}")
 							LOGGER.debug(f"Backup Railway: {master_resp.railway_update.railway}")
-							
+
 							self.backup_railway_timestamp = (master_resp.railway_update.timestamp) # -10
 							self.backup_railway = master_resp.railway_update.railway
 
@@ -407,7 +407,7 @@ class Server:
 					continue  # No data received within the timeout, continue loop
 				except Exception as e:
 					LOGGER.error(f"Error communicating with master: {e}")
-					print("Setting connected to master to false")
+					LOGGER.debug("Setting connected to master to false")
 					self.connected_to_master = (False)# Reset the flag to allow for a new connection
 					break  # Break out of the loop on any other exception
 		finally:
@@ -829,15 +829,15 @@ class Server:
 			master_resp = TrackNet_pb2.InitConnection()
 			master_resp.sender = TrackNet_pb2.InitConnection.SERVER_MASTER
 			master_resp.railway_update.CopyFrom(self.create_railway_update_message())
-			LOGGER.debug("Railway update message created")
-			LOGGER.debug(f"type of slave socket: {type(slave_socket)}")
+			LOGGER.debugv("Railway update message created")
+			LOGGER.debugv(f"type of slave socket: {type(slave_socket)}")
 			if slave_socket.fileno() < 0:
 				# slave socket is closed
 				LOGGER.debug(f"Removing an unavailable slave")
 				self.socks_for_communicating_to_slaves.remove(slave_socket)
 			else:
 				if send(slave_socket, master_resp.SerializeToString()):
-					LOGGER.debug(f"Railway update message sent to slave successfully")
+					LOGGER.debugv(f"Railway update message sent to slave successfully")
 				else:
 					LOGGER.warning(f"Could not send backup message to: {slave_socket}")
 

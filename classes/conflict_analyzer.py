@@ -85,7 +85,7 @@ class ConflictAnalyzer:
             if may_enter_next_track:
                 # clear
                 if next_track is not None:
-                    LOGGER.debug(f"{train_id} may enter {next_track.name}")
+                    LOGGER.debugv(f"{train_id} may enter {next_track.name}")
                 command = TrackNet_pb2.ServerResponse()
                 command.status = TrackNet_pb2.ServerResponse.UpdateStatus.CLEAR
                 command.speed = commands[train_id].speed
@@ -93,7 +93,7 @@ class ConflictAnalyzer:
             else:
                 # park
                 if next_track is not None:
-                    LOGGER.debug(f"{train_id} may not enter {next_track.name}")
+                    LOGGER.debugv(f"{train_id} may not enter {next_track.name}")
                 command = TrackNet_pb2.ServerResponse()
                 command.status = TrackNet_pb2.ServerResponse.UpdateStatus.PARK
                 command.speed = commands[train_id].speed
@@ -110,7 +110,7 @@ class ConflictAnalyzer:
         next_junction = train.route.get_next_junction()
 
         if next_track is not None:
-            LOGGER.debug(f"Testing if {train_id} may enter {next_track.name}")
+            LOGGER.debugv(f"Testing if {train_id} may enter {next_track.name}")
 
         if next_track is None:
             return False
