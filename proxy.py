@@ -341,6 +341,8 @@ class Proxy:
                     LOGGER.warning(f"Failed to send role assignmnet to slave.")
 
                 # self.notify_master_of_slaves()
+                LOGGER.debug(f"Will sleep for 20 seconds before notifying master of new slave")
+                time.sleep(20)
                 self.notify_master_of_new_slave(init_conn)
 
     def handle_missed_proxy_heartbeat(self):
@@ -444,7 +446,7 @@ class Proxy:
                                         LOGGER.debug(f"Master server updated to {heartbeat.master_host}")
                                 except Exception as e:
                                     LOGGER.warning(f"Exception {e} was thrown when finding master server from slaves")
-                                    
+
                         if foundMasterServer == False:
                             LOGGER.warning(
                                 f"BackUp Proxy doesn't have connection to the master server ? {heartbeat.master_host}"
