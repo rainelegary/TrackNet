@@ -103,8 +103,10 @@ class Server:
 
 		self.client_state_queue = Queue()
 
-		threading.Thread(target=self.connect_to_proxy, daemon=True).start()
+		self.listening_for_backups = threading.Thread(target=self.listen_for_master, args=(self.host, self.port))
+		self.listening_for_backups.start() # will start thread for listening for master backup
 
+		threading.Thread(target=self.connect_to_proxy, daemon=True).start()
 		threading.Thread(target=self.printRailwayMapold, daemon=True).start()
 
 		#self.window = None
@@ -310,14 +312,15 @@ class Server:
 		:param host: The hostname or IP address the slave server listens on for master connections.
 		:param port: The port number the slave server listens on for master connections.
 		"""
-		slave_to_master_sock = create_server_socket(host, port)
+		if slave_to_master_sock is None:
+			slave_to_master_sock = create_server_socket(host, port)
 		LOGGER.debug("Slave created listening socket, waiting for master backups")
 
 		if slave_to_master_sock is None:
 			LOGGER.warning("Slave failed to create listening socket for master.")
 			return
 
-		while not utils.exit_flag:
+		while not self.is_master and not utils.exit_flag:
 			try:
 				conn, addr = slave_to_master_sock.accept()
 				self.connected_to_master = True
@@ -344,7 +347,7 @@ class Server:
    		:param conn: The socket connection to the master server.
 		"""
 		try:
-			while self.connected_to_master:
+			while self.connected_to_master and (not self.is_master):
 				try:
 					data = receive(conn)  # Adjust buffer size as needed
 					if data:
@@ -376,9 +379,7 @@ class Server:
 				except Exception as e:
 					LOGGER.error(f"Error communicating with master: {e}")
 					print("Setting connected to master to false")
-					self.connected_to_master = (
-						False  # Reset the flag to allow for a new connection
-					)
+					self.connected_to_master = (False)# Reset the flag to allow for a new connection
 					break  # Break out of the loop on any other exception
 		finally:
 			LOGGER.debug("Closing connection to master")
@@ -436,12 +437,11 @@ class Server:
 					self.is_master = False
 					LOGGER = logging.getLogger("SlaveServer")
 					# Connect to master if not already
-					if not self.connected_to_master:
+					if not self.connected_to_master and (not self.listening_for_backups.is_alive()):
 						# listen to master instead of initiating connection
 						# self.listen_for_master(self.host, 4444)
-						threading.Thread(
-							target=self.listen_for_master, args=(self.host, self.port)
-						).start()
+						#threading.Thread(target=self.listen_for_master, args=(self.host, self.port)).start()
+						self.listening_for_backups.start()
 
 		elif proxy_resp.HasField("is_heartbeat"):
 

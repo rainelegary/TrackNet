@@ -26,8 +26,8 @@ setup_logging()  ## only need to call at main entry point of application
 
 LOGGER = logging.getLogger("Proxy")
 
-signal.signal(signal.SIGTERM, exit_gracefully)
-signal.signal(signal.SIGINT, exit_gracefully)
+#signal.signal(signal.SIGTERM, exit_gracefully)
+#signal.signal(signal.SIGINT, exit_gracefully)
 
 class Proxy:
     """Manages network connections for a railway simulation proxy, handling communication between clients, servers, and other proxies.
@@ -342,7 +342,7 @@ class Proxy:
 
                 # self.notify_master_of_slaves()
                 LOGGER.debug(f"Will sleep for 20 seconds before notifying master of new slave")
-                time.sleep(2)
+                #time.sleep(2)
                 self.notify_master_of_new_slave(init_conn)
 
     def handle_missed_proxy_heartbeat(self):
