@@ -274,7 +274,7 @@ class Server:
 			route,
 		)
 
-		if train_done:
+		if train_done and (train.name in self.client_commands):
 			del self.client_commands[train.name]
 
 		#self.railway.print_map()
