@@ -80,10 +80,8 @@ class Server:
 
 		self.host = socket.gethostname()
 		self.port = port
-		self.host = socket.gethostname()
-		self.port = port
+		
 
-		self.lock = threading.Lock()
 		self.lock = threading.Lock()
 
 		self.connected_to_master = False
@@ -91,12 +89,7 @@ class Server:
 		self.slave_sockets = {}
 		self.proxy_sockets = {}
 		self.socks_for_communicating_to_slaves = []
-		self.connected_to_master = False
-		self.is_master = False
-		self.slave_sockets = {}
-		self.proxy_sockets = {}
-		self.socks_for_communicating_to_slaves = []
-
+		
 		self.connecting_to_proxies = False
 		self.isMaster = False
 		self.proxy_host = "csx1.ucalgary.ca"
@@ -109,11 +102,7 @@ class Server:
 		self.backup_railway_timestamp = None
 		self.backup_railway = None
 		self.handled_client_states = {}
-		self.backup_railway_timestamp = None
-		self.backup_railway = None
-		self.handled_client_states = {}
-
-		self.client_state_queue = Queue()
+		
 		self.client_state_queue = Queue()
 
 		self.listening_for_backups = threading.Thread(target=self.listen_for_master, args=(self.host, self.port))
@@ -368,7 +357,7 @@ class Server:
 			slave_to_master_sock.close()
 		except:
 			pass
-		
+
 
 	def handle_master_communication(self, conn):
 		"""Handles communication with a connected master server. It listens for updates 
@@ -468,6 +457,10 @@ class Server:
 					LOGGER.info(f"{self.host}:{self.port} designated as a SLAVE.")
 					self.is_master = False
 					LOGGER = logging.getLogger("SlaveServer")
+
+					if self.listening_for_backups.is_alive():
+						LOGGER.debug(f"Thread for listening for master servers already running")
+
 					# Connect to master if not already
 					# if not self.connected_to_master and (not self.listening_for_backups.is_alive()):
 					# 	# listen to master instead of initiating connection
