@@ -295,7 +295,9 @@ class Server:
 		if (datetime.now() - self.previous_conflict_analysis_time) > timedelta(seconds=self.conflict_analysis_interval):
 			self.client_commands = ConflictAnalyzer.resolve_conflicts_simple(self.railway, self.client_commands)
 			self.previous_conflict_analysis_time = datetime.now()
-
+		else:
+			LOGGER.debug(f"No new commands: {self.previous_conflict_analysis_time} {self.conflict_analysis_interval}")
+		LOGGER.debug(f"client commands: {self.client_commands}")
 		command = self.client_commands[train.name]
 		resp.status = command.status
 		if command.HasField("new_route"):
