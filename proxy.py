@@ -429,9 +429,7 @@ class Proxy:
                         or self.master_socket_hostIP != heartbeat.master_host
                     ):
                         LOGGER.debug("Updating master server ...")
-                        LOGGER.info(
-                            f"slave sockets: {self.slave_sockets}, items: {self.slave_sockets.items()}"
-                        )
+                        #LOGGER.info(f"slave sockets: {self.slave_sockets}, items: {self.slave_sockets.items()}")
                         foundMasterServer = False
                         slave_port_chosen = None
 
@@ -443,14 +441,10 @@ class Proxy:
                                         slave_port_chosen = slave_port
                                         self.master_socket = slave
                                         self.master_socket_hostIP = slave.getpeername()[0]
-                                        LOGGER.debug(
-                                            "Master server updated to %s",
-                                            heartbeat.master_host,
-                                        )
+                                        LOGGER.debug(f"Master server updated to {heartbeat.master_host}")
                                 except Exception as e:
-                                    LOGGER.warning(
-                                        f"Exception {e} was thrown when finding master server from slaves"
-                                    )
+                                    LOGGER.warning(f"Exception {e} was thrown when finding master server from slaves")
+                                    
                         if foundMasterServer == False:
                             LOGGER.warning(
                                 f"BackUp Proxy doesn't have connection to the master server ? {heartbeat.master_host}"
