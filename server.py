@@ -609,10 +609,11 @@ class Server:
 		all_connected = False
 		while not utils.exit_flag:
 			try:
-				self.connecting_to_proxies = True
-				#LOGGER.debug(f"!!!-------Connect to proxy called in thread: {threading.current_thread().name}")
 				
-				while all_connected == False:
+				while not all_connected:
+					self.connecting_to_proxies = True
+					#LOGGER.debug(f"!!!-------Connect to proxy called in thread: {threading.current_thread().name}")
+				
 					# Determine the source of proxy details
 					proxies_to_connect = cmdLineProxyDetails if proxyDetailsProvided else proxy_details.items()
 
@@ -629,7 +630,7 @@ class Server:
 
 					if all_connected:
 						LOGGER.info("Connected to all proxies. Stopping connection attempts.")
-						break
+						pass
 
 					time.sleep(5)  # Sleep between connection attempts
 				self.connecting_to_proxies = False
