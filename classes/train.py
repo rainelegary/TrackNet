@@ -63,8 +63,8 @@ class Train:
         return self.current_speed
     
     def get_next_track_for_conflict_analyzer(self):
-        LOGGER.debug(f"Find the next track for {self.name}")
-        LOGGER.debug(f"{self.name} has current junction index of {self.route.current_junction_index}")
+        LOGGER.debugv(f"Find the next track for {self.name}")
+        LOGGER.debugv(f"{self.name} has current junction index of {self.route.current_junction_index}")
         if self.route.current_junction_index == len(self.route.junctions) - 1:
             return None # on final junction; destination already reached
         
