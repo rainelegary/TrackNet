@@ -115,10 +115,10 @@ class Train:
         )
         back_cart_position = self.location.back_cart["position"]
         print(
-            f"    Front: Track: {front_cart_track}, Junction: {front_cart_junction}, Position: {front_cart_position}"
+            f"    Front: Track: {front_cart_track}, Junction: {front_cart_junction}, Position: {round(front_cart_position,3)}"
         )
         print(
-            f"    Back: Track: {back_cart_track}, Junction: {back_cart_junction}, Position: {back_cart_position}"
+            f"    Back: Track: {back_cart_track}, Junction: {back_cart_junction}, Position: {round(back_cart_position,3)}"
         )
         print(f"Printing Route: ")
 
