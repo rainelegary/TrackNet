@@ -545,7 +545,7 @@ class Server:
 		# CHECK FOR HEARTBEAT HERE
 		elif proxy_resp.HasField("is_heartbeat"):
 			LOGGER.debugv(f"Received heartbeat from proxy: {proxy_resp.is_heartbeat}")
-
+			time.sleep(5)
 			heartbeat_message = proto.InitConnection()
 			heartbeat_message.sender = TrackNet_pb2.InitConnection.Sender.SERVER_MASTER
 			heartbeat_message.is_heartbeat = True
