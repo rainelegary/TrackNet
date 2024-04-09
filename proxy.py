@@ -341,7 +341,7 @@ class Proxy:
                     LOGGER.warning(f"Failed to send role assignmnet to slave.")
 
                 # self.notify_master_of_slaves()
-                LOGGER.debug(f"Will sleep for 20 seconds before notifying master of new slave")
+                #LOGGER.debug(f"Will sleep for 20 seconds before notifying master of new slave")
                 #time.sleep(2)
                 self.notify_master_of_new_slave(init_conn)
 
