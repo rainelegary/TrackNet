@@ -57,7 +57,7 @@ class Proxy:
         :param is_main: A boolean indicating whether the proxy operates as the main proxy. Defaults to False.
         :param mainProxyAddress: The address of the main proxy. This is necessary for backup proxies to know where to connect.
         """
-        LOGGER.debug(f"port: {proxy_port} listening port {listening_port}")
+        LOGGER.debug(f"proxy port: {proxy_port} listening port {listening_port}")
         self.host = socket.gethostname()
         self.port = listening_port
         self.proxy_port = proxy_port
